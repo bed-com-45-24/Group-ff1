@@ -1,17 +1,50 @@
 # mova
 
-A new Flutter project.
-
-## Getting Started
-
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+    lib/
+├── main.dart
+├── app.dart
+│
+├── core/
+│   ├── constants/app_colors.dart
+│   ├── constants/app_strings.dart
+│   ├── theme/app_theme.dart
+│   └── widgets/bottom_nav.dart
+│
+├── data/
+│   ├── mock_data/
+│   │   ├── routes_mock.dart      // 10 fake routes in Lilongwe
+│   │   ├── stops_mock.dart       // All bus stops
+│   │   ├── search_mock.dart      // Suggestions
+│   │   └── fares_mock.dart       // K500, K1000, K1500
+│   └── models/
+│       ├── route_model.dart
+│       ├── stop_model.dart
+│       └── trip_model.dart
+│
+├── features/
+│   ├── current_location/
+│   │   └── presentation/widgets/current_location_widget.dart  <- YOU ARE HERE (FR1/2)
+│   │
+│   ├── search/
+│   │   └── presentation/widgets/search_bar_widget.dart        <- FR5/6/7
+│   │
+│   ├── route_list/
+│   │   └── presentation/widgets/route_card.dart              <- FR8/9/10
+│   │
+│   ├── stop_list/
+│   │   └── presentation/widgets/stop_timeline.dart           <- FR13
+│   │
+│   ├── fare/
+│   │   └── presentation/widgets/fare_badge.dart              <- FR12
+│   │
+│   ├── compare/
+│   │   └── presentation/screens/compare_screen.dart          <- FR11
+│   │
+│   ├── trip_summary/
+│   │   └── presentation/screens/trip_summary_screen.dart     <- FR14
+│   │
+│   └── map/
+│       └── presentation/widgets/interactive_map_widget.dart  <- FR16/17
+│
+└── screens/
+    └── home_screen.dart  // Combines current_location + search + route_list
