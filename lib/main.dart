@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mova/widgets/current_location_widget.dart';
 
 void main() => runApp(MovaApp());
 
@@ -22,7 +23,7 @@ class _MainNavState extends State<MainNav> {
   int _index = 0;
 
   final List<Widget> _screens = [
-    Center(child: Text('Home - Member 1')),
+    const CurrentLocationWidget(),
     Center(child: Text('Search - Member 1')),
     Center(child: Text('Map - Member 3')),
   ];
