@@ -40,7 +40,7 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.pushReplacementNamed(context, '/home');
       } else {
         setState(() {
-          _errorMessage = 'Invalid credentials. Please try again.';
+          _errorMessage = 'Invalid credentials. Please check your email and password or sign up.';
           _isLoading = false;
         });
       }
@@ -188,7 +188,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: () {
-                      // TODO: Implement forgot password
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Forgot password feature coming soon'),
+                        ),
+                      );
                     },
                     child: const Text('Forgot Password?'),
                   ),
@@ -261,7 +265,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 24),
 
-                // Sign up link (placeholder)
+                // Sign up link
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -271,7 +275,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     TextButton(
                       onPressed: () {
-                        // TODO: Implement sign up screen
+                        Navigator.pushReplacementNamed(context, '/signup');
                       },
                       child: const Text('Sign Up'),
                     ),
