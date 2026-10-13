@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'search_screen.dart';
+import 'map_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -257,6 +258,35 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
                 icon: const Icon(Icons.search),
                 label: const Text('Search for a Destination'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.deepPurple,
+                  padding: const EdgeInsets.all(16),
+                  side: const BorderSide(
+                    color: Colors.deepPurple,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Navigate to map screen
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const MapScreen(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.map),
+                label: const Text('View Map'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.deepPurple,
                   padding: const EdgeInsets.all(16),
