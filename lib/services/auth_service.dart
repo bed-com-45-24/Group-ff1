@@ -71,10 +71,6 @@ class AuthService {
     
     await prefs.setString(_keyRegisteredUsers, jsonEncode(registeredUsers));
     
-    // Auto-login after signup
-    await prefs.setBool(_keyIsLoggedIn, true);
-    await prefs.setString(_keyUserEmail, email);
-    
     return true;
   }
 
