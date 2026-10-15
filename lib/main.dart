@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import  'screens/user/home_screen.dart';
+import 'screens/user/results_screen.dart';
+
 
 void main() {
+
   runApp(const MyApp());
 }
 
@@ -19,7 +21,7 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const HomeScreen(),
+      home: const ResultsScreen(),
     );
   }
 }

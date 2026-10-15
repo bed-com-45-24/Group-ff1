@@ -1,27 +1,69 @@
-
 import '../models/route_model.dart';
 
-// MOVA official routes - fares based on SOSOSO poster 03 April 2026 (used as reference data)
+
+RouteModel _makeRoute(
+  String id,
+  String origin,
+  String destination,
+  double fare,
+) {           
+  return RouteModel(
+    id: id,
+    companyName: 'MOVA',
+    name: '$origin - $destination',
+    origin: origin,
+    destination: destination,
+    stops: [origin, destination],
+    fare: fare,
+  );
+}
+
+
 final List<RouteModel> sampleRoutes = [
-  // FROM BLANTYRE
-  RouteModel(id: 'MOVA-BT-NC-001', companyName: 'MOVA', name: 'Blantyre to Ntcheu', origin: 'Blantyre', destination: 'Ntcheu', stops: ['Blantyre Main Stage', 'Zalewa', 'Ntcheu'], fare: 60000, duration: '4h 30m', transfers: 0, departureTimes: ['06:00', '08:30']),
-  RouteModel(id: 'MOVA-BT-LL-002', companyName: 'MOVA', name: 'Blantyre to Lilongwe', origin: 'Blantyre', destination: 'Lilongwe', stops: ['Blantyre', 'Ntcheu', 'Dedza', 'Lilongwe'], fare: 75000, duration: '5h', transfers: 0, departureTimes: ['05:30', '07:00', '14:00']),
-  RouteModel(id: 'MOVA-BT-KS-003', companyName: 'MOVA', name: 'Blantyre to Kasungu', origin: 'Blantyre', destination: 'Kasungu', stops: ['Blantyre', 'Lilongwe', 'Kasungu'], fare: 120000, duration: '8h', transfers: 1, departureTimes: ['06:00']),
-  RouteModel(id: 'MOVA-BT-JE-004', companyName: 'MOVA', name: 'Blantyre to Jenda', origin: 'Blantyre', destination: 'Jenda', stops: ['Blantyre', 'Lilongwe', 'Kasungu', 'Jenda'], fare: 130000, duration: '9h', transfers: 1, departureTimes: ['05:00']),
-  RouteModel(id: 'MOVA-BT-MZ-005', companyName: 'MOVA', name: 'Blantyre to Mzimba/Mzuzu', origin: 'Blantyre', destination: 'Mzuzu', stops: ['Blantyre', 'Lilongwe', 'Mzuzu'], fare: 140000, duration: '10h', transfers: 1, departureTimes: ['04:30', '18:00']),
+  // Fares from Blantyre
+  _makeRoute('R001', 'Blantyre', 'Ntcheu', 60000),
+  _makeRoute('R002', 'Blantyre', 'Lilongwe', 75000),
+  _makeRoute('R003', 'Blantyre', 'Kasungu', 120000),
+  _makeRoute('R004', 'Blantyre', 'Jenda', 130000),
+  _makeRoute('R005', 'Blantyre', 'Mzimba/Mzuzu', 140000),
 
-  // FROM LILONGWE
-  RouteModel(id: 'MOVA-LL-NC-006', companyName: 'MOVA', name: 'Lilongwe to Ntcheu', origin: 'Lilongwe', destination: 'Ntcheu', stops: ['Lilongwe', 'Dedza', 'Ntcheu'], fare: 60000, duration: '2h', transfers: 0, departureTimes: ['07:00', '15:00']),
-  RouteModel(id: 'MOVA-LL-BT-007', companyName: 'MOVA', name: 'Lilongwe to Blantyre', origin: 'Lilongwe', destination: 'Blantyre', stops: ['Lilongwe', 'Dedza', 'Ntcheu', 'Blantyre'], fare: 75000, duration: '5h', transfers: 0, departureTimes: ['06:00', '13:00']),
-  RouteModel(id: 'MOVA-LL-KS-008', companyName: 'MOVA', name: 'Lilongwe to Kasungu', origin: 'Lilongwe', destination: 'Kasungu', stops: ['Lilongwe', 'Kasungu'], fare: 60000, duration: '1h 30m', transfers: 0, departureTimes: ['08:00', '10:00', '16:00']),
-  RouteModel(id: 'MOVA-LL-MZ-009', companyName: 'MOVA', name: 'Lilongwe to Mzuzu', origin: 'Lilongwe', destination: 'Mzuzu', stops: ['Lilongwe', 'Kasungu', 'Jenda', 'Mzimba', 'Mzuzu'], fare: 85000, duration: '5h 30m', transfers: 0, departureTimes: ['06:30', '09:00']),
-  RouteModel(id: 'MOVA-LL-KA-010', companyName: 'MOVA', name: 'Lilongwe to Karonga', origin: 'Lilongwe', destination: 'Karonga', stops: ['Lilongwe', 'Kasungu', 'Mzuzu', 'Karonga'], fare: 140000, duration: '9h', transfers: 1, departureTimes: ['05:30', '19:00']),
+  // Fares from Lilongwe
+  _makeRoute('R006', 'Lilongwe', 'Ntcheu', 60000),
+  _makeRoute('R007', 'Lilongwe', 'Blantyre', 75000),
+  _makeRoute('R008', 'Lilongwe', 'Kasungu', 60000),
+  _makeRoute('R009', 'Lilongwe', 'Jenda', 75000),
+  _makeRoute('R010', 'Lilongwe', 'Mzimba/Mzuzu', 85000),
+  _makeRoute('R011', 'Lilongwe', 'Phwezi', 125000),
+  _makeRoute('R012', 'Lilongwe', 'Uliwa/Chitimba', 135000),
+  _makeRoute('R013', 'Lilongwe', 'Karonga', 140000),
 
-  // FROM MZUZU
-  RouteModel(id: 'MOVA-MZ-MB-011', companyName: 'MOVA', name: 'Mzuzu to Mzimba', origin: 'Mzuzu', destination: 'Mzimba', stops: ['Mzuzu', 'Mzimba'], fare: 55000, duration: '45m', transfers: 0, departureTimes: ['07:00', '14:00']),
-  RouteModel(id: 'MOVA-MZ-LL-012', companyName: 'MOVA', name: 'Mzuzu to Lilongwe', origin: 'Mzuzu', destination: 'Lilongwe', stops: ['Mzuzu', 'Mzimba', 'Kasungu', 'Lilongwe'], fare: 85000, duration: '5h 30m', transfers: 0, departureTimes: ['06:00', '13:30']),
+  // Fares from Mzuzu
+  _makeRoute('R014', 'Mzuzu', 'Mzimba', 55000),
+  _makeRoute('R015', 'Mzuzu', 'Jenda', 65000),
+  _makeRoute('R016', 'Mzuzu', 'Kasungu', 75000),
+  _makeRoute('R017', 'Mzuzu', 'Lilongwe', 85000),
+  _makeRoute('R018', 'Mzuzu', 'Ntcheu', 130000),
+  _makeRoute('R019', 'Mzuzu', 'Blantyre', 140000),
+  _makeRoute('R020', 'Mzuzu', 'Phwezi', 55000),
+  _makeRoute('R021', 'Mzuzu', 'Uliwa/Chitimba', 65000),
+  _makeRoute('R022', 'Mzuzu', 'Karonga', 75000),
 
-  // FROM KARONGA
-  RouteModel(id: 'MOVA-KA-UL-013', companyName: 'MOVA', name: 'Karonga to Uliwa', origin: 'Karonga', destination: 'Uliwa', stops: ['Karonga', 'Uliwa'], fare: 45000, duration: '1h', transfers: 0, departureTimes: ['08:00']),
-  RouteModel(id: 'MOVA-KA-MZ-014', companyName: 'MOVA', name: 'Karonga to Mzuzu', origin: 'Karonga', destination: 'Mzuzu', stops: ['Karonga', 'Phwezi', 'Mzuzu'], fare: 70000, duration: '3h', transfers: 0, departureTimes: ['07:30']),
+  // Fares from Karonga
+  _makeRoute('R023', 'Karonga', 'Uliwa', 45000),
+  _makeRoute('R024', 'Karonga', 'Phwezi', 60000),
+  _makeRoute('R025', 'Karonga', 'Mzuzu', 70000),
+  _makeRoute('R026', 'Karonga', 'Mzimba T/OFF', 100000),
+  _makeRoute('R027', 'Karonga', 'Jenda', 120000),
+  _makeRoute('R028', 'Karonga', 'Kasungu', 130000),
+  _makeRoute('R029', 'Karonga', 'Lilongwe', 140000),
 ];
+
+const double returnTicketDiscount = 10000;
+
+const List<String> sampleNotifications = [
+  'Welcome to MOVA.',
+  'Check your selected journey and fare before booking.',
+  'Reference fares are based on the SoSoSo Coaches poster '
+      'effective 3 April 2026. Confirm fares before travelling.',
+];
+
