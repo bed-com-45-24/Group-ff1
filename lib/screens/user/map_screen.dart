@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import '../../services/auth_service.dart';
+import '../../services/location_service.dart';
+import 'profile_screen.dart';
 
 class MapScreen extends StatefulWidget {
   final LatLng? origin;
@@ -23,11 +26,39 @@ class _MapScreenState extends State<MapScreen> {
   Set<Marker> _markers = {};
   Set<Polyline> _polylines = {};
   LatLng _initialPosition = const LatLng(-13.9626, 33.7741); // Default: Lilongwe
+  String _userInitial = 'U';
+  String _locationName = 'Finding location...';
+  final _locationService = LocationService();
 
   @override
   void initState() {
     super.initState();
+    _loadUserInfo();
+    _detectCurrentLocation();
     _initializeMap();
+  }
+
+  Future<void> _loadUserInfo() async {
+    final authService = AuthService();
+    final userName = await authService.getUserName();
+    final userEmail = await authService.getUserEmail();
+    if (mounted) {
+      setState(() {
+        _userInitial = (userName ?? userEmail ?? 'U').substring(0, 1).toUpperCase();
+      });
+    }
+  }
+
+  Future<void> _detectCurrentLocation() async {
+    final locationName = await _locationService.getCurrentLocationName();
+    _updateLocation(locationName);
+  }
+
+  void _updateLocation(String location) {
+    if (!mounted) return;
+    setState(() {
+      _locationName = location;
+    });
   }
 
   Future<void> _initializeMap() async {
@@ -125,31 +156,67 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  void _addTransportStopMarkers(List<LatLng> stops) {
-    Set<Marker> markers = Set.from(_markers);
-    
-    for (int i = 0; i < stops.length; i++) {
-      markers.add(
-        Marker(
-          markerId: MarkerId('stop_$i'),
-          position: stops[i],
-          infoWindow: InfoWindow(title: 'Stop ${i + 1}'),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
-        ),
-      );
-    }
-
-    setState(() {
-      _markers = markers;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Map'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        backgroundColor: Colors.deepPurple,
+        foregroundColor: Colors.white,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Row(
+              children: [
+                const Icon(Icons.location_on, size: 16),
+                const SizedBox(width: 4),
+                SizedBox(
+                  width: 100,
+                  child: Text(
+                    _locationName,
+                    style: const TextStyle(fontSize: 13),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ProfileScreen(),
+                  ),
+                );
+              },
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white,
+                    width: 2,
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    _userInitial,
+                    style: const TextStyle(
+                      color: Colors.deepPurple,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
       body: GoogleMap(
         initialCameraPosition: CameraPosition(
