@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -15,34 +16,133 @@ class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController =
       TextEditingController();
 
+  final FocusNode _searchFocusNode = FocusNode();
+
   Timer? _debounceTimer;
 
   List<Map<String, dynamic>> _destinations = [];
+  List<String> _recentSearches = [];
 
   bool _isLoading = false;
+  bool _showSearchResults = false;
+
   String? _errorMessage;
   String? _selectedDestination;
+  String? _selectedAddress;
 
+  int _searchRequestId = 0;
+
+  // Suggested places shown when the screen opens.
+  // These are recommendations, not recent searches.
+  final List<Map<String, String>> _suggestedPlaces = [
+    {
+      'name': 'Lilongwe City Centre',
+      'address': 'Lilongwe, Malawi',
+    },
+    {
+      'name': 'Area 47 Shopping Centre',
+      'address': 'Area 47, Lilongwe',
+    },
+    {
+      'name': 'Kamuzu Central Hospital',
+      'address': 'Lilongwe, Malawi',
+    },
+    {
+      'name': 'Limbe Market',
+      'address': 'Limbe, Blantyre',
+    },
+    {
+      'name': 'Mzuzu Bus Depot',
+      'address': 'Mzuzu, Malawi',
+    },
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRecentSearches();
+  }
+
+  // Load searches saved on this device.
+  Future<void> _loadRecentSearches() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final searches =
+        prefs.getStringList('mova_recent_searches') ?? [];
+
+    if (!mounted) return;
+
+    setState(() {
+      _recentSearches = searches;
+    });
+  }
+
+  // Save a destination the user actually selects.
+  Future<void> _saveRecentSearch(String destination) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    List<String> searches =
+        prefs.getStringList('mova_recent_searches') ?? [];
+
+    searches.remove(destination);
+    searches.insert(0, destination);
+
+    if (searches.length > 5) {
+      searches = searches.take(5).toList();
+    }
+
+    await prefs.setStringList(
+      'mova_recent_searches',
+      searches,
+    );
+
+    if (!mounted) return;
+
+    setState(() {
+      _recentSearches = searches;
+    });
+  }
+
+  // Clear saved recent searches.
+  Future<void> _clearRecentSearches() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    await prefs.remove('mova_recent_searches');
+
+    if (!mounted) return;
+
+    setState(() {
+      _recentSearches.clear();
+    });
+  }
+
+  // FR5 and FR6: Search Malawi destinations with autocomplete.
   Future<void> _searchDestinations(String query) async {
     _debounceTimer?.cancel();
+
+    final int requestId = ++_searchRequestId;
 
     if (query.trim().length < 2) {
       setState(() {
         _destinations = [];
         _isLoading = false;
+        _showSearchResults = false;
         _errorMessage = null;
       });
       return;
     }
 
-    _debounceTimer = Timer(
-      const Duration(milliseconds: 500),
-      () async {
-        setState(() {
-          _isLoading = true;
-          _errorMessage = null;
-        });
+    setState(() {
+      _showSearchResults = true;
+      _isLoading = true;
+      _errorMessage = null;
+      _selectedDestination = null;
+      _selectedAddress = null;
+    });
 
+    _debounceTimer = Timer(
+      const Duration(milliseconds: 600),
+      () async {
         try {
           final uri = Uri.https(
             'nominatim.openstreetmap.org',
@@ -59,165 +159,510 @@ class _SearchScreenState extends State<SearchScreen> {
           final response = await http.get(
             uri,
             headers: {
-              'User-Agent': 'GroupFF1FlutterApp/1.0',
+              'User-Agent': 'MOVAFlutterApp/1.0',
+              'Accept': 'application/json',
             },
-          );
+          ).timeout(const Duration(seconds: 15));
 
           if (response.statusCode != 200) {
-            throw Exception('Search request failed.');
+            throw Exception('Search request failed');
           }
 
           final List<dynamic> results =
               jsonDecode(response.body) as List<dynamic>;
 
-          if (!mounted) return;
+          if (!mounted || requestId != _searchRequestId) {
+            return;
+          }
+
+          final List<Map<String, dynamic>> matches = results
+              .map((item) => item as Map<String, dynamic>)
+              .toList();
 
           setState(() {
-            _destinations = results
-                .map((item) => item as Map<String, dynamic>)
-                .toList();
+            _destinations = matches;
             _isLoading = false;
 
-            if (_destinations.isEmpty) {
-              _errorMessage = 'No destinations found.';
+            if (matches.isEmpty) {
+              _errorMessage =
+                  'No matching places found. Try another name.';
             }
           });
         } catch (e) {
-          if (!mounted) return;
+          if (!mounted || requestId != _searchRequestId) {
+            return;
+          }
 
           setState(() {
             _isLoading = false;
             _errorMessage =
-                'Unable to search right now. Please try again.';
+                'Unable to search right now. Check your internet and try again.';
           });
         }
       },
     );
   }
 
-  void _selectDestination(Map<String, dynamic> destination) {
-    final name = destination['display_name']?.toString() ??
-        'Unknown destination';
+  // FR7: Select a destination.
+  Future<void> _selectDestination({
+    required String name,
+    String? address,
+  }) async {
+    final String destination = name.trim();
+
+    if (destination.isEmpty) return;
+
+    _debounceTimer?.cancel();
+    _searchRequestId++;
+
+    final String destinationAddress =
+        address?.trim().isNotEmpty == true
+            ? address!.trim()
+            : destination;
 
     setState(() {
-      _selectedDestination = name;
-      _searchController.text = name;
+      _selectedDestination = destination;
+      _selectedAddress = destinationAddress;
+      _searchController.text = destination;
       _destinations = [];
+      _isLoading = false;
+      _showSearchResults = false;
       _errorMessage = null;
     });
 
-    FocusScope.of(context).unfocus();
+    _searchFocusNode.unfocus();
+
+    await _saveRecentSearch(destination);
+  }
+
+  void _clearSearch() {
+    _debounceTimer?.cancel();
+    _searchRequestId++;
+
+    _searchController.clear();
+
+    setState(() {
+      _destinations = [];
+      _isLoading = false;
+      _showSearchResults = false;
+      _errorMessage = null;
+      _selectedDestination = null;
+      _selectedAddress = null;
+    });
+  }
+
+  // Continue to the existing ResultsScreen.
+  void _continueToResults() {
+    if (_selectedDestination == null) return;
+
+    Navigator.pushNamed(
+      context,
+      '/results',
+      arguments: {
+        'name': _selectedDestination!,
+        'address': _selectedAddress ?? _selectedDestination!,
+      },
+    );
   }
 
   @override
   void dispose() {
     _debounceTimer?.cancel();
     _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Search Destination'),
-        centerTitle: true,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
+      backgroundColor: const Color(0xFFF2F6FB),
+      body: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Where do you want to go?',
-              style: TextStyle(
-                fontSize: 23,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-
-            const SizedBox(height: 8),
-
-            const Text(
-              'Enter a place name or destination in Malawi.',
-              style: TextStyle(fontSize: 15),
-            ),
-
-            const SizedBox(height: 20),
-
-            TextField(
-              controller: _searchController,
-              onChanged: _searchDestinations,
-              decoration: InputDecoration(
-                hintText: 'Search for a destination',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () {
-                    _searchController.clear();
-
-                    setState(() {
-                      _destinations = [];
-                      _selectedDestination = null;
-                      _errorMessage = null;
-                    });
-                  },
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            if (_isLoading)
-              const Center(
-                child: CircularProgressIndicator(),
-              ),
-
-            if (_errorMessage != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Text(
-                  _errorMessage!,
-                  style: const TextStyle(color: Colors.red),
-                ),
-              ),
-
-            Expanded(
-              child: ListView.builder(
-                itemCount: _destinations.length,
-                itemBuilder: (context, index) {
-                  final destination = _destinations[index];
-
-                  final name =
-                      destination['display_name']?.toString() ??
-                          'Unknown destination';
-
-                  return ListTile(
-                    leading: const Icon(
-                      Icons.location_on_outlined,
+            // Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
+              child: Row(
+                children: [
+                  Material(
+                    color: Colors.white,
+                    shape: const CircleBorder(),
+                    child: IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.arrow_back),
                     ),
-                    title: Text(name),
-                    onTap: () =>
-                        _selectDestination(destination),
-                  );
-                },
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Search destination',
+                          style: TextStyle(
+                            fontSize: 23,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Where are you heading?',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
 
-            if (_selectedDestination != null)
-              Card(
-                child: ListTile(
-                  leading: const Icon(
-                    Icons.check_circle,
-                    color: Colors.green,
+            // Main white search panel
+            Expanded(
+              child: Container(
+                margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(25),
+                  border: Border.all(
+                    color: Colors.grey.shade200,
                   ),
-                  title: const Text('Selected destination'),
-                  subtitle: Text(_selectedDestination!),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Search input
+                    TextField(
+                      controller: _searchController,
+                      focusNode: _searchFocusNode,
+                      onChanged: _searchDestinations,
+                      textInputAction: TextInputAction.search,
+                      decoration: InputDecoration(
+                        hintText: 'Search a place or landmark',
+                        hintStyle: TextStyle(
+                          color: Colors.grey.shade500,
+                          fontSize: 16,
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.search,
+                          color: Colors.grey,
+                        ),
+                        suffixIcon: _searchController.text.isNotEmpty
+                            ? IconButton(
+                                onPressed: _clearSearch,
+                                icon: const Icon(Icons.close),
+                              )
+                            : null,
+                        filled: true,
+                        fillColor: const Color(0xFFF0F1F3),
+                        contentPadding:
+                            const EdgeInsets.symmetric(vertical: 18),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(18),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(18),
+                          borderSide: BorderSide(
+                            color: Colors.grey.shade200,
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(18),
+                          borderSide: const BorderSide(
+                            color: Colors.green,
+                            width: 1.5,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 22),
+
+                    // Display live search results while typing.
+                    if (_showSearchResults) ...[
+                      const Text(
+                        'SEARCH RESULTS',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.5,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+
+                      if (_isLoading)
+                        const Padding(
+                          padding: EdgeInsets.all(20),
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.green,
+                            ),
+                          ),
+                        ),
+
+                      if (!_isLoading && _errorMessage != null)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 12,
+                          ),
+                          child: Text(
+                            _errorMessage!,
+                            style: TextStyle(
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                        ),
+
+                      if (!_isLoading && _destinations.isNotEmpty)
+                        Expanded(
+                          child: ListView.builder(
+                            itemCount: _destinations.length,
+                            itemBuilder: (context, index) {
+                              final destination =
+                                  _destinations[index];
+
+                              final name =
+                                  destination['name']?.toString();
+
+                              final displayName =
+                                  destination['display_name']
+                                      ?.toString() ??
+                                  'Unknown destination';
+
+                              final address =
+                                  destination['display_name']
+                                      ?.toString() ??
+                                  displayName;
+
+                              return ListTile(
+                                contentPadding:
+                                    const EdgeInsets.symmetric(
+                                  horizontal: 0,
+                                  vertical: 3,
+                                ),
+                                leading: const Icon(
+                                  Icons.location_on_outlined,
+                                  color: Colors.green,
+                                ),
+                                title: Text(
+                                  name != null && name.isNotEmpty
+                                      ? name
+                                      : displayName,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                subtitle: name != null &&
+                                        name.isNotEmpty
+                                    ? Text(
+                                        displayName,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      )
+                                    : null,
+                                onTap: () {
+                                  _selectDestination(
+                                    name: displayName,
+                                    address: address,
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                    ] else ...[
+                      // Recent searches: only destinations actually selected.
+                      if (_recentSearches.isNotEmpty) ...[
+                        Row(
+                          mainAxisAlignment:
+                              MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'RECENT SEARCHES',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.5,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: _clearRecentSearches,
+                              child: const Text(
+                                'Clear',
+                                style: TextStyle(
+                                  color: Colors.green,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        ..._recentSearches.map(
+                          (destination) => ListTile(
+                            contentPadding:
+                                const EdgeInsets.symmetric(
+                              horizontal: 0,
+                            ),
+                            leading: Icon(
+                              Icons.circle,
+                              size: 9,
+                              color: Colors.grey.shade400,
+                            ),
+                            title: Text(
+                              destination,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            onTap: () {
+                              _selectDestination(
+                                name: destination,
+                              );
+                            },
+                          ),
+                        ),
+
+                        const SizedBox(height: 12),
+                      ],
+
+                      // Suggested places
+                      const Text(
+                        'SUGGESTED PLACES',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.5,
+                          color: Colors.grey,
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      Expanded(
+                        child: ListView.builder(
+                          itemCount: _suggestedPlaces.length,
+                          itemBuilder: (context, index) {
+                            final place = _suggestedPlaces[index];
+
+                            return ListTile(
+                              contentPadding:
+                                  const EdgeInsets.symmetric(
+                                horizontal: 0,
+                                vertical: 7,
+                              ),
+                              leading: Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  color: Colors.green.shade700,
+                                  borderRadius:
+                                      BorderRadius.circular(12),
+                                ),
+                                child: const Icon(
+                                  Icons.my_location,
+                                  color: Colors.white,
+                                  size: 21,
+                                ),
+                              ),
+                              title: Text(
+                                place['name']!,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                ),
+                              ),
+                              subtitle: Padding(
+                                padding:
+                                    const EdgeInsets.only(top: 5),
+                                child: Text(
+                                  place['address']!,
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ),
+                              onTap: () {
+                                _selectDestination(
+                                  name: place['name']!,
+                                  address: place['address']!,
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+
+                    // Selected destination confirmation
+                    if (_selectedDestination != null) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.green.shade200,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.check_circle,
+                              color: Colors.green,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Selected destination',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _selectedDestination!,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: _continueToResults,
+                              icon: const Icon(
+                                Icons.arrow_forward,
+                                color: Colors.green,
+                              ),
+                              tooltip: 'Continue',
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
+            ),
           ],
         ),
       ),

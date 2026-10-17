@@ -1,25 +1,29 @@
 import 'package:flutter/material.dart';
-import  'screens/user/home_screen.dart';
+import 'screens/user/home_screen.dart';
+import 'screens/user/search_screen.dart';
+import 'screens/user/results_screen.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const MovaApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class MovaApp extends StatelessWidget {
+  const MovaApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false,
       title: 'MOVA',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.deepPurple,
-        ),
+        primarySwatch: Colors.green,
         useMaterial3: true,
       ),
-      home: const HomeScreen(),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const HomeScreen(),
+        '/search': (context) => const SearchScreen(),
+        '/results': (context) => const ResultsScreen(),
+      },
     );
   }
 }

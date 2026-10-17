@@ -7,7 +7,7 @@ plugins {
 android {
     namespace = "com.example.mova"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = 28.2.13676358
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -46,4 +46,17 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+subprojects {
+    afterEvaluate { project ->
+        if (project.hasProperty('android')) {
+            project.android {
+                if (namespace == null) {
+                    namespace project.group
+                    println("✅ [Auto-Fix] Set namespace for ${project.name}: ${project.group}")
+                }
+            }
+        }
+    }
 }
