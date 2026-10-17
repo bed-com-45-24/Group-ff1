@@ -260,10 +260,10 @@ packages:
     dependency: "direct main"
     description:
       name: google_maps_flutter
-      sha256: "92b73931215d03057bb76c2207373851081c41bd1562f909a8bb14a98f9d7baa"
+      sha256: fc084ddabc22645bebbe9df51baeec4949e5d14fc37492dce80501863425a82e
       url: "https://pub.dev"
     source: hosted
-    version: "2.18.2"
+    version: "2.19.0"
   google_maps_flutter_android:
     dependency: transitive
     description:
@@ -276,10 +276,10 @@ packages:
     dependency: transitive
     description:
       name: google_maps_flutter_ios
-      sha256: "9638557fa31d451d64c815d415b685f9959e314606bfa5daf2a77bc63f1eba04"
+      sha256: fdfef49c2cb79fb74ca982ba47aa4eeff9847007073a753cd77f74908241ef4e
       url: "https://pub.dev"
     source: hosted
-    version: "2.18.6"
+    version: "2.18.7"
   google_maps_flutter_platform_interface:
     dependency: transitive
     description:
@@ -328,6 +328,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.1.2"
+  jni:
+    dependency: transitive
+    description:
+      name: jni
+      sha256: "6b9ca0602fef0230e83149afbe3f9f8227e94f2bbe84a1da4f14d699742f402d"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.1.0"
+  jni_util:
+    dependency: transitive
+    description:
+      name: jni_util
+      sha256: "1ba86da04a5f2bf18fde2edb235587e70c5b0fc5bd4ba955f46b00942c3fc35f"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.0"
   leak_tracker:
     dependency: transitive
     description:
@@ -384,6 +400,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.18.3"
+  package_config:
+    dependency: transitive
+    description:
+      name: package_config
+      sha256: ffcf4cf3d6c0b74ac43708d9f56625506e8a68aa935abe9d267a7330f320eb5d
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.0.0"
   package_info_plus:
     dependency: transitive
     description:
@@ -476,10 +500,10 @@ packages:
     dependency: transitive
     description:
       name: shared_preferences_android
-      sha256: "1e12aafe408aa50da80edfd679a2a6bf63ba7ab37c7fa98286da459a757b3399"
+      sha256: b90caa27669d5f3ef9918d55343b44000f088ee9d4685ed822310848004c793e
       url: "https://pub.dev"
     source: hosted
-    version: "2.4.28"
+    version: "2.5.0"
   shared_preferences_foundation:
     dependency: transitive
     description:
