@@ -1,5 +1,5 @@
+
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -13,8 +13,8 @@ class SearchScreen extends StatefulWidget {
 }
 
 class _SearchScreenState extends State<SearchScreen> {
-  final TextEditingController _searchController =
-      TextEditingController();
+  final TextEditingController _fromController = TextEditingController();
+  final TextEditingController _toController = TextEditingController();
 
   final FocusNode _searchFocusNode = FocusNode();
 
@@ -271,6 +271,68 @@ class _SearchScreenState extends State<SearchScreen> {
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
+  }
+
+  bool _sameDate(DateTime a, DateTime b) {
+    return a.year == b.year &&
+        a.month == b.month &&
+        a.day == b.day;
+  }
+
+  void _searchTrips() {
+    final from = _fromController.text.trim().toLowerCase();
+    final to = _toController.text.trim().toLowerCase();
+
+    setState(() {
+      _searched = true;
+
+      _results = sampleTrips.where((trip) {
+        final matchesFrom =
+            from.isEmpty || trip.origin.toLowerCase().contains(from);
+
+        final matchesTo =
+            to.isEmpty || trip.destination.toLowerCase().contains(to);
+
+        final matchesDate = _travelDate == null ||
+            _sameDate(trip.departureTime, _travelDate!);
+
+        return matchesFrom &&
+            matchesTo &&
+            matchesDate &&
+            trip.availableSeats > 0;
+      }).toList();
+    });
+  }
+
+  Future<void> _pickDate() async {
+    final today = DateTime.now();
+
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: _travelDate ?? today,
+      firstDate: DateTime(today.year, today.month, today.day),
+      lastDate: DateTime(today.year + 2, 12, 31),
+    );
+
+    if (selected != null && mounted) {
+      setState(() {
+        _travelDate = selected;
+      });
+    }
+  }
+
+  String _dateText(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/'
+        '${date.month.toString().padLeft(2, '0')}/'
+        '${date.year}';
+  }
+
+  String _timeText(DateTime date) {
+    final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
+    final minute = date.minute.toString().padLeft(2, '0');
+    final period = date.hour >= 12 ? 'PM' : 'AM';
+
+    return '$hour:$minute $period';
   }
 
   @override
@@ -665,6 +727,25 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _detail(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 7),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 125,
+            child: Text(
+              '$label:',
+              style: const TextStyle(color: Colors.black54),
+            ),
+          ),
+          Expanded(child: Text(value)),
+        ],
       ),
     );
   }
