@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
+<<<<<<< HEAD
+=======
+import 'search_screen.dart';
+import '../admin/admin_dashboard_screen.dart';
+>>>>>>> 79a394f55137eed28e870aa81a9c5fe3d387881e
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});

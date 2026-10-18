@@ -192,6 +192,17 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.3.15"
+<<<<<<< HEAD
+=======
+  geolocator_linux:
+    dependency: transitive
+    description:
+      name: geolocator_linux
+      sha256: "3da7420f11c3496511a5bd3c18fd67b88e5659f12e46b7ce00a788f6996e850a"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.2.6"
+>>>>>>> 79a394f55137eed28e870aa81a9c5fe3d387881e
   geolocator_platform_interface:
     dependency: transitive
     description:
