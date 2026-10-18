@@ -1,33 +1,35 @@
+
 import 'package:flutter/material.dart';
 import 'screens/user/home_screen.dart';
+import 'screens/user/search_screen.dart';
+import 'screens/user/results_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/signup_screen.dart';
 import 'services/auth_service.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const MovaApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class MovaApp extends StatelessWidget {
+  const MovaApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false,
       title: 'MOVA',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.deepPurple,
-        ),
+        primarySwatch: Colors.green,
         useMaterial3: true,
       ),
       initialRoute: '/',
       routes: {
         '/': (context) => const AuthWrapper(),
+        '/home': (context) => const HomeScreen(),
         '/login': (context) => const LoginScreen(),
         '/signup': (context) => const SignupScreen(),
-        '/home': (context) => const HomeScreen(),
+        '/search': (context) => const SearchScreen(),
+        '/results': (context) => const ResultsScreen(),
       },
     );
   }
@@ -74,7 +76,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
     if (_isLoggedIn) {
       return const HomeScreen();
     }
-
     return const LoginScreen();
   }
+}
 }
