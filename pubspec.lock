@@ -88,6 +88,17 @@ packages:
       sha256: a3b4f84adafef897088c160faf7dfffb7696046cb13ae90b508c2cbc95d3b8d4
       url: "https://pub.dev"
     source: hosted
+<<<<<<< HEAD
+=======
+    version: "0.1.2"
+  file:
+    dependency: transitive
+    description:
+      name: file
+      sha256: a3b4f84adafef897088c160faf7dfffb7696046cb13ae90b508c2cbc95d3b8d4
+      url: "https://pub.dev"
+    source: hosted
+>>>>>>> origin/maps
     version: "7.0.1"
   fixnum:
     dependency: transitive
@@ -143,7 +154,19 @@ packages:
       sha256: "790eea732b22a08dd36fc3761bcd29040461ac20ece4d165264a6c0b5338f115"
       url: "https://pub.dev"
     source: hosted
+<<<<<<< HEAD
     version: "2.2.2"
+=======
+    version: "0.1.1"
+  geocoding:
+    dependency: "direct main"
+    description:
+      name: geocoding
+      sha256: d580c801cba9386b4fac5047c4c785a4e19554f46be42f4f5e5b7deacd088a66
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.0.0"
+>>>>>>> origin/maps
   geocoding_android:
     dependency: transitive
     description:
@@ -156,10 +179,17 @@ packages:
     dependency: transitive
     description:
       name: geocoding_ios
+<<<<<<< HEAD
       sha256: "8a39bfb650af55209c42e564036a550b32d029e0733af01dc66c5afea50388d3"
       url: "https://pub.dev"
     source: hosted
     version: "2.3.0"
+=======
+      sha256: "18ab1c8369e2b0dcb3a8ccc907319334f35ee8cf4cfef4d9c8e23b13c65cb825"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.1.0"
+>>>>>>> origin/maps
   geocoding_platform_interface:
     dependency: transitive
     description:
@@ -227,13 +257,66 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.2.5"
+<<<<<<< HEAD
   google_api_headers:
+=======
+  google_maps:
+    dependency: transitive
+    description:
+      name: google_maps
+      sha256: "6811afff50dc410b860622ac89df125f5be1eada3ad69197e4c24dd18f2ef0e0"
+      url: "https://pub.dev"
+    source: hosted
+    version: "8.3.0"
+  google_maps_flutter:
+    dependency: "direct main"
+    description:
+      name: google_maps_flutter
+      sha256: fc084ddabc22645bebbe9df51baeec4949e5d14fc37492dce80501863425a82e
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.19.0"
+  google_maps_flutter_android:
+    dependency: transitive
+    description:
+      name: google_maps_flutter_android
+      sha256: "9247f703b646e85c72213007853908ad473eb85dac73747f5dc9d370b8250b5c"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.21.0"
+  google_maps_flutter_ios:
+    dependency: transitive
+    description:
+      name: google_maps_flutter_ios
+      sha256: fdfef49c2cb79fb74ca982ba47aa4eeff9847007073a753cd77f74908241ef4e
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.18.7"
+  google_maps_flutter_platform_interface:
+    dependency: transitive
+    description:
+      name: google_maps_flutter_platform_interface
+      sha256: "742e86787abac8b08352aaf31b2d1fffc77038ab2e9ebd8d4d7013eec9e97218"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.17.0"
+  google_maps_flutter_web:
+    dependency: transitive
+    description:
+      name: google_maps_flutter_web
+      sha256: e9a78255ea50db294f9a6949d8b144313ed5555497dcab21b198022aaaa56641
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.6.4+1"
+  gsettings:
+>>>>>>> origin/maps
     dependency: transitive
     description:
       name: google_api_headers
       sha256: b27a55935d5c51cedda8a925f5df8388cc327c94a47fef5a4335e8707e089878
       url: "https://pub.dev"
     source: hosted
+<<<<<<< HEAD
     version: "1.6.0"
   google_maps:
     dependency: transitive
@@ -291,6 +374,9 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.0.20-nullsafety.5"
+=======
+    version: "0.2.8"
+>>>>>>> origin/maps
   html:
     dependency: transitive
     description:
@@ -315,6 +401,7 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.1.2"
+<<<<<<< HEAD
   json_annotation:
     dependency: transitive
     description:
@@ -323,6 +410,24 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.12.0"
+=======
+  jni:
+    dependency: transitive
+    description:
+      name: jni
+      sha256: "6b9ca0602fef0230e83149afbe3f9f8227e94f2bbe84a1da4f14d699742f402d"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.1.0"
+  jni_util:
+    dependency: transitive
+    description:
+      name: jni_util
+      sha256: "1ba86da04a5f2bf18fde2edb235587e70c5b0fc5bd4ba955f46b00942c3fc35f"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.0"
+>>>>>>> origin/maps
   leak_tracker:
     dependency: transitive
     description:
@@ -378,7 +483,19 @@ packages:
       sha256: "307249ce4ff29d58a18e97f6345f539382eb9c9c29ecda628900f31de0443dd9"
       url: "https://pub.dev"
     source: hosted
+<<<<<<< HEAD
     version: "1.19.0"
+=======
+    version: "1.18.3"
+  package_config:
+    dependency: transitive
+    description:
+      name: package_config
+      sha256: ffcf4cf3d6c0b74ac43708d9f56625506e8a68aa935abe9d267a7330f320eb5d
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.0.0"
+>>>>>>> origin/maps
   package_info_plus:
     dependency: transitive
     description:
@@ -404,6 +521,8 @@ packages:
     source: hosted
     version: "1.9.1"
   path_provider_linux:
+<<<<<<< HEAD
+=======
     dependency: transitive
     description:
       name: path_provider_linux
@@ -427,6 +546,35 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.3.0"
+  petitparser:
+>>>>>>> origin/maps
+    dependency: transitive
+    description:
+      name: path_provider_linux
+      sha256: "58c2005f147315b11e9b4a7bc889cd5203e250cba8e3f012dae259b4972b5c16"
+      url: "https://pub.dev"
+    source: hosted
+<<<<<<< HEAD
+    version: "2.2.2"
+  path_provider_platform_interface:
+    dependency: transitive
+    description:
+      name: path_provider_platform_interface
+      sha256: "484838772624c3a4b94f1e44a3e19897fee738f2d5c4ce448443b0417f7c9dda"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.1.3"
+  path_provider_windows:
+    dependency: transitive
+    description:
+      name: path_provider_windows
+      sha256: bd6f00dbd873bfb70d0761682da2b3a2c2fccc2b9e84c495821639601d81afe7
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.3.0"
+=======
+    version: "7.0.2"
+>>>>>>> origin/maps
   platform:
     dependency: transitive
     description:
@@ -443,6 +591,7 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.8"
+<<<<<<< HEAD
   rxdart:
     dependency: transitive
     description:
@@ -451,6 +600,8 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.26.0"
+=======
+>>>>>>> origin/maps
   sanitize_html:
     dependency: transitive
     description:
@@ -471,10 +622,17 @@ packages:
     dependency: transitive
     description:
       name: shared_preferences_android
+<<<<<<< HEAD
       sha256: "1e12aafe408aa50da80edfd679a2a6bf63ba7ab37c7fa98286da459a757b3399"
       url: "https://pub.dev"
     source: hosted
     version: "2.4.28"
+=======
+      sha256: b90caa27669d5f3ef9918d55343b44000f088ee9d4685ed822310848004c793e
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.5.0"
+>>>>>>> origin/maps
   shared_preferences_foundation:
     dependency: transitive
     description:

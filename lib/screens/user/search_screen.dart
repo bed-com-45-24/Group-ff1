@@ -3,7 +3,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+<<<<<<< HEAD
 import 'package:shared_preferences/shared_preferences.dart';
+=======
+import '../../services/auth_service.dart';
+import '../../services/location_service.dart';
+import 'profile_screen.dart';
+>>>>>>> origin/maps
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -28,7 +34,43 @@ class _SearchScreenState extends State<SearchScreen> {
 
   String? _errorMessage;
   String? _selectedDestination;
+<<<<<<< HEAD
   String? _selectedAddress;
+=======
+  String _userInitial = 'U';
+  String _locationName = 'Finding location...';
+  final _locationService = LocationService();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserInfo();
+    _detectCurrentLocation();
+  }
+
+  Future<void> _loadUserInfo() async {
+    final authService = AuthService();
+    final userName = await authService.getUserName();
+    final userEmail = await authService.getUserEmail();
+    if (mounted) {
+      setState(() {
+        _userInitial = (userName ?? userEmail ?? 'U').substring(0, 1).toUpperCase();
+      });
+    }
+  }
+
+  Future<void> _detectCurrentLocation() async {
+    final locationName = await _locationService.getCurrentLocationName();
+    _updateLocation(locationName);
+  }
+
+  void _updateLocation(String location) {
+    if (!mounted) return;
+    setState(() {
+      _locationName = location;
+    });
+  }
+>>>>>>> origin/maps
 
   int _searchRequestId = 0;
 
@@ -338,8 +380,73 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+<<<<<<< HEAD
       backgroundColor: const Color(0xFFF2F6FB),
       body: SafeArea(
+=======
+      appBar: AppBar(
+        title: const Text('Search Destination'),
+        centerTitle: true,
+        backgroundColor: Colors.deepPurple,
+        foregroundColor: Colors.white,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Row(
+              children: [
+                const Icon(Icons.location_on, size: 16),
+                const SizedBox(width: 4),
+                SizedBox(
+                  width: 100,
+                  child: Text(
+                    _locationName,
+                    style: const TextStyle(fontSize: 13),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ProfileScreen(),
+                  ),
+                );
+              },
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white,
+                    width: 2,
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    _userInitial,
+                    style: const TextStyle(
+                      color: Colors.deepPurple,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+>>>>>>> origin/maps
         child: Column(
           children: [
             // Header
