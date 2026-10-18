@@ -1,15 +1,10 @@
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-<<<<<<< HEAD
 import 'package:shared_preferences/shared_preferences.dart';
-=======
-import '../../services/auth_service.dart';
-import '../../services/location_service.dart';
-import 'profile_screen.dart';
->>>>>>> origin/maps
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -19,8 +14,8 @@ class SearchScreen extends StatefulWidget {
 }
 
 class _SearchScreenState extends State<SearchScreen> {
-  final TextEditingController _fromController = TextEditingController();
-  final TextEditingController _toController = TextEditingController();
+  final TextEditingController _searchController =
+      TextEditingController();
 
   final FocusNode _searchFocusNode = FocusNode();
 
@@ -34,48 +29,10 @@ class _SearchScreenState extends State<SearchScreen> {
 
   String? _errorMessage;
   String? _selectedDestination;
-<<<<<<< HEAD
   String? _selectedAddress;
-=======
-  String _userInitial = 'U';
-  String _locationName = 'Finding location...';
-  final _locationService = LocationService();
-
-  @override
-  void initState() {
-    super.initState();
-    _loadUserInfo();
-    _detectCurrentLocation();
-  }
-
-  Future<void> _loadUserInfo() async {
-    final authService = AuthService();
-    final userName = await authService.getUserName();
-    final userEmail = await authService.getUserEmail();
-    if (mounted) {
-      setState(() {
-        _userInitial = (userName ?? userEmail ?? 'U').substring(0, 1).toUpperCase();
-      });
-    }
-  }
-
-  Future<void> _detectCurrentLocation() async {
-    final locationName = await _locationService.getCurrentLocationName();
-    _updateLocation(locationName);
-  }
-
-  void _updateLocation(String location) {
-    if (!mounted) return;
-    setState(() {
-      _locationName = location;
-    });
-  }
->>>>>>> origin/maps
 
   int _searchRequestId = 0;
 
-  // Suggested places shown when the screen opens.
-  // These are recommendations, not recent searches.
   final List<Map<String, String>> _suggestedPlaces = [
     {
       'name': 'Lilongwe City Centre',
@@ -105,10 +62,8 @@ class _SearchScreenState extends State<SearchScreen> {
     _loadRecentSearches();
   }
 
-  // Load searches saved on this device.
   Future<void> _loadRecentSearches() async {
     final prefs = await SharedPreferences.getInstance();
-
     final searches =
         prefs.getStringList('mova_recent_searches') ?? [];
 
@@ -119,33 +74,29 @@ class _SearchScreenState extends State<SearchScreen> {
     });
   }
 
-  // Save a destination the user actually selects.
   Future<void> _saveRecentSearch(String destination) async {
     final prefs = await SharedPreferences.getInstance();
 
-    List<String> searches =
+    final searches =
         prefs.getStringList('mova_recent_searches') ?? [];
 
     searches.remove(destination);
     searches.insert(0, destination);
 
-    if (searches.length > 5) {
-      searches = searches.take(5).toList();
-    }
+    final limitedSearches = searches.take(5).toList();
 
     await prefs.setStringList(
       'mova_recent_searches',
-      searches,
+      limitedSearches,
     );
 
     if (!mounted) return;
 
     setState(() {
-      _recentSearches = searches;
+      _recentSearches = limitedSearches;
     });
   }
 
-  // Clear saved recent searches.
   Future<void> _clearRecentSearches() async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -162,7 +113,7 @@ class _SearchScreenState extends State<SearchScreen> {
   Future<void> _searchDestinations(String query) async {
     _debounceTimer?.cancel();
 
-    final int requestId = ++_searchRequestId;
+    final requestId = ++_searchRequestId;
 
     if (query.trim().length < 2) {
       setState(() {
@@ -198,26 +149,28 @@ class _SearchScreenState extends State<SearchScreen> {
             },
           );
 
-          final response = await http.get(
-            uri,
-            headers: {
-              'User-Agent': 'MOVAFlutterApp/1.0',
-              'Accept': 'application/json',
-            },
-          ).timeout(const Duration(seconds: 15));
+          final response = await http
+              .get(
+                uri,
+                headers: {
+                  'User-Agent': 'MOVAFlutterApp/1.0',
+                  'Accept': 'application/json',
+                },
+              )
+              .timeout(const Duration(seconds: 15));
 
           if (response.statusCode != 200) {
             throw Exception('Search request failed');
           }
 
-          final List<dynamic> results =
+          final results =
               jsonDecode(response.body) as List<dynamic>;
 
           if (!mounted || requestId != _searchRequestId) {
             return;
           }
 
-          final List<Map<String, dynamic>> matches = results
+          final matches = results
               .map((item) => item as Map<String, dynamic>)
               .toList();
 
@@ -230,7 +183,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   'No matching places found. Try another name.';
             }
           });
-        } catch (e) {
+        } catch (_) {
           if (!mounted || requestId != _searchRequestId) {
             return;
           }
@@ -238,7 +191,8 @@ class _SearchScreenState extends State<SearchScreen> {
           setState(() {
             _isLoading = false;
             _errorMessage =
-                'Unable to search right now. Check your internet and try again.';
+                'Unable to search right now. '
+                'Check your internet and try again.';
           });
         }
       },
@@ -250,14 +204,14 @@ class _SearchScreenState extends State<SearchScreen> {
     required String name,
     String? address,
   }) async {
-    final String destination = name.trim();
+    final destination = name.trim();
 
     if (destination.isEmpty) return;
 
     _debounceTimer?.cancel();
     _searchRequestId++;
 
-    final String destinationAddress =
+    final destinationAddress =
         address?.trim().isNotEmpty == true
             ? address!.trim()
             : destination;
@@ -293,7 +247,6 @@ class _SearchScreenState extends State<SearchScreen> {
     });
   }
 
-  // Continue to the existing ResultsScreen.
   void _continueToResults() {
     if (_selectedDestination == null) return;
 
@@ -302,7 +255,8 @@ class _SearchScreenState extends State<SearchScreen> {
       '/results',
       arguments: {
         'name': _selectedDestination!,
-        'address': _selectedAddress ?? _selectedDestination!,
+        'address':
+            _selectedAddress ?? _selectedDestination!,
       },
     );
   }
@@ -315,143 +269,18 @@ class _SearchScreenState extends State<SearchScreen> {
     super.dispose();
   }
 
-  bool _sameDate(DateTime a, DateTime b) {
-    return a.year == b.year &&
-        a.month == b.month &&
-        a.day == b.day;
-  }
-
-  void _searchTrips() {
-    final from = _fromController.text.trim().toLowerCase();
-    final to = _toController.text.trim().toLowerCase();
-
-    setState(() {
-      _searched = true;
-
-      _results = sampleTrips.where((trip) {
-        final matchesFrom =
-            from.isEmpty || trip.origin.toLowerCase().contains(from);
-
-        final matchesTo =
-            to.isEmpty || trip.destination.toLowerCase().contains(to);
-
-        final matchesDate = _travelDate == null ||
-            _sameDate(trip.departureTime, _travelDate!);
-
-        return matchesFrom &&
-            matchesTo &&
-            matchesDate &&
-            trip.availableSeats > 0;
-      }).toList();
-    });
-  }
-
-  Future<void> _pickDate() async {
-    final today = DateTime.now();
-
-    final selected = await showDatePicker(
-      context: context,
-      initialDate: _travelDate ?? today,
-      firstDate: DateTime(today.year, today.month, today.day),
-      lastDate: DateTime(today.year + 2, 12, 31),
-    );
-
-    if (selected != null && mounted) {
-      setState(() {
-        _travelDate = selected;
-      });
-    }
-  }
-
-  String _dateText(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/'
-        '${date.month.toString().padLeft(2, '0')}/'
-        '${date.year}';
-  }
-
-  String _timeText(DateTime date) {
-    final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
-    final minute = date.minute.toString().padLeft(2, '0');
-    final period = date.hour >= 12 ? 'PM' : 'AM';
-
-    return '$hour:$minute $period';
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-<<<<<<< HEAD
       backgroundColor: const Color(0xFFF2F6FB),
       body: SafeArea(
-=======
-      appBar: AppBar(
-        title: const Text('Search Destination'),
-        centerTitle: true,
-        backgroundColor: Colors.deepPurple,
-        foregroundColor: Colors.white,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: Row(
-              children: [
-                const Icon(Icons.location_on, size: 16),
-                const SizedBox(width: 4),
-                SizedBox(
-                  width: 100,
-                  child: Text(
-                    _locationName,
-                    style: const TextStyle(fontSize: 13),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ProfileScreen(),
-                  ),
-                );
-              },
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Colors.white,
-                    width: 2,
-                  ),
-                ),
-                child: Center(
-                  child: Text(
-                    _userInitial,
-                    style: const TextStyle(
-                      color: Colors.deepPurple,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
->>>>>>> origin/maps
         child: Column(
           children: [
             // Header
             Padding(
-              padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
+              padding: const EdgeInsets.fromLTRB(
+                18, 18, 18, 20,
+              ),
               child: Row(
                 children: [
                   Material(
@@ -489,10 +318,12 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
             ),
 
-            // Main white search panel
+            // Search panel
             Expanded(
               child: Container(
-                margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                margin: const EdgeInsets.fromLTRB(
+                  16, 0, 16, 16,
+                ),
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -511,7 +342,6 @@ class _SearchScreenState extends State<SearchScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Search input
                     TextField(
                       controller: _searchController,
                       focusNode: _searchFocusNode,
@@ -527,16 +357,19 @@ class _SearchScreenState extends State<SearchScreen> {
                           Icons.search,
                           color: Colors.grey,
                         ),
-                        suffixIcon: _searchController.text.isNotEmpty
-                            ? IconButton(
-                                onPressed: _clearSearch,
-                                icon: const Icon(Icons.close),
-                              )
-                            : null,
+                        suffixIcon:
+                            _searchController.text.isNotEmpty
+                                ? IconButton(
+                                    onPressed: _clearSearch,
+                                    icon: const Icon(Icons.close),
+                                  )
+                                : null,
                         filled: true,
                         fillColor: const Color(0xFFF0F1F3),
                         contentPadding:
-                            const EdgeInsets.symmetric(vertical: 18),
+                            const EdgeInsets.symmetric(
+                          vertical: 18,
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(18),
                           borderSide: BorderSide.none,
@@ -559,7 +392,6 @@ class _SearchScreenState extends State<SearchScreen> {
 
                     const SizedBox(height: 22),
 
-                    // Display live search results while typing.
                     if (_showSearchResults) ...[
                       const Text(
                         'SEARCH RESULTS',
@@ -573,29 +405,26 @@ class _SearchScreenState extends State<SearchScreen> {
                       const SizedBox(height: 10),
 
                       if (_isLoading)
-                        const Padding(
-                          padding: EdgeInsets.all(20),
+                        const Expanded(
                           child: Center(
                             child: CircularProgressIndicator(
                               color: Colors.green,
                             ),
                           ),
-                        ),
-
-                      if (!_isLoading && _errorMessage != null)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 12,
-                          ),
-                          child: Text(
-                            _errorMessage!,
-                            style: TextStyle(
-                              color: Colors.grey.shade700,
+                        )
+                      else if (_errorMessage != null)
+                        Expanded(
+                          child: Center(
+                            child: Text(
+                              _errorMessage!,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Colors.grey.shade700,
+                              ),
                             ),
                           ),
-                        ),
-
-                      if (!_isLoading && _destinations.isNotEmpty)
+                        )
+                      else
                         Expanded(
                           child: ListView.builder(
                             itemCount: _destinations.length,
@@ -611,10 +440,10 @@ class _SearchScreenState extends State<SearchScreen> {
                                       ?.toString() ??
                                   'Unknown destination';
 
-                              final address =
-                                  destination['display_name']
-                                      ?.toString() ??
-                                  displayName;
+                              final title =
+                                  name != null && name.isNotEmpty
+                                      ? name
+                                      : displayName;
 
                               return ListTile(
                                 contentPadding:
@@ -627,27 +456,22 @@ class _SearchScreenState extends State<SearchScreen> {
                                   color: Colors.green,
                                 ),
                                 title: Text(
-                                  name != null && name.isNotEmpty
-                                      ? name
-                                      : displayName,
+                                  title,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                                subtitle: name != null &&
-                                        name.isNotEmpty
-                                    ? Text(
-                                        displayName,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      )
-                                    : null,
+                                subtitle: Text(
+                                  displayName,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                                 onTap: () {
                                   _selectDestination(
-                                    name: displayName,
-                                    address: address,
+                                    name: title,
+                                    address: displayName,
                                   );
                                 },
                               );
@@ -655,7 +479,7 @@ class _SearchScreenState extends State<SearchScreen> {
                           ),
                         ),
                     ] else ...[
-                      // Recent searches: only destinations actually selected.
+                      // Recent searches
                       if (_recentSearches.isNotEmpty) ...[
                         Row(
                           mainAxisAlignment:
@@ -689,9 +513,8 @@ class _SearchScreenState extends State<SearchScreen> {
                               horizontal: 0,
                             ),
                             leading: Icon(
-                              Icons.circle,
-                              size: 9,
-                              color: Colors.grey.shade400,
+                              Icons.history,
+                              color: Colors.grey.shade500,
                             ),
                             title: Text(
                               destination,
@@ -705,11 +528,9 @@ class _SearchScreenState extends State<SearchScreen> {
                             },
                           ),
                         ),
-
                         const SizedBox(height: 12),
                       ],
 
-                      // Suggested places
                       const Text(
                         'SUGGESTED PLACES',
                         style: TextStyle(
@@ -719,14 +540,14 @@ class _SearchScreenState extends State<SearchScreen> {
                           color: Colors.grey,
                         ),
                       ),
-
                       const SizedBox(height: 12),
 
                       Expanded(
                         child: ListView.builder(
                           itemCount: _suggestedPlaces.length,
                           itemBuilder: (context, index) {
-                            final place = _suggestedPlaces[index];
+                            final place =
+                                _suggestedPlaces[index];
 
                             return ListTile(
                               contentPadding:
@@ -743,7 +564,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                       BorderRadius.circular(12),
                                 ),
                                 child: const Icon(
-                                  Icons.my_location,
+                                  Icons.location_on,
                                   color: Colors.white,
                                   size: 21,
                                 ),
@@ -756,8 +577,9 @@ class _SearchScreenState extends State<SearchScreen> {
                                 ),
                               ),
                               subtitle: Padding(
-                                padding:
-                                    const EdgeInsets.only(top: 5),
+                                padding: const EdgeInsets.only(
+                                  top: 5,
+                                ),
                                 child: Text(
                                   place['address']!,
                                   style: TextStyle(
@@ -834,25 +656,6 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _detail(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 7),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 125,
-            child: Text(
-              '$label:',
-              style: const TextStyle(color: Colors.black54),
-            ),
-          ),
-          Expanded(child: Text(value)),
-        ],
       ),
     );
   }
