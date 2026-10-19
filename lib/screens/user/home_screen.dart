@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../data/sample_data.dart';
 import '../../models/route_model.dart';
 import '../../services/auth_service.dart';
+import '../../services/location_service.dart';
 import '../../widgets/route_card.dart';
 import 'map_screen.dart';
 import 'notifications_screen.dart';
@@ -63,7 +64,7 @@ class _HomeScreenState extends State<HomeScreen> {
           NavigationDestination(
             icon: Icon(Icons.confirmation_number_outlined),
             selectedIcon: Icon(Icons.confirmation_number),
-            label: 'Trips',
+            label: 'Bookings',
           ),
           NavigationDestination(
             icon: Icon(Icons.map_outlined),
@@ -83,15 +84,27 @@ class _HomeTab extends StatefulWidget {
   State<_HomeTab> createState() => _HomeTabState();
 }
 
-class _HomeTabState extends State<_HomeTab> {
+class _HomeTabState extends State<_HomeTab> with WidgetsBindingObserver {
   final _searchController = TextEditingController();
   final _authService = AuthService();
+  final _locationService = LocationService();
   String _userInitial = 'U';
+  String _currentLocation = 'Detecting location...';
+  bool _isLoadingLocation = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadUserInfo();
+    _loadCurrentLocation();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && !_isLoadingLocation) {
+      _loadCurrentLocation();
+    }
   }
 
   Future<void> _loadUserInfo() async {
@@ -103,6 +116,44 @@ class _HomeTabState extends State<_HomeTab> {
     setState(() {
       _userInitial = name.isEmpty ? 'U' : name[0].toUpperCase();
     });
+  }
+
+  Future<void> _loadCurrentLocation() async {
+    if (_isLoadingLocation) return;
+    setState(() => _isLoadingLocation = true);
+    try {
+      final locationName = await _locationService.getCurrentLocationName();
+      if (!mounted) return;
+      setState(() => _currentLocation = locationName);
+    } catch (error) {
+      if (!mounted) return;
+      setState(
+        () => _currentLocation =
+            'Location error: '
+            '${error.toString().replaceFirst('Exception: ', '')}',
+      );
+    } finally {
+      if (mounted) setState(() => _isLoadingLocation = false);
+    }
+  }
+
+  Future<void> _refreshLocation() async {
+    if (_isLoadingLocation) return;
+    try {
+      final openedSettings = await _locationService.openSettingsIfNeeded();
+      if (!mounted) return;
+      if (!openedSettings) await _loadCurrentLocation();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Could not open location settings: '
+            '${error.toString().replaceFirst('Exception: ', '')}',
+          ),
+        ),
+      );
+    }
   }
 
   void _openProfile() {
@@ -135,6 +186,7 @@ class _HomeTabState extends State<_HomeTab> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _searchController.dispose();
     super.dispose();
   }
@@ -214,23 +266,25 @@ class _HomeTabState extends State<_HomeTab> {
                     const SizedBox(height: 16),
                     Row(
                       children: [
-                        const Icon(
-                          Icons.my_location,
-                          color: Colors.deepPurple,
-                          size: 20,
+                        IconButton(
+                          tooltip: 'Refresh detected location',
+                          visualDensity: VisualDensity.compact,
+                          onPressed: _isLoadingLocation
+                              ? null
+                              : _refreshLocation,
+                          icon: const Icon(
+                            Icons.my_location,
+                            color: Colors.deepPurple,
+                          ),
                         ),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'Current location',
-                          style: TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Used as your starting point',
-                            maxLines: 1,
+                            _isLoadingLocation
+                                ? 'Detecting location...'
+                                : _currentLocation,
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.end,
+                            textAlign: TextAlign.start,
                             style: const TextStyle(color: Colors.black54),
                           ),
                         ),

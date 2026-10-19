@@ -26,7 +26,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
       body: Column(
         children: [
           const SizedBox(height: 12),
-          const Text('Choose your seat(s)'),
+          const Text('Choose up to 5 seats'),
           Wrap(
             alignment: WrapAlignment.center,
             spacing: 16,
@@ -59,6 +59,14 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                           setState(() {
                             if (selected) {
                               selectedSeats.remove(seat);
+                            } else if (selectedSeats.length >= 5) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'You can book a maximum of 5 seats.',
+                                  ),
+                                ),
+                              );
                             } else {
                               selectedSeats.add(seat);
                             }
@@ -96,7 +104,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                Text('Selected seats: ${selectedSeats.length}'),
+                Text('Selected seats: ${selectedSeats.length} / 5'),
                 Text(
                   'Total: MWK '
                   '${(selectedSeats.length * trip.fare).toStringAsFixed(0)}',

@@ -1,7 +1,8 @@
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    // The Flutter Gradle Plugin must be applied after Android and Kotlin.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
@@ -15,10 +16,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     defaultConfig {
         applicationId = "com.example.mova"
         minSdk = flutter.minSdkVersion
@@ -28,16 +25,14 @@ android {
     }
 }
 
-flutter {
-    source = "../.."
+kotlin {
+    compilerOptions {
+        jvmTarget.set(
+            org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+        )
+    }
 }
 
-subprojects {
-    afterEvaluate {
-        val androidExtension =
-            extensions.findByName("android") as? com.android.build.gradle.BaseExtension
-        if (androidExtension != null && androidExtension.namespace == null) {
-            androidExtension.namespace = project.group.toString()
-        }
-    }
+flutter {
+    source = "../.."
 }

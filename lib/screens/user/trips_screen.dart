@@ -13,7 +13,7 @@ class TripsScreen extends StatelessWidget {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Trips & bookings'),
+          title: const Text('Bookings'),
           bottom: const TabBar(
             tabs: [
               Tab(icon: Icon(Icons.search), text: 'Find a trip'),

@@ -1,10 +1,10 @@
 import 'dart:convert';
 
-import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 
 import '../models/osm_route_model.dart';
+import 'location_service.dart';
 
 class OpenStreetMapService {
   static const _headers = {
@@ -42,22 +42,13 @@ class OpenStreetMapService {
   }
 
   Future<LatLng> currentPosition() async {
-    if (!await Geolocator.isLocationServiceEnabled()) {
+    final position = await LocationService().getCurrentPosition();
+    if (position == null) {
       throw Exception(
-        'Location services are off. Enter a starting location to search.',
+        'Device location is unavailable. Check location services and '
+        'permissions, or enter a starting location instead.',
       );
     }
-    var permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) {
-      throw Exception(
-        'Location permission is required. Enter a starting location instead.',
-      );
-    }
-    final position = await Geolocator.getCurrentPosition();
     return LatLng(position.latitude, position.longitude);
   }
 

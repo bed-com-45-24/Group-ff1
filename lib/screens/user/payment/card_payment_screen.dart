@@ -20,12 +20,14 @@ class _CardPaymentScreenState extends State<CardPaymentScreen> {
   final cardNumberController = TextEditingController();
   final nameController = TextEditingController();
   final expiryController = TextEditingController();
+  final pinController = TextEditingController();
 
   @override
   void dispose() {
     cardNumberController.dispose();
     nameController.dispose();
     expiryController.dispose();
+    pinController.dispose();
     super.dispose();
   }
 
@@ -90,6 +92,23 @@ class _CardPaymentScreenState extends State<CardPaymentScreen> {
                       ? 'Enter an expiry value'
                       : null,
             ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: pinController,
+              keyboardType: TextInputType.number,
+              obscureText: true,
+              maxLength: 4,
+              decoration: const InputDecoration(
+                labelText: 'Payment PIN (demo)',
+                hintText: 'Enter a 4-digit demo PIN',
+                border: OutlineInputBorder(),
+                counterText: '',
+              ),
+              validator: (value) =>
+                  value == null || !RegExp(r'^\d{4}$').hasMatch(value.trim())
+                      ? 'Enter a 4-digit demo PIN'
+                      : null,
+            ),
             const SizedBox(height: 24),
             FilledButton(
               onPressed: () {
@@ -98,6 +117,7 @@ class _CardPaymentScreenState extends State<CardPaymentScreen> {
                 widget.booking.paymentMethod = 'Bank Card (Demo)';
                 widget.booking.paymentReference =
                     'DEMO-${DateTime.now().millisecondsSinceEpoch}';
+                pinController.clear();
 
                 Navigator.push(
                   context,
@@ -112,7 +132,8 @@ class _CardPaymentScreenState extends State<CardPaymentScreen> {
             ),
             const SizedBox(height: 12),
             const Text(
-              'Never enter real card details here. No payment is processed.',
+              'Demo only: never enter real card details or your real bank PIN. '
+              'The demo PIN is not saved or sent.',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.red),
             ),

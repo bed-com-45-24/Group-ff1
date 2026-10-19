@@ -145,7 +145,8 @@ void main() {
 
       expect(find.text('Plan your journey'), findsOneWidget);
       expect(find.text('Search destination'), findsOneWidget);
-      expect(find.text('Current location'), findsOneWidget);
+      expect(find.text('Current location'), findsNothing);
+      expect(find.byIcon(Icons.my_location), findsOneWidget);
       expect(find.text('From'), findsNothing);
       expect(find.text('To'), findsNothing);
       expect(find.text('Search routes'), findsNothing);
@@ -172,10 +173,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('All routes'), findsOneWidget);
 
-      await tester.tap(find.text('Trips'));
+      await tester.tap(find.text('Bookings'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Trips & bookings'), findsOneWidget);
+      expect(find.text('Bookings'), findsWidgets);
       expect(find.text('Find a trip'), findsOneWidget);
       expect(find.text('My bookings'), findsOneWidget);
 

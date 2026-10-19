@@ -19,12 +19,14 @@ class MobileMoneyScreen extends StatefulWidget {
 class _MobileMoneyScreenState extends State<MobileMoneyScreen> {
   final formKey = GlobalKey<FormState>();
   final phoneController = TextEditingController();
+  final pinController = TextEditingController();
 
   String provider = 'Airtel Money';
 
   @override
   void dispose() {
     phoneController.dispose();
+    pinController.dispose();
     super.dispose();
   }
 
@@ -53,7 +55,7 @@ class _MobileMoneyScreenState extends State<MobileMoneyScreen> {
             ),
             const SizedBox(height: 24),
             DropdownButtonFormField<String>(
-              value: provider,
+              initialValue: provider,
               decoration: const InputDecoration(
                 labelText: 'Mobile Money provider',
                 border: OutlineInputBorder(),
@@ -88,6 +90,23 @@ class _MobileMoneyScreenState extends State<MobileMoneyScreen> {
                       ? 'Enter a valid phone number'
                       : null,
             ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: pinController,
+              keyboardType: TextInputType.number,
+              obscureText: true,
+              maxLength: 4,
+              decoration: const InputDecoration(
+                labelText: 'Payment PIN (demo)',
+                hintText: 'Enter a 4-digit demo PIN',
+                border: OutlineInputBorder(),
+                counterText: '',
+              ),
+              validator: (value) =>
+                  value == null || !RegExp(r'^\d{4}$').hasMatch(value.trim())
+                      ? 'Enter a 4-digit demo PIN'
+                      : null,
+            ),
             const SizedBox(height: 24),
             FilledButton(
               onPressed: () {
@@ -96,6 +115,7 @@ class _MobileMoneyScreenState extends State<MobileMoneyScreen> {
                 widget.booking.paymentMethod = provider;
                 widget.booking.paymentReference =
                     'DEMO-${DateTime.now().millisecondsSinceEpoch}';
+                pinController.clear();
 
                 Navigator.push(
                   context,
@@ -111,7 +131,8 @@ class _MobileMoneyScreenState extends State<MobileMoneyScreen> {
             const SizedBox(height: 12),
             const Text(
               'Demonstration only. This does not contact Airtel Money '
-              'or TNM Mpamba.',
+              'or TNM Mpamba. Never enter your real wallet PIN; the demo '
+              'PIN is not saved or sent.',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey),
             ),

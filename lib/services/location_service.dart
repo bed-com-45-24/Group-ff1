@@ -4,72 +4,43 @@ import 'package:geocoding/geocoding.dart';
 class LocationService {
   /// Get the current location name with improved field prioritization
   Future<String> getCurrentLocationName() async {
-    try {
-      // Check if location service is enabled
-      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        return 'Enable location';
-      }
-
-      // Check and request location permission
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        return 'Permission denied';
-      }
-
-      // Get current position
-      final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-        ),
-      );
-
-      // Try to get placemark with multiple attempts
-      try {
-        List<Placemark> placemarks = await placemarkFromCoordinates(
-          position.latitude,
-          position.longitude,
-        );
-
-        if (placemarks.isNotEmpty) {
-          Placemark place = placemarks[0];
-          
-          // Build a comprehensive location name with better field prioritization
-          String locationName = _buildLocationName(place);
-          
-          // If we still got a generic name, try with more specific options
-          if (locationName.isEmpty || locationName == 'Unknown Location') {
-            locationName = _buildAlternativeLocationName(place);
-          }
-          
-          return locationName.isNotEmpty ? locationName : 'Unknown Location';
-        }
-      } catch (e) {
-        // If geocoding fails, try one more time with different approach
-        try {
-          List<Placemark> placemarks = await placemarkFromCoordinates(
-            position.latitude,
-            position.longitude,
-          );
-          
-          if (placemarks.isNotEmpty) {
-            return _buildLocationName(placemarks[0]);
-          }
-        } catch (e2) {
-          // Second attempt also failed
-          return 'Location detected';
-        }
-      }
-      
-      return 'Unknown Location';
-    } catch (e) {
-      return 'Unable to detect location';
+    if (!await Geolocator.isLocationServiceEnabled()) {
+      return 'Turn on device location';
     }
+
+    if (!await _hasLocationPermission()) {
+      return 'Allow location access';
+    }
+
+    final position = await _readCurrentPosition();
+    if (position == null) return 'Location unavailable';
+
+    try {
+      final placemarks = await placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      ).timeout(const Duration(seconds: 10));
+      if (placemarks.isNotEmpty) {
+        final place = placemarks.first;
+        final name = _buildLocationName(place);
+        if (name.isNotEmpty && name != 'Unknown Location') return name;
+
+        final alternativeName = _buildAlternativeLocationName(place);
+        if (alternativeName.isNotEmpty) return alternativeName;
+      }
+    } on Exception {
+      // Coordinates still provide the detected device location if reverse
+      // geocoding is unavailable.
+    }
+
+    return _formatCoordinates(position.latitude, position.longitude);
+  }
+
+  String _formatCoordinates(double latitude, double longitude) {
+    final latDirection = latitude < 0 ? 'S' : 'N';
+    final lonDirection = longitude < 0 ? 'W' : 'E';
+    return '${latitude.abs().toStringAsFixed(4)}° $latDirection, '
+        '${longitude.abs().toStringAsFixed(4)}° $lonDirection';
   }
 
   /// Build location name with primary field prioritization
@@ -84,7 +55,7 @@ class LocationService {
 
     // Combine relevant fields for a meaningful location name
     List<String> parts = [];
-    
+
     // Add street or name if available
     if (name.isNotEmpty && name != street) {
       parts.add(name);
@@ -92,39 +63,39 @@ class LocationService {
     if (street.isNotEmpty) {
       parts.add(street);
     }
-    
+
     // Add neighborhood/sub-locality
     if (subLocality.isNotEmpty) {
       parts.add(subLocality);
     }
-    
+
     // Add city/locality
     if (locality.isNotEmpty) {
       parts.add(locality);
     }
-    
+
     // Add district/sub-administrative area
     if (subAdministrativeArea.isNotEmpty) {
       parts.add(subAdministrativeArea);
     }
-    
+
     // Add state/administrative area
     if (administrativeArea.isNotEmpty) {
       parts.add(administrativeArea);
     }
-    
+
     // Build the final location string
     if (parts.isNotEmpty) {
       // Take first 2-3 most relevant parts to avoid too long strings
       final relevantParts = parts.take(3).join(', ');
       return relevantParts;
     }
-    
+
     // Fallback to just the name if nothing else works
     if (name.isNotEmpty) {
       return name;
     }
-    
+
     return 'Unknown Location';
   }
 
@@ -139,51 +110,72 @@ class LocationService {
     if (locality.isNotEmpty && administrativeArea.isNotEmpty) {
       return '$locality, $administrativeArea';
     }
-    
+
     if (subAdministrativeArea.isNotEmpty && administrativeArea.isNotEmpty) {
       return '$subAdministrativeArea, $administrativeArea';
     }
-    
+
     if (locality.isNotEmpty) {
       return locality;
     }
-    
+
     if (administrativeArea.isNotEmpty) {
       return administrativeArea;
     }
-    
+
     if (country.isNotEmpty) {
       return country;
     }
-    
+
     return '';
   }
 
   /// Get just the coordinates without geocoding
   Future<Position?> getCurrentPosition() async {
+    if (!await Geolocator.isLocationServiceEnabled()) return null;
+
+    if (!await _hasLocationPermission()) return null;
+    return _readCurrentPosition();
+  }
+
+  Future<bool> openSettingsIfNeeded() async {
+    if (!await Geolocator.isLocationServiceEnabled()) {
+      return Geolocator.openLocationSettings();
+    }
+    if (await Geolocator.checkPermission() ==
+        LocationPermission.deniedForever) {
+      return Geolocator.openAppSettings();
+    }
+    return false;
+  }
+
+  Future<bool> _hasLocationPermission() async {
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.unableToDetermine) {
+      permission = await Geolocator.requestPermission();
+    }
+    return permission == LocationPermission.whileInUse ||
+        permission == LocationPermission.always;
+  }
+
+  Future<Position?> _readCurrentPosition() async {
     try {
-      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        return null;
-      }
-
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        return null;
-      }
-
       return await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
+          accuracy: LocationAccuracy.best,
+          timeLimit: Duration(seconds: 20),
         ),
       );
-    } catch (e) {
-      return null;
+    } on Exception catch (error, stackTrace) {
+      Position? lastKnownPosition;
+      try {
+        lastKnownPosition = await Geolocator.getLastKnownPosition();
+      } on Exception {
+        // Preserve the current-position error when no fallback is available.
+      }
+      if (lastKnownPosition != null) return lastKnownPosition;
+      Error.throwWithStackTrace(error, stackTrace);
     }
   }
 }
