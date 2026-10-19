@@ -5,10 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../services/auth_service.dart';
-import '../../services/location_service.dart';
-import 'profile_screen.dart';
-
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
   @override
@@ -26,11 +22,9 @@ class _SearchScreenState extends State<SearchScreen> {
   String? _errorMessage;
   String? _selectedDestination;
   String? _selectedAddress;
-  String _userInitial = 'U';
-  String _locationName = 'Finding location...';
+  String? _selectedLatitude;
+  String? _selectedLongitude;
   int _searchRequestId = 0;
-  final _authService = AuthService();
-  final _locationService = LocationService();
   final List<Map<String, String>> _suggestedPlaces = [
     {'name': 'Lilongwe City Centre', 'address': 'Lilongwe, Malawi'},
     {'name': 'Area 47 Shopping Centre', 'address': 'Area 47, Lilongwe'},
@@ -42,29 +36,6 @@ class _SearchScreenState extends State<SearchScreen> {
   void initState() {
     super.initState();
     _loadRecentSearches();
-    _loadUserInfo();
-    _detectCurrentLocation();
-  }
-
-  Future<void> _loadUserInfo() async {
-    final userName = await _authService.getUserName();
-    final userEmail = await _authService.getUserEmail();
-    if (mounted) {
-      setState(() {
-        _userInitial = (userName ?? userEmail ?? 'U')
-            .substring(0, 1)
-            .toUpperCase();
-      });
-    }
-  }
-
-  Future<void> _detectCurrentLocation() async {
-    final locationName = await _locationService.getCurrentLocationName();
-    if (mounted) {
-      setState(() {
-        _locationName = locationName;
-      });
-    }
   }
 
   Future<void> _loadRecentSearches() async {
@@ -117,8 +88,12 @@ class _SearchScreenState extends State<SearchScreen> {
       _errorMessage = null;
       _selectedDestination = null;
       _selectedAddress = null;
+      _selectedLatitude = null;
+      _selectedLongitude = null;
+      _selectedLatitude = null;
+      _selectedLongitude = null;
     });
-    _debounceTimer = Timer(const Duration(milliseconds: 600), () async {
+    _debounceTimer = Timer(const Duration(seconds: 1), () async {
       try {
         final uri = Uri.https('nominatim.openstreetmap.org', '/search', {
           'q': query.trim(),
@@ -171,6 +146,8 @@ class _SearchScreenState extends State<SearchScreen> {
   Future<void> _selectDestination({
     required String name,
     String? address,
+    String? latitude,
+    String? longitude,
   }) async {
     final destination = name.trim();
     if (destination.isEmpty) return;
@@ -182,6 +159,8 @@ class _SearchScreenState extends State<SearchScreen> {
     setState(() {
       _selectedDestination = destination;
       _selectedAddress = destinationAddress;
+      _selectedLatitude = latitude;
+      _selectedLongitude = longitude;
       _searchController.text = destination;
       _destinations = [];
       _isLoading = false;
@@ -190,6 +169,7 @@ class _SearchScreenState extends State<SearchScreen> {
     });
     _searchFocusNode.unfocus();
     await _saveRecentSearch(destination);
+    if (mounted) _continueToResults();
   }
 
   void _clearSearch() {
@@ -203,6 +183,8 @@ class _SearchScreenState extends State<SearchScreen> {
       _errorMessage = null;
       _selectedDestination = null;
       _selectedAddress = null;
+      _selectedLatitude = null;
+      _selectedLongitude = null;
     });
   }
 
@@ -214,6 +196,10 @@ class _SearchScreenState extends State<SearchScreen> {
       arguments: {
         'name': _selectedDestination!,
         'address': _selectedAddress ?? _selectedDestination!,
+        if (_selectedLatitude != null && _selectedLongitude != null) ...{
+          'latitude': _selectedLatitude!,
+          'longitude': _selectedLongitude!,
+        },
       },
     );
   }
@@ -230,104 +216,12 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF2F6FB),
-      appBar: AppBar(
-        title: const Text('Search Destination'),
-        backgroundColor: Colors.deepPurple,
-        foregroundColor: Colors.white,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: Row(
-              children: [
-                const Icon(Icons.location_on, size: 16),
-                const SizedBox(width: 4),
-                SizedBox(
-                  width: 100,
-                  child: Text(
-                    _locationName,
-                    style: const TextStyle(fontSize: 13),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ProfileScreen(),
-                  ),
-                );
-              },
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
-                ),
-                child: Center(
-                  child: Text(
-                    _userInitial,
-                    style: const TextStyle(
-                      color: Colors.deepPurple,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
       body: Column(
         children: [
-          // Header
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
-            child: Row(
-              children: [
-                Material(
-                  color: Colors.white,
-                  shape: const CircleBorder(),
-                  child: IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.arrow_back),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Search destination',
-                        style: TextStyle(
-                          fontSize: 23,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Where are you heading?',
-                        style: TextStyle(fontSize: 16, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
           // Search panel
           Expanded(
             child: Container(
-              margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              margin: const EdgeInsets.all(16),
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -423,34 +317,39 @@ class _SearchScreenState extends State<SearchScreen> {
                             final title = name != null && name.isNotEmpty
                                 ? name
                                 : displayName;
-                            return ListTile(
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 0,
-                                vertical: 3,
-                              ),
-                              leading: const Icon(
-                                Icons.location_on_outlined,
-                                color: Colors.green,
-                              ),
-                              title: Text(
-                                title,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
+                            return Material(
+                              color: Colors.transparent,
+                              child: ListTile(
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 0,
+                                  vertical: 3,
                                 ),
+                                leading: const Icon(
+                                  Icons.location_on_outlined,
+                                  color: Colors.green,
+                                ),
+                                title: Text(
+                                  title,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  displayName,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                onTap: () {
+                                  _selectDestination(
+                                    name: title,
+                                    address: displayName,
+                                    latitude: destination['lat']?.toString(),
+                                    longitude: destination['lon']?.toString(),
+                                  );
+                                },
                               ),
-                              subtitle: Text(
-                                displayName,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              onTap: () {
-                                _selectDestination(
-                                  name: title,
-                                  address: displayName,
-                                );
-                              },
                             );
                           },
                         ),
@@ -480,22 +379,25 @@ class _SearchScreenState extends State<SearchScreen> {
                         ],
                       ),
                       ..._recentSearches.map(
-                        (destination) => ListTile(
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 0,
+                        (destination) => Material(
+                          color: Colors.transparent,
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 0,
+                            ),
+                            leading: Icon(
+                              Icons.history,
+                              color: Colors.grey.shade500,
+                            ),
+                            title: Text(
+                              destination,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            onTap: () {
+                              _selectDestination(name: destination);
+                            },
                           ),
-                          leading: Icon(
-                            Icons.history,
-                            color: Colors.grey.shade500,
-                          ),
-                          title: Text(
-                            destination,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          onTap: () {
-                            _selectDestination(name: destination);
-                          },
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -515,44 +417,47 @@ class _SearchScreenState extends State<SearchScreen> {
                         itemCount: _suggestedPlaces.length,
                         itemBuilder: (context, index) {
                           final place = _suggestedPlaces[index];
-                          return ListTile(
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 0,
-                              vertical: 7,
-                            ),
-                            leading: Container(
-                              width: 48,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                color: Colors.green.shade700,
-                                borderRadius: BorderRadius.circular(12),
+                          return Material(
+                            color: Colors.transparent,
+                            child: ListTile(
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 0,
+                                vertical: 7,
                               ),
-                              child: const Icon(
-                                Icons.location_on,
-                                color: Colors.white,
-                                size: 21,
+                              leading: Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  color: Colors.green.shade700,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(
+                                  Icons.location_on,
+                                  color: Colors.white,
+                                  size: 21,
+                                ),
                               ),
-                            ),
-                            title: Text(
-                              place['name']!,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
+                              title: Text(
+                                place['name']!,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                ),
                               ),
-                            ),
-                            subtitle: Padding(
-                              padding: const EdgeInsets.only(top: 5),
-                              child: Text(
-                                place['address']!,
-                                style: TextStyle(color: Colors.grey.shade600),
+                              subtitle: Padding(
+                                padding: const EdgeInsets.only(top: 5),
+                                child: Text(
+                                  place['address']!,
+                                  style: TextStyle(color: Colors.grey.shade600),
+                                ),
                               ),
+                              onTap: () {
+                                _selectDestination(
+                                  name: place['name']!,
+                                  address: place['address']!,
+                                );
+                              },
                             ),
-                            onTap: () {
-                              _selectDestination(
-                                name: place['name']!,
-                                address: place['address']!,
-                              );
-                            },
                           );
                         },
                       ),

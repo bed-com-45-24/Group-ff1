@@ -1,4 +1,3 @@
-
 class RouteModel {
   final String id;
   final String companyName;
@@ -10,6 +9,7 @@ class RouteModel {
   final String? duration;
   final int? transfers;
   final List<String> departureTimes;
+  final bool fareIsEstimate;
 
   const RouteModel({
     required this.id,
@@ -22,6 +22,7 @@ class RouteModel {
     this.duration,
     this.transfers,
     this.departureTimes = const [],
+    this.fareIsEstimate = false,
   });
 
   String get pickupPoint => origin;

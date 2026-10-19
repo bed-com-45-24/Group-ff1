@@ -3,14 +3,13 @@ import 'package:flutter/material.dart';
 import '../../data/sample_data.dart';
 import '../../models/route_model.dart';
 import '../../services/auth_service.dart';
-import '../../services/location_service.dart';
 import '../../widgets/route_card.dart';
 import 'map_screen.dart';
 import 'notifications_screen.dart';
 import 'profile_screen.dart';
-import 'results_screen.dart';
 import 'route_details_screen.dart';
 import 'trips_screen.dart';
+import 'search_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -21,26 +20,12 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
-  String _origin = '';
-  String _destination = '';
-
-  void _showRoutes(String origin, String destination) {
-    setState(() {
-      _origin = origin;
-      _destination = destination;
-      _selectedIndex = 1;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
     final pages = <Widget>[
-      _HomeTab(onShowRoutes: _showRoutes),
-      ResultsScreen(
-        key: ValueKey('$_origin|$_destination'),
-        origin: _origin,
-        destination: _destination,
-      ),
+      const _HomeTab(),
+      const AllPopularRoutesScreen(),
       const TripsScreen(),
       const MapScreen(),
     ];
@@ -92,19 +77,15 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class _HomeTab extends StatefulWidget {
-  final void Function(String origin, String destination) onShowRoutes;
-
-  const _HomeTab({required this.onShowRoutes});
+  const _HomeTab();
 
   @override
   State<_HomeTab> createState() => _HomeTabState();
 }
 
 class _HomeTabState extends State<_HomeTab> {
-  final _originController = TextEditingController();
-  final _destinationController = TextEditingController();
+  final _searchController = TextEditingController();
   final _authService = AuthService();
-  final _locationService = LocationService();
   String _userInitial = 'U';
 
   @override
@@ -145,28 +126,16 @@ class _HomeTabState extends State<_HomeTab> {
     );
   }
 
-  Future<void> _useCurrentLocation() async {
-    final location = await _locationService.getCurrentLocationName();
-    if (!mounted) return;
-    _originController.text = location;
-  }
-
-  void _searchRoutes() {
-    final origin = _originController.text.trim();
-    final destination = _destinationController.text.trim();
-    if (origin.isEmpty || destination.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter both From and To locations.')),
-      );
-      return;
-    }
-    widget.onShowRoutes(origin, destination);
+  void _openSearchPage() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const SearchScreen()),
+    );
   }
 
   @override
   void dispose() {
-    _originController.dispose();
-    _destinationController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -239,51 +208,46 @@ class _HomeTabState extends State<_HomeTab> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Choose where you are travelling from and to.',
+                      'Search for a destination and compare your route options.',
                       style: TextStyle(color: Colors.black54, height: 1.4),
                     ),
                     const SizedBox(height: 16),
-                    TextField(
-                      controller: _originController,
-                      textInputAction: TextInputAction.next,
-                      decoration: InputDecoration(
-                        labelText: 'From',
-                        prefixIcon: const Icon(Icons.trip_origin),
-                        suffixIcon: IconButton(
-                          tooltip: 'Use my current location',
-                          onPressed: _useCurrentLocation,
-                          icon: const Icon(Icons.my_location),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.my_location,
+                          color: Colors.deepPurple,
+                          size: 20,
                         ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Current location',
+                          style: TextStyle(fontWeight: FontWeight.w600),
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Used as your starting point',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.end,
+                            style: const TextStyle(color: Colors.black54),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
                     TextField(
-                      controller: _destinationController,
+                      controller: _searchController,
+                      readOnly: true,
+                      onTap: _openSearchPage,
                       textInputAction: TextInputAction.search,
-                      onSubmitted: (_) => _searchRoutes(),
                       decoration: InputDecoration(
-                        labelText: 'To',
-                        prefixIcon: const Icon(Icons.location_on_outlined),
+                        hintText: 'Search destination',
+                        prefixIcon: const Icon(Icons.search),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: Colors.deepPurple,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                        onPressed: _searchRoutes,
-                        icon: const Icon(Icons.search),
-                        label: const Text('Find routes'),
                       ),
                     ),
                   ],
@@ -300,16 +264,6 @@ class _HomeTabState extends State<_HomeTab> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                  ),
-                  TextButton(
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.deepPurple,
-                      minimumSize: Size.zero,
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    onPressed: () => widget.onShowRoutes('', ''),
-                    child: const Text('View all'),
                   ),
                 ],
               ),
@@ -329,5 +283,36 @@ class _HomeTabState extends State<_HomeTab> {
     return sampleRoutes
         .where((route) => featuredIds.contains(route.id))
         .toList();
+  }
+}
+
+class AllPopularRoutesScreen extends StatelessWidget {
+  const AllPopularRoutesScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('All routes'),
+        backgroundColor: Colors.deepPurple,
+        foregroundColor: Colors.white,
+      ),
+      body: ListView.builder(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        itemCount: sampleRoutes.length,
+        itemBuilder: (context, index) {
+          final route = sampleRoutes[index];
+          return RouteCard(
+            route: route,
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => RouteDetailsScreen(route: route),
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 }

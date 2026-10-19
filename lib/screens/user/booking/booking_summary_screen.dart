@@ -83,7 +83,12 @@ class BookingSummaryScreen extends StatelessWidget {
                   'Fare summary',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-                _row('Published fare', 'MWK ${_money(route.fare)}'),
+                _row(
+                  route.fareIsEstimate
+                      ? 'Estimated map fare'
+                      : 'Published fare',
+                  'MWK ${_money(route.fare)}',
+                ),
                 const Divider(),
                 _row(
                   'Total for one passenger',
@@ -91,10 +96,15 @@ class BookingSummaryScreen extends StatelessWidget {
                   bold: true,
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'This is a published reference fare. Confirm the current '
-                  'fare and departure schedule with the operator before travel.',
-                  style: TextStyle(color: Colors.black54),
+                Text(
+                  route.fareIsEstimate
+                      ? 'This is a distance-based map estimate in Malawi '
+                            'kwacha (MWK), calculated at MWK 220 per kilometre. '
+                            'Confirm the actual fare with the operator.'
+                      : 'This is a published reference fare. Confirm the '
+                            'current fare and departure schedule with the '
+                            'operator before travel.',
+                  style: const TextStyle(color: Colors.black54),
                 ),
               ],
             ),

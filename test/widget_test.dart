@@ -3,8 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:mova/main.dart';
+import 'package:mova/models/osm_route_model.dart';
 import 'package:mova/models/route_model.dart';
 import 'package:mova/screens/user/booking/booking_summary_screen.dart';
+import 'package:mova/screens/user/route_directions_details_screen.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -46,51 +48,131 @@ void main() {
     expect(find.text('Manage routes'), findsOneWidget);
   });
 
-  testWidgets('Passenger home has From and To search and requested tabs', (
+  testWidgets(
+    'Passenger home has a single destination search and popular routes',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1000, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      SharedPreferences.setMockInitialValues({
+        'is_logged_in': true,
+        'user_role': 'passenger',
+        'user_name': 'Test Passenger',
+      });
+
+      await tester.pumpWidget(const MovaApp());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Plan your journey'), findsOneWidget);
+      expect(find.text('Search destination'), findsOneWidget);
+      expect(find.text('Current location'), findsOneWidget);
+      expect(find.text('From'), findsNothing);
+      expect(find.text('To'), findsNothing);
+      expect(find.text('Search routes'), findsNothing);
+      expect(find.text('View all'), findsNothing);
+      expect(find.text('Your trip summary'), findsNothing);
+      expect(find.text('Search destinations'), findsNothing);
+      expect(
+        tester.getSize(find.byKey(const ValueKey('home-content')).first).width,
+        430,
+      );
+
+      await tester.tap(find.byType(TextField).first);
+      await tester.pumpAndSettle();
+      expect(find.text('Search Destination'), findsNothing);
+      expect(find.byTooltip('Back'), findsNothing);
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.text('Popular routes'), findsWidgets);
+      expect(find.text('Blantyre - Lilongwe'), findsWidgets);
+
+      await tester.tap(find.text('Routes'));
+      await tester.pumpAndSettle();
+      expect(find.text('All routes'), findsOneWidget);
+
+      await tester.tap(find.text('Trips'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Trips & bookings'), findsOneWidget);
+      expect(find.text('Find a trip'), findsOneWidget);
+      expect(find.text('My bookings'), findsOneWidget);
+
+      await tester.tap(find.text('My bookings'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('No bookings yet'), findsOneWidget);
+    },
+  );
+
+  test('OSRM GeoJSON route exposes distance, time, points and directions', () {
+    final route = OsmRouteModel.fromJson({
+      'geometry': {
+        'type': 'LineString',
+        'coordinates': [
+          [33.78, -13.96],
+          [34.00, -14.10],
+        ],
+      },
+      'distance': 12500,
+      'duration': 1800,
+      'legs': [
+        {
+          'steps': [
+            {
+              'maneuver': {'type': 'depart'},
+            },
+            {
+              'maneuver': {'type': 'turn', 'modifier': 'left'},
+            },
+          ],
+        },
+      ],
+    }, 0);
+
+    expect(route.distanceLabel, '12.5 km');
+    expect(route.durationLabel, '30 min');
+    expect(route.points, hasLength(2));
+    expect(route.steps, ['depart', 'turn left']);
+  });
+
+  testWidgets('Map route trip summary shows estimated map time and MWK fare', (
     tester,
   ) async {
-    await tester.binding.setSurfaceSize(const Size(1000, 800));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    SharedPreferences.setMockInitialValues({
-      'is_logged_in': true,
-      'user_role': 'passenger',
-      'user_name': 'Test Passenger',
-    });
+    final route = OsmRouteModel.fromJson({
+      'geometry': {
+        'type': 'LineString',
+        'coordinates': [
+          [33.78, -13.96],
+          [34.00, -14.10],
+        ],
+      },
+      'distance': 12500,
+      'duration': 1800,
+      'legs': [
+        {'steps': <Map<String, dynamic>>[]},
+      ],
+    }, 0);
 
-    await tester.pumpWidget(const MovaApp());
-    await tester.pumpAndSettle();
-
-    expect(find.text('Plan your journey'), findsOneWidget);
-    expect(find.text('From'), findsOneWidget);
-    expect(find.text('To'), findsOneWidget);
-    expect(find.text('Your trip summary'), findsNothing);
-    expect(find.text('Search destinations'), findsNothing);
-    expect(
-      tester.getSize(find.byKey(const ValueKey('home-content')).first).width,
-      430,
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RouteDirectionsDetailsScreen(
+          route: route,
+          origin: 'Lilongwe',
+          destination: 'Blantyre',
+          estimatedFare: 2750,
+        ),
+      ),
     );
-    await tester.enterText(find.byType(TextField).at(0), 'Blantyre');
-    await tester.enterText(find.byType(TextField).at(1), 'Lilongwe');
-    await tester.tap(find.text('Find routes'));
-    await tester.pumpAndSettle();
-    expect(find.text('Blantyre → Lilongwe'), findsNWidgets(2));
-    expect(find.text('Blantyre - Lilongwe'), findsOneWidget);
 
-    await tester.tap(find.text('Home'));
-    await tester.pumpAndSettle();
-    expect(find.text('Popular routes'), findsWidgets);
-    expect(find.text('Blantyre - Lilongwe'), findsWidgets);
-
-    await tester.tap(find.text('Trips'));
+    expect(find.text('30 min'), findsOneWidget);
+    expect(find.text('MWK 2750'), findsOneWidget);
+    await tester.tap(find.text('Trip summary'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Trips & bookings'), findsOneWidget);
-    expect(find.text('Find a trip'), findsOneWidget);
-    expect(find.text('My bookings'), findsOneWidget);
-
-    await tester.tap(find.text('My bookings'));
-    await tester.pumpAndSettle();
-    expect(find.textContaining('No bookings yet'), findsOneWidget);
+    expect(find.text('Journey duration'), findsOneWidget);
+    expect(find.text('30 min'), findsOneWidget);
+    expect(find.text('Estimated map fare'), findsOneWidget);
+    expect(find.text('MWK 2750'), findsNWidgets(2));
+    expect(find.textContaining('Malawi kwacha (MWK)'), findsOneWidget);
   });
 
   testWidgets('Trip summary shows route, stop, and fare information', (

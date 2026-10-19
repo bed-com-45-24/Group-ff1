@@ -62,8 +62,8 @@ const double returnTicketDiscount = 10000;
 const List<String> sampleNotifications = [
   'Welcome to MOVA.',
   'Check your selected journey and fare before booking.',
-  'Reference fares are based on the SoSoSo Coaches poster '
-      'effective 3 April 2026. Confirm fares before travelling.',
+  'Confirm the applicable fare and schedule with the transport operator '
+      'before travelling.',
 ];
 
 final List<Trip> sampleTrips = [
