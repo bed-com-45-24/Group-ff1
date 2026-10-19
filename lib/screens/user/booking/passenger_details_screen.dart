@@ -1,6 +1,8 @@
 
 import 'package:flutter/material.dart';
+
 import '../../../models/booking_model.dart';
+import '../../../services/auth_service.dart';
 import 'booking_summary_screen.dart';
 
 class PassengerDetailsScreen extends StatefulWidget {
@@ -19,25 +21,93 @@ class PassengerDetailsScreen extends StatefulWidget {
 class _PassengerDetailsScreenState
     extends State<PassengerDetailsScreen> {
   final formKey = GlobalKey<FormState>();
+  final _authService = AuthService();
   late final TextEditingController nameController;
+  late final TextEditingController emailController;
   late final TextEditingController phoneController;
   late final TextEditingController idController;
+  bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
     nameController =
         TextEditingController(text: widget.booking.passengerName);
+    emailController =
+        TextEditingController(text: widget.booking.passengerEmail);
     phoneController =
         TextEditingController(text: widget.booking.phoneNumber);
     idController = TextEditingController(
       text: widget.booking.identificationNumber,
     );
+    _loadSavedPassengerDetails();
+  }
+
+  Future<void> _loadSavedPassengerDetails() async {
+    final details = await _authService.getPassengerDetails();
+    if (!mounted) return;
+
+    if (nameController.text.isEmpty) {
+      nameController.text = details['name'] ?? '';
+    }
+    if (emailController.text.isEmpty) {
+      emailController.text = details['email'] ?? '';
+    }
+    if (phoneController.text.isEmpty) {
+      phoneController.text = details['phoneNumber'] ?? '';
+    }
+    if (idController.text.isEmpty) {
+      idController.text = details['identificationNumber'] ?? '';
+    }
+  }
+
+  Future<void> _reviewBooking() async {
+    if (!formKey.currentState!.validate()) return;
+
+    final name = nameController.text.trim();
+    final email = emailController.text.trim();
+    final phone = phoneController.text.trim();
+    final identificationNumber = idController.text.trim();
+
+    setState(() => _isSaving = true);
+    try {
+      await _authService.savePassengerDetails(
+        name: name,
+        email: email,
+        phoneNumber: phone,
+        identificationNumber: identificationNumber,
+      );
+      if (!mounted) return;
+
+      widget.booking.passengerName = name;
+      widget.booking.passengerEmail = email;
+      widget.booking.phoneNumber = phone;
+      widget.booking.identificationNumber = identificationNumber;
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => BookingSummaryScreen(
+            booking: widget.booking,
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not save passenger details. Please try again.'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 
   @override
   void dispose() {
     nameController.dispose();
+    emailController.dispose();
     phoneController.dispose();
     idController.dispose();
     super.dispose();
@@ -65,6 +135,22 @@ class _PassengerDetailsScreenState
             ),
             const SizedBox(height: 16),
             TextFormField(
+              controller: emailController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: 'Email address',
+                border: OutlineInputBorder(),
+              ),
+              validator: (value) {
+                final email = value?.trim() ?? '';
+                if (email.isNotEmpty && !email.contains('@')) {
+                  return 'Enter a valid email address';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
               controller: phoneController,
               keyboardType: TextInputType.phone,
               decoration: const InputDecoration(
@@ -87,26 +173,10 @@ class _PassengerDetailsScreenState
             ),
             const SizedBox(height: 24),
             FilledButton(
-              onPressed: () {
-                if (!formKey.currentState!.validate()) return;
-
-                widget.booking.passengerName =
-                    nameController.text.trim();
-                widget.booking.phoneNumber =
-                    phoneController.text.trim();
-                widget.booking.identificationNumber =
-                    idController.text.trim();
-
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => BookingSummaryScreen(
-                      booking: widget.booking,
-                    ),
-                  ),
-                );
-              },
-              child: const Text('Review Booking'),
+              onPressed: _isSaving ? null : _reviewBooking,
+              child: _isSaving
+                  ? const CircularProgressIndicator()
+                  : const Text('Review Booking'),
             ),
           ],
         ),

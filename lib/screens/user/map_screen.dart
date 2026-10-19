@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 
 import '../../services/openstreetmap_service.dart';
 import 'profile_screen.dart';
+import 'search_screen.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -49,6 +50,14 @@ class _MapScreenState extends State<MapScreen> {
         backgroundColor: Colors.deepPurple,
         foregroundColor: Colors.white,
         actions: [
+          IconButton(
+            tooltip: 'Search destination',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SearchScreen()),
+            ),
+            icon: const Icon(Icons.search),
+          ),
           IconButton(
             tooltip: 'Profile',
             onPressed: () => Navigator.push(

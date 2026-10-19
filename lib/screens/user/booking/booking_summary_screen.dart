@@ -191,6 +191,8 @@ class BookingSummaryScreen extends StatelessWidget {
                 _row('Arrival', _formatDateTime(trip.arrivalTime)),
                 _row('Estimated journey time', durationText),
                 _row('Passenger', booking.passengerName),
+                if (booking.passengerEmail.isNotEmpty)
+                  _row('Email', booking.passengerEmail),
                 _row('Phone', booking.phoneNumber),
                 _row(
                   'Identification',

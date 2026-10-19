@@ -4,9 +4,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:mova/main.dart';
 import 'package:mova/models/osm_route_model.dart';
+import 'package:mova/models/booking_model.dart';
 import 'package:mova/models/route_model.dart';
+import 'package:mova/models/trip_model.dart';
+import 'package:mova/screens/user/booking/passenger_details_screen.dart';
 import 'package:mova/screens/user/booking/booking_summary_screen.dart';
 import 'package:mova/screens/user/route_directions_details_screen.dart';
+import 'package:mova/services/auth_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -47,6 +51,83 @@ void main() {
     expect(find.text('Company admin · Routes'), findsOneWidget);
     expect(find.text('Manage routes'), findsOneWidget);
   });
+
+  test('Registered passenger details persist for future bookings', () async {
+    SharedPreferences.setMockInitialValues({});
+    final authService = AuthService();
+
+    expect(
+      await authService.signup(
+        'passenger@mova.test',
+        'password123',
+        'Test Passenger',
+        role: 'passenger',
+      ),
+      isTrue,
+    );
+    expect(
+      await authService.login(
+        'passenger@mova.test',
+        'password123',
+        role: 'passenger',
+      ),
+      isTrue,
+    );
+
+    var details = await authService.getPassengerDetails();
+    expect(details['name'], 'Test Passenger');
+    expect(details['email'], 'passenger@mova.test');
+
+    await authService.savePassengerDetails(
+      name: details['name']!,
+      email: details['email']!,
+      phoneNumber: '0991234567',
+      identificationNumber: 'ID12345',
+    );
+
+    details = await authService.getPassengerDetails();
+    expect(details['phoneNumber'], '0991234567');
+    expect(details['identificationNumber'], 'ID12345');
+  });
+
+  testWidgets(
+    'Passenger details form is prefilled from local account storage',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({
+        'is_logged_in': true,
+        'user_email': 'passenger@mova.test',
+        'user_name': 'Test Passenger',
+        'passenger_profile_passenger@mova.test':
+            '{"name":"Test Passenger","email":"passenger@mova.test",'
+            '"phoneNumber":"0991234567","identificationNumber":"ID12345"}',
+      });
+      final booking = BookingDraft(
+        trip: Trip(
+          id: 'trip-1',
+          origin: 'Lilongwe',
+          destination: 'Blantyre',
+          departureTime: DateTime(2026, 10, 20, 8),
+          arrivalTime: DateTime(2026, 10, 20, 14),
+          fare: 25000,
+          totalSeats: 40,
+        ),
+        reference: 'MOVA-TEST',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(home: PassengerDetailsScreen(booking: booking)),
+      );
+      await tester.pumpAndSettle();
+
+      final fields = tester.widgetList<TextFormField>(
+        find.byType(TextFormField),
+      );
+      expect(fields.elementAt(0).controller!.text, 'Test Passenger');
+      expect(fields.elementAt(1).controller!.text, 'passenger@mova.test');
+      expect(fields.elementAt(2).controller!.text, '0991234567');
+      expect(fields.elementAt(3).controller!.text, 'ID12345');
+    },
+  );
 
   testWidgets(
     'Passenger home has a single destination search and popular routes',

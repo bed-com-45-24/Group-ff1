@@ -6,6 +6,7 @@ class BookingDraft {
   final String reference;
   List<int> selectedSeats;
   String passengerName;
+  String passengerEmail;
   String phoneNumber;
   String identificationNumber;
   String paymentMethod;
@@ -18,6 +19,7 @@ class BookingDraft {
     required this.reference,
     this.selectedSeats = const [],
     this.passengerName = '',
+    this.passengerEmail = '',
     this.phoneNumber = '',
     this.identificationNumber = '',
     this.paymentMethod = '',

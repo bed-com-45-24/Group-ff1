@@ -8,6 +8,7 @@ class AuthService {
   static const String _keyUserName = 'user_name';
   static const String _keyUserRole = 'user_role';
   static const String _keyRegisteredUsers = 'registered_users';
+  static const String _keyPassengerProfilePrefix = 'passenger_profile_';
 
   Future<bool> isLoggedIn() async {
     final prefs = await SharedPreferences.getInstance();
@@ -27,6 +28,53 @@ class AuthService {
   Future<String?> getUserRole() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_keyUserRole);
+  }
+
+  Future<Map<String, String>> getPassengerDetails() async {
+    final prefs = await SharedPreferences.getInstance();
+    final email = prefs.getString(_keyUserEmail) ?? '';
+    final profileJson = email.isEmpty
+        ? null
+        : prefs.getString(_passengerProfileKey(email));
+    final profile = profileJson == null
+        ? <String, dynamic>{}
+        : jsonDecode(profileJson) as Map<String, dynamic>;
+
+    return {
+      'name': (profile['name'] ?? prefs.getString(_keyUserName) ?? '')
+          .toString(),
+      'email': (profile['email'] ?? email).toString(),
+      'phoneNumber': (profile['phoneNumber'] ?? '').toString(),
+      'identificationNumber': (profile['identificationNumber'] ?? '')
+          .toString(),
+    };
+  }
+
+  Future<void> savePassengerDetails({
+    required String name,
+    required String email,
+    required String phoneNumber,
+    required String identificationNumber,
+  }) async {
+    final normalizedEmail = email.trim();
+    if (normalizedEmail.isEmpty) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final profile = {
+      'name': name.trim(),
+      'email': normalizedEmail,
+      'phoneNumber': phoneNumber.trim(),
+      'identificationNumber': identificationNumber.trim(),
+    };
+    final accountEmail = prefs.getString(_keyUserEmail)?.trim();
+    await prefs.setString(
+      _passengerProfileKey(
+        accountEmail == null || accountEmail.isEmpty
+            ? normalizedEmail
+            : accountEmail,
+      ),
+      jsonEncode(profile),
+    );
   }
 
   Future<bool> login(
@@ -96,6 +144,15 @@ class AuthService {
     });
 
     await prefs.setString(_keyRegisteredUsers, jsonEncode(registeredUsers));
+    await prefs.setString(
+      _passengerProfileKey(email),
+      jsonEncode({
+        'name': name,
+        'email': email,
+        'phoneNumber': '',
+        'identificationNumber': '',
+      }),
+    );
 
     return true;
   }
@@ -119,4 +176,7 @@ class AuthService {
     await prefs.setString(_keyUserName, name);
     await prefs.setString(_keyUserRole, role);
   }
+
+  String _passengerProfileKey(String email) =>
+      '$_keyPassengerProfilePrefix${email.trim().toLowerCase()}';
 }
