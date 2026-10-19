@@ -218,10 +218,46 @@ class _SearchScreenState extends State<SearchScreen> {
       backgroundColor: const Color(0xFFF2F6FB),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 12),
+            child: Row(
+              children: [
+                Material(
+                  color: Colors.white,
+                  shape: const CircleBorder(),
+                  child: IconButton(
+                    tooltip: 'Back',
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.arrow_back),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Search destination',
+                        style: TextStyle(
+                          fontSize: 23,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Where are you heading?',
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
           // Search panel
           Expanded(
             child: Container(
-              margin: const EdgeInsets.all(16),
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
                 color: Colors.white,

@@ -78,8 +78,9 @@ void main() {
 
       await tester.tap(find.byType(TextField).first);
       await tester.pumpAndSettle();
-      expect(find.text('Search Destination'), findsNothing);
-      expect(find.byTooltip('Back'), findsNothing);
+      expect(find.text('Search destination'), findsOneWidget);
+      expect(find.text('Where are you heading?'), findsOneWidget);
+      expect(find.byTooltip('Back'), findsOneWidget);
 
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
@@ -187,6 +188,7 @@ void main() {
       stops: ['Lilongwe', 'Dedza', 'Blantyre'],
       fare: 25000,
       duration: '5h',
+      mapDistance: '250 km',
       transfers: 0,
     );
 
@@ -196,6 +198,10 @@ void main() {
 
     expect(find.text('Journey details'), findsOneWidget);
     expect(find.text('Lilongwe → Dedza → Blantyre'), findsOneWidget);
+    expect(find.text('Journey duration'), findsOneWidget);
+    expect(find.text('Distance (map)'), findsOneWidget);
+    expect(find.text('250 km'), findsOneWidget);
+    expect(find.text('Transfers'), findsNothing);
     expect(find.text('Total for one passenger'), findsOneWidget);
     expect(find.text('MWK 25000'), findsNWidgets(2));
   });

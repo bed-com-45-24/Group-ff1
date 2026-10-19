@@ -7,6 +7,7 @@ class RouteModel {
   final List<String> stops;
   final double fare;
   final String? duration;
+  final String? mapDistance;
   final int? transfers;
   final List<String> departureTimes;
   final bool fareIsEstimate;
@@ -20,6 +21,7 @@ class RouteModel {
     required this.stops,
     required this.fare,
     this.duration,
+    this.mapDistance,
     this.transfers,
     this.departureTimes = const [],
     this.fareIsEstimate = false,

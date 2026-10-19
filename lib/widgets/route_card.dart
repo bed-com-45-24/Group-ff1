@@ -44,10 +44,6 @@ class RouteCard extends StatelessWidget {
 
             Text('Duration: ${route.duration ?? "Not published"}'),
 
-            Text(
-              'Transfers: ${route.transfers?.toString() ?? "Not published"}',
-            ),
-
             const SizedBox(height: 8),
 
             Row(

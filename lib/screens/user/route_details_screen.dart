@@ -1,15 +1,72 @@
 import 'package:flutter/material.dart';
 
 import '../../models/route_model.dart';
+import '../../models/osm_route_model.dart';
+import '../../services/openstreetmap_service.dart';
 import 'booking/booking_summary_screen.dart';
 
-class RouteDetailsScreen extends StatelessWidget {
+class RouteDetailsScreen extends StatefulWidget {
   final RouteModel route;
 
   const RouteDetailsScreen({super.key, required this.route});
 
   @override
+  State<RouteDetailsScreen> createState() => _RouteDetailsScreenState();
+}
+
+class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
+  final _openStreetMap = OpenStreetMapService();
+  OsmRouteModel? _mapRoute;
+  String? _mapError;
+  bool _loadingMapRoute = true;
+
+  RouteModel get route => widget.route;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMapRoute();
+  }
+
+  Future<void> _loadMapRoute() async {
+    try {
+      final origin = await _openStreetMap.findPlace(route.origin);
+      final destination = await _openStreetMap.findPlace(route.destination);
+      final routes = await _openStreetMap.findRoutes(
+        origin: origin,
+        destination: destination,
+      );
+      if (!mounted) return;
+      setState(() {
+        _mapRoute = routes.first;
+        _loadingMapRoute = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _mapError = error.toString().replaceFirst('Exception: ', '');
+        _loadingMapRoute = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final routeForSummary = RouteModel(
+      id: route.id,
+      companyName: route.companyName,
+      name: route.name,
+      origin: route.origin,
+      destination: route.destination,
+      stops: route.stops,
+      fare: route.fare,
+      duration: _mapRoute?.durationLabel ?? route.duration,
+      mapDistance: _mapRoute?.distanceLabel ?? route.mapDistance,
+      transfers: route.transfers,
+      departureTimes: route.departureTimes,
+      fareIsEstimate: route.fareIsEstimate,
+    );
+
     return Scaffold(
       appBar: AppBar(title: const Text('MOVA Route Details')),
       body: ListView(
@@ -69,15 +126,34 @@ class RouteDetailsScreen extends StatelessWidget {
 
           ListTile(
             leading: const Icon(Icons.schedule),
-            title: const Text('Journey Duration'),
-            subtitle: Text(route.duration ?? 'Not published'),
+            title: const Text('Estimated travel time (map)'),
+            subtitle: Text(
+              _mapRoute?.durationLabel ??
+                  (_loadingMapRoute
+                      ? 'Loading map estimate...'
+                      : route.duration ?? 'Not available'),
+            ),
           ),
 
           ListTile(
-            leading: const Icon(Icons.directions_bus),
-            title: const Text('Transfers'),
-            subtitle: Text(route.transfers?.toString() ?? 'Not published'),
+            leading: const Icon(Icons.route),
+            title: const Text('Distance (map)'),
+            subtitle: Text(
+              _mapRoute?.distanceLabel ??
+                  (_loadingMapRoute
+                      ? 'Loading map estimate...'
+                      : 'Not available'),
+            ),
           ),
+
+          if (_mapError != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                'Map distance and time could not be loaded: $_mapError',
+                style: const TextStyle(color: Colors.red),
+              ),
+            ),
 
           if (route.departureTimes.isNotEmpty)
             ListTile(
@@ -99,14 +175,17 @@ class RouteDetailsScreen extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => BookingSummaryScreen(route: route),
-                  ),
-                );
-              },
+              onPressed: _loadingMapRoute
+                  ? null
+                  : () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              BookingSummaryScreen(route: routeForSummary),
+                        ),
+                      );
+                    },
               child: const Text('View Trip Summary'),
             ),
           ),

@@ -66,10 +66,7 @@ class BookingSummaryScreen extends StatelessWidget {
                 _row('Pickup point', route.pickupPoint),
                 _row('Drop-off point', route.dropOffPoint),
                 _row('Journey duration', route.duration ?? 'Not published'),
-                _row(
-                  'Transfers',
-                  route.transfers?.toString() ?? 'Not published',
-                ),
+                _row('Distance (map)', route.mapDistance ?? 'Not available'),
                 _row('Stops', route.stops.join(' → ')),
               ],
             ),
