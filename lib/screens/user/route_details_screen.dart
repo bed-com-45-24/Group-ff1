@@ -50,6 +50,18 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
     }
   }
 
+  String get _effectiveDurationText =>
+      _mapRoute?.durationLabel ??
+      (_loadingMapRoute
+          ? 'Loading map estimate...'
+          : route.duration ?? 'Not available');
+
+  String get _effectiveDistanceText =>
+      _mapRoute?.distanceLabel ??
+      (_loadingMapRoute
+          ? 'Loading map estimate...'
+          : route.mapDistance ?? 'Not available');
+
   @override
   Widget build(BuildContext context) {
     final routeForSummary = RouteModel(
@@ -60,8 +72,8 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
       destination: route.destination,
       stops: route.stops,
       fare: route.fare,
-      duration: _mapRoute?.durationLabel ?? route.duration,
-      mapDistance: _mapRoute?.distanceLabel ?? route.mapDistance,
+      duration: _effectiveDurationText,
+      mapDistance: _effectiveDistanceText,
       transfers: route.transfers,
       departureTimes: route.departureTimes,
       fareIsEstimate: route.fareIsEstimate,
@@ -127,23 +139,13 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
           ListTile(
             leading: const Icon(Icons.schedule),
             title: const Text('Estimated travel time (map)'),
-            subtitle: Text(
-              _mapRoute?.durationLabel ??
-                  (_loadingMapRoute
-                      ? 'Loading map estimate...'
-                      : route.duration ?? 'Not available'),
-            ),
+            subtitle: Text(_effectiveDurationText),
           ),
 
           ListTile(
             leading: const Icon(Icons.route),
             title: const Text('Distance (map)'),
-            subtitle: Text(
-              _mapRoute?.distanceLabel ??
-                  (_loadingMapRoute
-                      ? 'Loading map estimate...'
-                      : 'Not available'),
-            ),
+            subtitle: Text(_effectiveDistanceText),
           ),
 
           if (_mapError != null)
