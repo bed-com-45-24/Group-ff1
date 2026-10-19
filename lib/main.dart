@@ -1,5 +1,7 @@
-
 import 'package:flutter/material.dart';
+
+import 'screens/admin/admin_dashboard_screen.dart';
+import 'screens/auth/role_selection_screen.dart';
 import 'screens/user/home_screen.dart';
 import 'screens/user/search_screen.dart';
 import 'screens/user/results_screen.dart';
@@ -19,15 +21,25 @@ class MovaApp extends StatelessWidget {
     return MaterialApp(
       title: 'MOVA',
       theme: ThemeData(
-        primarySwatch: Colors.green,
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
       initialRoute: '/',
       routes: {
         '/': (context) => const AuthWrapper(),
+        '/choose-role': (context) => const RoleSelectionScreen(),
         '/home': (context) => const HomeScreen(),
-        '/login': (context) => const LoginScreen(),
-        '/signup': (context) => const SignupScreen(),
+        '/login': (context) => LoginScreen(
+          role:
+              ModalRoute.of(context)?.settings.arguments as String? ??
+              'passenger',
+        ),
+        '/signup': (context) => SignupScreen(
+          role:
+              ModalRoute.of(context)?.settings.arguments as String? ??
+              'passenger',
+        ),
+        '/admin': (context) => const AdminDashboardScreen(),
         '/search': (context) => const SearchScreen(),
         '/results': (context) => const ResultsScreen(),
       },
@@ -46,6 +58,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
   final _authService = AuthService();
   bool _isLoading = true;
   bool _isLoggedIn = false;
+  String _role = 'passenger';
 
   @override
   void initState() {
@@ -55,10 +68,12 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
   Future<void> _checkAuthStatus() async {
     final loggedIn = await _authService.isLoggedIn();
+    final role = loggedIn ? await _authService.getUserRole() : null;
     if (!mounted) return;
 
     setState(() {
       _isLoggedIn = loggedIn;
+      _role = role ?? 'passenger';
       _isLoading = false;
     });
   }
@@ -66,17 +81,14 @@ class _AuthWrapperState extends State<AuthWrapper> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (_isLoggedIn) {
-      return const HomeScreen();
+      return _role == 'admin'
+          ? const AdminDashboardScreen()
+          : const HomeScreen();
     }
-    return const LoginScreen();
+    return const RoleSelectionScreen();
   }
-}
 }

@@ -1,19 +1,18 @@
-
 import 'package:flutter/material.dart';
+
 import 'routes_screen.dart';
 import 'stops_screen.dart';
 import 'fares_screen.dart';
+import '../../services/auth_service.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
 
   @override
-  State<AdminDashboardScreen> createState() =>
-      _AdminDashboardScreenState();
+  State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
 }
 
-class _AdminDashboardScreenState
-    extends State<AdminDashboardScreen> {
+class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   int selectedIndex = 0;
 
   final List<Widget> screens = const [
@@ -34,11 +33,19 @@ class _AdminDashboardScreenState
           'Company admin · ${titles[selectedIndex]}',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Log out',
+            onPressed: () async {
+              await AuthService().logout();
+              if (!context.mounted) return;
+              Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+            },
+            icon: const Icon(Icons.logout),
+          ),
+        ],
       ),
-      body: IndexedStack(
-        index: selectedIndex,
-        children: screens,
-      ),
+      body: IndexedStack(index: selectedIndex, children: screens),
       bottomNavigationBar: NavigationBar(
         selectedIndex: selectedIndex,
         onDestinationSelected: (index) {

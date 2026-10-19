@@ -1,5 +1,5 @@
-
 import 'package:flutter/material.dart';
+
 import '../models/route_model.dart';
 
 class RouteCard extends StatelessWidget {
@@ -21,10 +21,7 @@ class RouteCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 8,
-      ),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -32,10 +29,7 @@ class RouteCard extends StatelessWidget {
           children: [
             Text(
               route.name,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
 
             const SizedBox(height: 8),
@@ -46,13 +40,9 @@ class RouteCard extends StatelessWidget {
 
             Text('Company: ${route.companyName}'),
 
-            Text(
-              'Official fare: MWK ${route.fare.toStringAsFixed(0)}',
-            ),
+            Text('Official fare: MWK ${route.fare.toStringAsFixed(0)}'),
 
-            Text(
-              'Duration: ${route.duration ?? "Not published"}',
-            ),
+            Text('Duration: ${route.duration ?? "Not published"}'),
 
             Text(
               'Transfers: ${route.transfers?.toString() ?? "Not published"}',
@@ -64,6 +54,10 @@ class RouteCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.deepPurple,
+                      side: const BorderSide(color: Colors.deepPurple),
+                    ),
                     onPressed: onTap,
                     child: const Text('View details'),
                   ),

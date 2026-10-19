@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+
 import '../../services/auth_service.dart';
 import '../../services/location_service.dart';
+import 'notifications_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -32,7 +34,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         _userName = userName ?? 'User Name';
         _userEmail = userEmail ?? 'user@example.com';
-        _userInitial = (_userName.isNotEmpty ? _userName : _userEmail).substring(0, 1).toUpperCase();
+        _userInitial = (_userName.isNotEmpty ? _userName : _userEmail)
+            .substring(0, 1)
+            .toUpperCase();
       });
     }
   }
@@ -132,10 +136,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 8),
                   Text(
                     _userEmail,
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                   ),
                 ],
               ),
@@ -181,10 +182,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 12),
                   Text(
                     _districtName,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: Colors.black87,
-                    ),
+                    style: const TextStyle(fontSize: 16, color: Colors.black87),
                   ),
                   if (_isLoading) ...[
                     const SizedBox(height: 12),
@@ -218,9 +216,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               title: 'Notifications',
               subtitle: 'View your notifications',
               onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Notifications feature coming soon'),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const NotificationsScreen(),
                   ),
                 );
               },
@@ -263,7 +262,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           onPressed: () async {
                             await _authService.logout();
                             if (context.mounted) {
-                              Navigator.pushReplacementNamed(context, '/login');
+                              Navigator.pushNamedAndRemoveUntil(
+                                context,
+                                '/',
+                                (route) => false,
+                              );
                             }
                           },
                           style: TextButton.styleFrom(
@@ -318,25 +321,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             color: Colors.deepPurple.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(
-            icon,
-            color: Colors.deepPurple,
-            size: 24,
-          ),
+          child: Icon(icon, color: Colors.deepPurple, size: 24),
         ),
         title: Text(
           title,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
         subtitle: Text(
           subtitle,
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.grey[600],
-          ),
+          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
         ),
         trailing: const Icon(
           Icons.arrow_forward_ios,

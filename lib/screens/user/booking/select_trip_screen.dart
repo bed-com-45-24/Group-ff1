@@ -1,11 +1,13 @@
-
 import 'package:flutter/material.dart';
+
 import '../../../data/sample_data.dart';
 import '../../../models/trip_model.dart';
 import 'seat_selection_screen.dart';
 
 class SelectTripScreen extends StatefulWidget {
-  const SelectTripScreen({super.key});
+  final bool showAppBar;
+
+  const SelectTripScreen({super.key, this.showAppBar = true});
 
   @override
   State<SelectTripScreen> createState() => _SelectTripScreenState();
@@ -15,15 +17,14 @@ class _SelectTripScreenState extends State<SelectTripScreen> {
   final originController = TextEditingController();
   final destinationController = TextEditingController();
 
-  DateTime travelDate = DateTime(2026, 11, 1);
+  DateTime travelDate = sampleTrips.first.departureTime;
   List<Trip> results = sampleTrips;
 
   void searchTrips() {
     setState(() {
       results = sampleTrips.where((trip) {
         final origin = originController.text.trim().toLowerCase();
-        final destination =
-            destinationController.text.trim().toLowerCase();
+        final destination = destinationController.text.trim().toLowerCase();
 
         return trip.origin.toLowerCase().contains(origin) &&
             trip.destination.toLowerCase().contains(destination) &&
@@ -44,7 +45,9 @@ class _SelectTripScreenState extends State<SelectTripScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Find a Trip')),
+      appBar: widget.showAppBar
+          ? AppBar(title: const Text('Find a Trip'))
+          : null,
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -77,9 +80,7 @@ class _SelectTripScreenState extends State<SelectTripScreen> {
                 context: context,
                 initialDate: travelDate,
                 firstDate: DateTime.now(),
-                lastDate: DateTime.now().add(
-                  const Duration(days: 365),
-                ),
+                lastDate: DateTime.now().add(const Duration(days: 365)),
               );
 
               if (selected != null) {
@@ -97,32 +98,32 @@ class _SelectTripScreenState extends State<SelectTripScreen> {
           const SizedBox(height: 20),
           if (results.isEmpty)
             const Center(child: Text('No trips found. Try another date.')),
-          ...results.map((trip) => Card(
-                child: ListTile(
-                  title: Text('${trip.origin} → ${trip.destination}'),
-                  subtitle: Text(
-                    '${trip.operatorName}\n'
-                    '${trip.departureTime.hour.toString().padLeft(2, '0')}:'
-                    '${trip.departureTime.minute.toString().padLeft(2, '0')} '
-                    '• ${trip.availableSeats} seats available',
-                  ),
-                  isThreeLine: true,
-                  trailing: Text(
-                    'MWK ${trip.fare.toStringAsFixed(0)}',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => SeatSelectionScreen(trip: trip),
-                      ),
-                    );
-                  },
+          ...results.map(
+            (trip) => Card(
+              child: ListTile(
+                title: Text('${trip.origin} → ${trip.destination}'),
+                subtitle: Text(
+                  '${trip.operatorName}\n'
+                  '${trip.departureTime.hour.toString().padLeft(2, '0')}:'
+                  '${trip.departureTime.minute.toString().padLeft(2, '0')} '
+                  '• ${trip.availableSeats} seats available',
                 ),
-              )),
+                isThreeLine: true,
+                trailing: Text(
+                  'MWK ${trip.fare.toStringAsFixed(0)}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => SeatSelectionScreen(trip: trip),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
         ],
       ),
     );

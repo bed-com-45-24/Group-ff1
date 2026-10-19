@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+
 import '../../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final String role;
+
+  const LoginScreen({super.key, this.role = 'passenger'});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -33,12 +36,20 @@ class _LoginScreenState extends State<LoginScreen> {
       final email = _emailController.text.trim();
       final password = _passwordController.text;
 
-      final success = await _authService.login(email, password);
+      final success = await _authService.login(
+        email,
+        password,
+        role: widget.role,
+      );
 
       if (!mounted) return;
 
       if (success) {
-        Navigator.pushReplacementNamed(context, '/home');
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          widget.role == 'admin' ? '/admin' : '/home',
+          (route) => false,
+        );
       } else {
         setState(() {
           _errorMessage = 'Invalid credentials. Please check your email and password or sign up.';
@@ -126,9 +137,16 @@ class _LoginScreenState extends State<LoginScreen> {
                       const Text(
                         'Sign in to continue',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.black54,
+                        style: TextStyle(fontSize: 16, color: Colors.black54),
+                      ),
+
+                      const SizedBox(height: 12),
+                      Text(
+                        'Signing in as ${widget.role == 'admin' ? 'Company admin' : 'Normal user'}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.deepPurple,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
 
@@ -211,13 +229,14 @@ class _LoginScreenState extends State<LoginScreen> {
                               });
                             },
                           ),
-                          const Text('Remember me'),
-                          const Spacer(),
+                          const Expanded(child: Text('Remember me')),
                           TextButton(
                             onPressed: () {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('Forgot password feature coming soon'),
+                                  content: Text(
+                                    'Forgot password feature coming soon',
+                                  ),
                                 ),
                               );
                             },
@@ -235,7 +254,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           decoration: BoxDecoration(
                             color: Colors.red.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                            border: Border.all(
+                              color: Colors.red.withValues(alpha: 0.3),
+                            ),
                           ),
                           child: Row(
                             children: [
@@ -294,8 +315,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 24),
 
                       // Sign up link
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           const Text(
                             "Don't have an account? ",
@@ -303,7 +325,11 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           TextButton(
                             onPressed: () {
-                              Navigator.pushReplacementNamed(context, '/signup');
+                              Navigator.pushReplacementNamed(
+                                context,
+                                '/signup',
+                                arguments: widget.role,
+                              );
                             },
                             child: const Text('Sign Up'),
                           ),

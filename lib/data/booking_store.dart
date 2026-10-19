@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 
 import '../models/booking_model.dart';
 
@@ -7,17 +8,16 @@ class BookingStore {
   static final BookingStore instance = BookingStore._();
 
   final List<BookingDraft> _bookings = [];
+  final ValueNotifier<int> changes = ValueNotifier(0);
 
-  List<BookingDraft> get bookings =>
-      List.unmodifiable(_bookings);
+  List<BookingDraft> get bookings => List.unmodifiable(_bookings);
 
   void addBooking(BookingDraft booking) {
-    final exists = _bookings.any(
-      (item) => item.reference == booking.reference,
-    );
+    final exists = _bookings.any((item) => item.reference == booking.reference);
 
     if (!exists) {
       _bookings.add(booking);
+      changes.value++;
     }
   }
 
@@ -28,6 +28,7 @@ class BookingStore {
 
     if (index != -1) {
       _bookings[index] = booking;
+      changes.value++;
     }
   }
 
@@ -42,8 +43,7 @@ class BookingStore {
   }
 
   void removeBooking(String reference) {
-    _bookings.removeWhere(
-      (booking) => booking.reference == reference,
-    );
+    _bookings.removeWhere((booking) => booking.reference == reference);
+    changes.value++;
   }
 }

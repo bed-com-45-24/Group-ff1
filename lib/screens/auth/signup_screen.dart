@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+
 import '../../services/auth_service.dart';
 
 class SignupScreen extends StatefulWidget {
-  const SignupScreen({super.key});
+  final String role;
+
+  const SignupScreen({super.key, this.role = 'passenger'});
 
   @override
   State<SignupScreen> createState() => _SignupScreenState();
@@ -36,7 +39,12 @@ class _SignupScreenState extends State<SignupScreen> {
       final email = _emailController.text.trim();
       final password = _passwordController.text;
 
-      final success = await _authService.signup(email, password, name);
+      final success = await _authService.signup(
+        email,
+        password,
+        name,
+        role: widget.role,
+      );
 
       if (!mounted) return;
 
@@ -47,10 +55,15 @@ class _SignupScreenState extends State<SignupScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.pushReplacementNamed(context, '/login');
+        Navigator.pushReplacementNamed(
+          context,
+          '/login',
+          arguments: widget.role,
+        );
       } else {
         setState(() {
-          _errorMessage = 'Email already registered. Please use a different email.';
+          _errorMessage =
+              'Email already registered. Please use a different email.';
           _isLoading = false;
         });
       }
@@ -137,10 +150,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       const Text(
                         'Sign up to get started with MOVA',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.black54,
-                        ),
+                        style: TextStyle(fontSize: 16, color: Colors.black54),
                       ),
 
                       const SizedBox(height: 48),
@@ -254,7 +264,8 @@ class _SignupScreenState extends State<SignupScreen> {
                             ),
                             onPressed: () {
                               setState(() {
-                                _obscureConfirmPassword = !_obscureConfirmPassword;
+                                _obscureConfirmPassword =
+                                    !_obscureConfirmPassword;
                               });
                             },
                           ),
@@ -284,7 +295,9 @@ class _SignupScreenState extends State<SignupScreen> {
                           decoration: BoxDecoration(
                             color: Colors.red.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                            border: Border.all(
+                              color: Colors.red.withValues(alpha: 0.3),
+                            ),
                           ),
                           child: Row(
                             children: [

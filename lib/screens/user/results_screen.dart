@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+
 import '../../data/sample_data.dart';
 import '../../models/route_model.dart';
 import '../../widgets/route_card.dart';
 import 'route_details_screen.dart';
 
 class ResultsScreen extends StatefulWidget {
-  const ResultsScreen({super.key});
+  final String origin;
+  final String destination;
+
+  const ResultsScreen({super.key, this.origin = '', this.destination = ''});
 
   @override
   State<ResultsScreen> createState() => _ResultsScreenState();
@@ -13,26 +17,58 @@ class ResultsScreen extends StatefulWidget {
 
 class _ResultsScreenState extends State<ResultsScreen> {
   final Set<String> selectedRouteIds = {};
+  Map<String, dynamic>? _searchArguments;
+  bool _readArguments = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_readArguments) return;
+    _readArguments = true;
+    final arguments = ModalRoute.of(context)?.settings.arguments;
+    if (arguments is Map<String, dynamic>) {
+      _searchArguments = arguments;
+    }
+  }
+
+  List<RouteModel> get _matchingRoutes {
+    final origin = _effectiveOrigin.toLowerCase();
+    final destination = _effectiveDestination.toLowerCase();
+
+    return sampleRoutes.where((route) {
+      return (origin.isEmpty || route.origin.toLowerCase().contains(origin)) &&
+          (destination.isEmpty ||
+              route.destination.toLowerCase().contains(destination));
+    }).toList();
+  }
+
+  String get _effectiveOrigin =>
+      (widget.origin.isNotEmpty
+              ? widget.origin
+              : _searchArguments?['origin']?.toString() ?? '')
+          .trim();
+
+  String get _effectiveDestination =>
+      (widget.destination.isNotEmpty
+              ? widget.destination
+              : _searchArguments?['name']?.toString() ?? '')
+          .trim();
 
   void openRoute(RouteModel route) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => RouteDetailsScreen(route: route),
-      ),
+      MaterialPageRoute(builder: (_) => RouteDetailsScreen(route: route)),
     );
   }
 
   void compareRoutes() {
-    final selectedRoutes = sampleRoutes
+    final selectedRoutes = _matchingRoutes
         .where((route) => selectedRouteIds.contains(route.id))
         .toList();
 
     if (selectedRoutes.length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Select at least two routes to compare.'),
-        ),
+        const SnackBar(content: Text('Select at least two routes to compare.')),
       );
       return;
     }
@@ -53,13 +89,9 @@ class _ResultsScreenState extends State<ResultsScreen> {
                   children: [
                     Text(
                       route.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
-                    Text(
-                      'Fare: MWK ${route.fare.toStringAsFixed(0)}',
-                    ),
+                    Text('Fare: MWK ${route.fare.toStringAsFixed(0)}'),
                     Text('Duration: ${route.duration}'),
                     Text('Transfers: ${route.transfers}'),
                     const Divider(),
@@ -81,9 +113,15 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final routes = _matchingRoutes;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Available Routes'),
+        title: Text(
+          _effectiveOrigin.isEmpty && _effectiveDestination.isEmpty
+              ? 'Available Routes'
+              : '${_effectiveOrigin.isEmpty ? 'All origins' : _effectiveOrigin} → '
+                    '${_effectiveDestination.isEmpty ? 'All destinations' : _effectiveDestination}',
+        ),
       ),
       body: Column(
         children: [
@@ -96,9 +134,9 @@ class _ResultsScreenState extends State<ResultsScreen> {
           ),
           Expanded(
             child: ListView.builder(
-              itemCount: sampleRoutes.length,
+              itemCount: routes.length,
               itemBuilder: (context, index) {
-                final route = sampleRoutes[index];
+                final route = routes[index];
 
                 return RouteCard(
                   route: route,
@@ -118,6 +156,14 @@ class _ResultsScreenState extends State<ResultsScreen> {
               },
             ),
           ),
+          if (routes.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(24),
+              child: Text(
+                'No routes match those locations. Try different From or To values.',
+                textAlign: TextAlign.center,
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.all(16),
             child: SizedBox(
