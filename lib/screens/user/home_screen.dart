@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../data/sample_data.dart';
+import '../../data/route_store.dart';
 import '../../models/route_model.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/route_card.dart';
@@ -86,6 +86,7 @@ class _HomeTab extends StatefulWidget {
 class _HomeTabState extends State<_HomeTab> with WidgetsBindingObserver {
   final _searchController = TextEditingController();
   final _authService = AuthService();
+  final _routeStore = RouteStore.instance;
   String _userInitial = 'U';
   String _currentLocation = 'Detecting location...';
   bool _isLoadingLocation = false;
@@ -94,8 +95,14 @@ class _HomeTabState extends State<_HomeTab> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _routeStore.changes.addListener(_refreshRoutes);
+    _routeStore.load();
     _loadUserInfo();
     _loadCurrentLocation();
+  }
+
+  void _refreshRoutes() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -163,6 +170,7 @@ class _HomeTabState extends State<_HomeTab> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _routeStore.changes.removeListener(_refreshRoutes);
     _searchController.dispose();
     super.dispose();
   }
@@ -310,14 +318,27 @@ class _HomeTabState extends State<_HomeTab> with WidgetsBindingObserver {
 
   List<RouteModel> get _featuredRoutes {
     const featuredIds = {'R002', 'R007', 'R010', 'R017', 'R025', 'R029'};
-    return sampleRoutes
-        .where((route) => featuredIds.contains(route.id))
+    return RouteStore.instance.routes
+        .where((route) => route.active && featuredIds.contains(route.id))
         .toList();
   }
 }
 
-class AllPopularRoutesScreen extends StatelessWidget {
+class AllPopularRoutesScreen extends StatefulWidget {
   const AllPopularRoutesScreen({super.key});
+
+  @override
+  State<AllPopularRoutesScreen> createState() => _AllPopularRoutesScreenState();
+}
+
+class _AllPopularRoutesScreenState extends State<AllPopularRoutesScreen> {
+  final _store = RouteStore.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _store.load();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -327,19 +348,31 @@ class AllPopularRoutesScreen extends StatelessWidget {
         backgroundColor: Colors.deepPurple,
         foregroundColor: Colors.white,
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        itemCount: sampleRoutes.length,
-        itemBuilder: (context, index) {
-          final route = sampleRoutes[index];
-          return RouteCard(
-            route: route,
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => RouteDetailsScreen(route: route),
-              ),
-            ),
+      body: ValueListenableBuilder<int>(
+        valueListenable: _store.changes,
+        builder: (context, _, _) {
+          final routes = _store.routes.where((route) => route.active).toList();
+          if (!_store.isLoaded) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (routes.isEmpty) {
+            return const Center(child: Text('No active routes available.'));
+          }
+          return ListView.builder(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            itemCount: routes.length,
+            itemBuilder: (context, index) {
+              final route = routes[index];
+              return RouteCard(
+                route: route,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => RouteDetailsScreen(route: route),
+                  ),
+                ),
+              );
+            },
           );
         },
       ),

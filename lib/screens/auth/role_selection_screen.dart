@@ -52,7 +52,8 @@ class RoleSelectionScreen extends StatelessWidget {
                   _RoleCard(
                     icon: Icons.admin_panel_settings_outlined,
                     title: 'Company admin',
-                    description: 'Manage company routes, stops, and fares.',
+                    description:
+                        'Manage routes, stops, fares, schedules, and bookings.',
                     onTap: () => _continueToLogin(context, 'admin'),
                   ),
                 ],

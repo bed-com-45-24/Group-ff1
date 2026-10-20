@@ -7,9 +7,11 @@ import 'package:mova/models/osm_route_model.dart';
 import 'package:mova/models/booking_model.dart';
 import 'package:mova/models/route_model.dart';
 import 'package:mova/models/trip_model.dart';
+import 'package:mova/data/route_store.dart';
 import 'package:mova/screens/user/booking/passenger_details_screen.dart';
 import 'package:mova/screens/user/booking/booking_summary_screen.dart';
 import 'package:mova/screens/user/route_directions_details_screen.dart';
+import 'package:mova/screens/user/results_screen.dart';
 import 'package:mova/services/auth_service.dart';
 
 void main() {
@@ -36,6 +38,13 @@ void main() {
 
   testWidgets('Admin role signs in to the admin dashboard', (tester) async {
     SharedPreferences.setMockInitialValues({});
+    final authService = AuthService();
+    await authService.signup(
+      'admin@mova.test',
+      'password123',
+      'MOVA Admin',
+      role: 'admin',
+    );
 
     await tester.pumpWidget(const MovaApp());
     await tester.pumpAndSettle();
@@ -50,6 +59,14 @@ void main() {
 
     expect(find.text('Company admin · Routes'), findsOneWidget);
     expect(find.text('Manage routes'), findsOneWidget);
+
+    await tester.tap(find.text('Schedules'));
+    await tester.pumpAndSettle();
+    expect(find.text('Schedules & seats'), findsOneWidget);
+
+    await tester.tap(find.text('Bookings'));
+    await tester.pumpAndSettle();
+    expect(find.text('No bookings have been made.'), findsOneWidget);
   });
 
   test('Registered passenger details persist for future bookings', () async {
@@ -88,6 +105,41 @@ void main() {
     details = await authService.getPassengerDetails();
     expect(details['phoneNumber'], '0991234567');
     expect(details['identificationNumber'], 'ID12345');
+  });
+
+  test('Unregistered credentials cannot sign in as company admin', () async {
+    SharedPreferences.setMockInitialValues({});
+    expect(
+      await AuthService().login(
+        'unknown@mova.test',
+        'password123',
+        role: 'admin',
+      ),
+      isFalse,
+    );
+  });
+
+  test('Admin route updates are stored for passenger browsing', () async {
+    SharedPreferences.setMockInitialValues({});
+    final store = RouteStore.instance;
+    await store.load();
+    const route = RouteModel(
+      id: 'ADMIN-TEST',
+      companyName: 'MOVA',
+      name: 'Test Origin - Test Destination',
+      origin: 'Test Origin',
+      destination: 'Test Destination',
+      stops: ['Test Origin', 'Test Stop', 'Test Destination'],
+      fare: 12345,
+      departureTimes: ['09:00'],
+      active: false,
+    );
+
+    await store.saveRoute(route);
+    expect(store.routes.any((item) => item.id == route.id), isTrue);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('admin_routes_v1'), contains('Test Destination'));
+    await store.removeRoute(route.id);
   });
 
   testWidgets(
@@ -256,6 +308,66 @@ void main() {
     expect(find.text('Estimated map fare'), findsOneWidget);
     expect(find.text('MWK 2750'), findsNWidgets(2));
     expect(find.textContaining('Malawi kwacha (MWK)'), findsOneWidget);
+  });
+
+  testWidgets('Selected comparison route is included in the booking summary', (
+    tester,
+  ) async {
+    final routes = [
+      OsmRouteModel.fromJson({
+        'geometry': {
+          'type': 'LineString',
+          'coordinates': [
+            [33.78, -13.96],
+            [34.00, -14.10],
+          ],
+        },
+        'distance': 12500,
+        'duration': 1800,
+        'legs': [
+          {'steps': <Map<String, dynamic>>[]},
+        ],
+      }, 0),
+      OsmRouteModel.fromJson({
+        'geometry': {
+          'type': 'LineString',
+          'coordinates': [
+            [33.78, -13.96],
+            [34.00, -14.10],
+          ],
+        },
+        'distance': 18000,
+        'duration': 2700,
+        'legs': [
+          {'steps': <Map<String, dynamic>>[]},
+        ],
+      }, 1),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CompareRoutesScreen(
+          routes: routes,
+          origin: 'Origin',
+          destination: 'Destination',
+          estimateFare: (route) =>
+              'MWK ${(route.distanceMeters / 1000 * 220).round()}',
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('route-option-selector-1')));
+    await tester.pumpAndSettle();
+    expect(find.text('Use Route 2 in booking summary'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Use Route 2 in booking summary'));
+    await tester.tap(find.text('Use Route 2 in booking summary'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Route 2'), findsWidgets);
+    expect(find.text('Selected route option'), findsOneWidget);
+    expect(find.text('45 min'), findsOneWidget);
+    expect(find.text('18.0 km'), findsOneWidget);
   });
 
   testWidgets('Trip summary shows route, stop, and fare information', (

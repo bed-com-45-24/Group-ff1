@@ -63,6 +63,8 @@ class BookingSummaryScreen extends StatelessWidget {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 _row('Company', route.companyName),
+                if (route.fareIsEstimate)
+                  _row('Selected route option', route.name),
                 _row('Pickup point', route.pickupPoint),
                 _row('Drop-off point', route.dropOffPoint),
                 _row('Journey duration', route.duration ?? 'Not published'),

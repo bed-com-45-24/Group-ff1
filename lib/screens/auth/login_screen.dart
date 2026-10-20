@@ -158,7 +158,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         keyboardType: TextInputType.emailAddress,
                         decoration: InputDecoration(
                           labelText: 'Email',
-                          hintText: 'Enter your email',
+                          hintText: widget.role == 'admin'
+                              ? 'praise@mova.com'
+                              : 'Enter your email',
+                          helperText: widget.role == 'admin'
+                              ? 'Register this email as a Company admin first, then sign in with the password you created.'
+                              : null,
                           prefixIcon: const Icon(Icons.email_outlined),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),

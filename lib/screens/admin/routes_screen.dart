@@ -1,5 +1,7 @@
-
 import 'package:flutter/material.dart';
+
+import '../../data/route_store.dart';
+import '../../models/route_model.dart';
 
 const Color appBlue = Color(0xFF2189E5);
 const Color appBackground = Color(0xFFF5F6FA);
@@ -14,62 +16,153 @@ class RoutesScreen extends StatefulWidget {
 }
 
 class _RoutesScreenState extends State<RoutesScreen> {
-  final TextEditingController routeController =
-      TextEditingController();
-
-  final List<Map<String, dynamic>> routes = [
-    {
-      'name': 'Area 25 → City Centre',
-      'fare': 1500,
-      'active': true,
-      'stops': 4,
-    },
-    {
-      'name': 'Area 25 → City Centre',
-      'fare': 1000,
-      'active': true,
-      'stops': 4,
-    },
-    {
-      'name': 'Blantyre CBD → Limbe',
-      'fare': 2000,
-      'active': true,
-      'stops': 4,
-    },
-  ];
+  final _store = RouteStore.instance;
 
   @override
-  void dispose() {
-    routeController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _store.load();
   }
 
-  void showMessage(String message) {
+  void _showMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
     );
   }
 
-  void addRoute() {
-    final name = routeController.text.trim();
+  Future<void> _editRoute([RouteModel? existing]) async {
+    final origin = TextEditingController(text: existing?.origin ?? '');
+    final destination = TextEditingController(
+      text: existing?.destination ?? '',
+    );
+    final company = TextEditingController(
+      text: existing?.companyName ?? 'MOVA',
+    );
+    final fare = TextEditingController(
+      text: existing == null ? '' : existing.fare.toStringAsFixed(0),
+    );
+    final departures = TextEditingController(
+      text: existing?.departureTimes.join(', ') ?? '',
+    );
+    final formKey = GlobalKey<FormState>();
 
-    if (name.isEmpty) {
-      showMessage('Enter a route name first.');
-      return;
-    }
+    final result = await showDialog<RouteModel>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(existing == null ? 'Add route' : 'Edit route'),
+        content: Form(
+          key: formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _field(origin, 'Origin'),
+                _field(destination, 'Destination'),
+                _field(company, 'Transport company'),
+                _field(
+                  fare,
+                  'Fare in MWK',
+                  keyboardType: TextInputType.number,
+                  validator: (value) {
+                    final amount = double.tryParse(value?.trim() ?? '');
+                    return amount == null || amount <= 0
+                        ? 'Enter a fare greater than zero'
+                        : null;
+                  },
+                ),
+                _field(
+                  departures,
+                  'Departure times (comma-separated)',
+                  required: false,
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (!formKey.currentState!.validate()) return;
+              final from = origin.text.trim();
+              final to = destination.text.trim();
+              final duplicate = _store.routes.any(
+                (route) =>
+                    route.id != existing?.id &&
+                    route.origin.toLowerCase() == from.toLowerCase() &&
+                    route.destination.toLowerCase() == to.toLowerCase(),
+              );
+              if (duplicate) {
+                _showMessage('That route already exists.');
+                return;
+              }
 
-    setState(() {
-      routes.add({
-        'name': name,
-        'fare': 0,
-        'active': true,
-        'stops': 0,
-      });
-      routeController.clear();
-    });
+              final intermediateStops =
+                  existing != null && existing.stops.length > 2
+                  ? existing.stops.sublist(1, existing.stops.length - 1)
+                  : const <String>[];
+              Navigator.pop(
+                dialogContext,
+                RouteModel(
+                  id: existing?.id ??
+                      'R-${DateTime.now().microsecondsSinceEpoch}',
+                  companyName: company.text.trim(),
+                  name: '$from - $to',
+                  origin: from,
+                  destination: to,
+                  stops: [from, ...intermediateStops, to],
+                  fare: double.parse(fare.text.trim()),
+                  duration: existing?.duration,
+                  mapDistance: existing?.mapDistance,
+                  transfers: existing?.transfers,
+                  departureTimes: departures.text
+                      .split(',')
+                      .map((time) => time.trim())
+                      .where((time) => time.isNotEmpty)
+                      .toList(),
+                  active: existing?.active ?? true,
+                ),
+              );
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    origin.dispose();
+    destination.dispose();
+    company.dispose();
+    fare.dispose();
+    departures.dispose();
+    if (result == null) return;
+    await _store.saveRoute(result);
+    if (mounted) _showMessage('Route saved.');
+  }
 
-    FocusScope.of(context).unfocus();
-    showMessage('Route added.');
+  Future<void> _removeRoute(RouteModel route) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete route?'),
+        content: Text('Delete ${route.name}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await _store.removeRoute(route.id);
+    if (mounted) _showMessage('Route deleted.');
   }
 
   @override
@@ -77,117 +170,105 @@ class _RoutesScreenState extends State<RoutesScreen> {
     return Scaffold(
       backgroundColor: appBackground,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Manage routes',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 5),
-              const Text(
-                'Create and manage official routes',
-                style: TextStyle(color: mutedText),
-              ),
-              const SizedBox(height: 18),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: routes.length,
-                  itemBuilder: (context, index) {
-                    final route = routes[index];
-                    final bool active = route['active'];
-
-                    return Card(
-                      color: Colors.white,
-                      margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(22),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    route['name'],
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 7),
-                                  Text(
-                                    '${route['stops']} stops · '
-                                    'MK ${route['fare']}',
-                                    style: const TextStyle(
-                                      color: mutedText,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            FilledButton(
-                              style: FilledButton.styleFrom(
-                                backgroundColor: active
-                                    ? activeGreen
-                                    : Colors.grey,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  route['active'] = !active;
-                                });
-                              },
-                              child: Text(
-                                active ? 'Active' : 'Inactive',
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              Row(
+        child: ValueListenableBuilder<int>(
+          valueListenable: _store.changes,
+          builder: (context, _, _) {
+            final routes = _store.routes;
+            return Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: TextField(
-                      controller: routeController,
-                      decoration: InputDecoration(
-                        hintText: 'New route name',
-                        filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                      onSubmitted: (_) => addRoute(),
-                    ),
+                  const Text(
+                    'Manage routes',
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(width: 8),
-                  FilledButton(
-                    onPressed: addRoute,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: appBlue,
+                  const SizedBox(height: 5),
+                  const Text(
+                    'Changes are saved and used by passenger route browsing.',
+                    style: TextStyle(color: mutedText),
+                  ),
+                  const SizedBox(height: 18),
+                  Expanded(
+                    child: !_store.isLoaded
+                        ? const Center(child: CircularProgressIndicator())
+                        : routes.isEmpty
+                        ? const Center(child: Text('No routes yet. Add one.'))
+                        : ListView.builder(
+                            itemCount: routes.length,
+                            itemBuilder: (context, index) {
+                              final route = routes[index];
+                              return Card(
+                                color: Colors.white,
+                                margin: const EdgeInsets.only(bottom: 12),
+                                child: ListTile(
+                                  title: Text(route.name),
+                                  subtitle: Text(
+                                    '${route.stops.length} stops · '
+                                    'MWK ${route.fare.toStringAsFixed(0)}',
+                                  ),
+                                  onTap: () => _editRoute(route),
+                                  trailing: Wrap(
+                                    spacing: 0,
+                                    crossAxisAlignment:
+                                        WrapCrossAlignment.center,
+                                    children: [
+                                      Switch(
+                                        value: route.active,
+                                        onChanged: (active) => _store.saveRoute(
+                                          route.copyWith(active: active),
+                                        ),
+                                      ),
+                                      IconButton(
+                                        tooltip: 'Delete route',
+                                        onPressed: () => _removeRoute(route),
+                                        icon: const Icon(Icons.delete_outline),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () => _editRoute(),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add route'),
                     ),
-                    child: const Text('Add'),
                   ),
                 ],
               ),
-            ],
-          ),
+            );
+          },
         ),
+      ),
+    );
+  }
+
+  Widget _field(
+    TextEditingController controller,
+    String label, {
+    TextInputType? keyboardType,
+    bool required = true,
+    String? Function(String?)? validator,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextFormField(
+        controller: controller,
+        keyboardType: keyboardType,
+        decoration: InputDecoration(
+          labelText: label,
+          border: const OutlineInputBorder(),
+        ),
+        validator:
+            validator ??
+            (value) => required && (value == null || value.trim().isEmpty)
+                ? 'This field is required'
+                : null,
       ),
     );
   }

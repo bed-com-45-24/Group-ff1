@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'routes_screen.dart';
 import 'stops_screen.dart';
 import 'fares_screen.dart';
+import 'schedules_screen.dart';
+import 'bookings_screen.dart';
 import '../../services/auth_service.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -14,18 +16,45 @@ class AdminDashboardScreen extends StatefulWidget {
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   int selectedIndex = 0;
+  late final Future<bool> _accessCheck = _isAuthorizedAdmin();
 
   final List<Widget> screens = const [
     RoutesScreen(),
     StopsScreen(),
     FaresScreen(),
+    SchedulesScreen(),
+    AdminBookingsScreen(),
   ];
+
+  Future<bool> _isAuthorizedAdmin() async {
+    final auth = AuthService();
+    return await auth.isLoggedIn() && await auth.getUserRole() == 'admin';
+  }
 
   @override
   Widget build(BuildContext context) {
-    const titles = ['Routes', 'Stops', 'Fares'];
+    const titles = ['Routes', 'Stops', 'Fares', 'Schedules', 'Bookings'];
 
-    return Scaffold(
+    return FutureBuilder<bool>(
+      future: _accessCheck,
+      builder: (context, snapshot) {
+        if (snapshot.data != true) {
+          if (snapshot.connectionState == ConnectionState.done) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/',
+                  (route) => false,
+                );
+              }
+            });
+          }
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -67,8 +96,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             selectedIcon: Icon(Icons.payments),
             label: 'Fares',
           ),
+          NavigationDestination(
+            icon: Icon(Icons.schedule_outlined),
+            selectedIcon: Icon(Icons.schedule),
+            label: 'Schedules',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.confirmation_number_outlined),
+            selectedIcon: Icon(Icons.confirmation_number),
+            label: 'Bookings',
+          ),
         ],
       ),
+        );
+      },
     );
   }
 }

@@ -1,6 +1,6 @@
-
 import 'package:flutter/material.dart';
 
+import '../../../data/booking_store.dart';
 import '../../../models/booking_model.dart';
 import '../../../services/auth_service.dart';
 import 'booking_summary_screen.dart';
@@ -8,18 +8,13 @@ import 'booking_summary_screen.dart';
 class PassengerDetailsScreen extends StatefulWidget {
   final BookingDraft booking;
 
-  const PassengerDetailsScreen({
-    super.key,
-    required this.booking,
-  });
+  const PassengerDetailsScreen({super.key, required this.booking});
 
   @override
-  State<PassengerDetailsScreen> createState() =>
-      _PassengerDetailsScreenState();
+  State<PassengerDetailsScreen> createState() => _PassengerDetailsScreenState();
 }
 
-class _PassengerDetailsScreenState
-    extends State<PassengerDetailsScreen> {
+class _PassengerDetailsScreenState extends State<PassengerDetailsScreen> {
   final formKey = GlobalKey<FormState>();
   final _authService = AuthService();
   late final TextEditingController nameController;
@@ -31,12 +26,11 @@ class _PassengerDetailsScreenState
   @override
   void initState() {
     super.initState();
-    nameController =
-        TextEditingController(text: widget.booking.passengerName);
-    emailController =
-        TextEditingController(text: widget.booking.passengerEmail);
-    phoneController =
-        TextEditingController(text: widget.booking.phoneNumber);
+    nameController = TextEditingController(text: widget.booking.passengerName);
+    emailController = TextEditingController(
+      text: widget.booking.passengerEmail,
+    );
+    phoneController = TextEditingController(text: widget.booking.phoneNumber);
     idController = TextEditingController(
       text: widget.booking.identificationNumber,
     );
@@ -83,13 +77,12 @@ class _PassengerDetailsScreenState
       widget.booking.passengerEmail = email;
       widget.booking.phoneNumber = phone;
       widget.booking.identificationNumber = identificationNumber;
+      BookingStore.instance.addBooking(widget.booking);
 
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => BookingSummaryScreen(
-            booking: widget.booking,
-          ),
+          builder: (_) => BookingSummaryScreen(booking: widget.booking),
         ),
       );
     } catch (_) {
@@ -128,10 +121,9 @@ class _PassengerDetailsScreenState
                 labelText: 'Full name',
                 border: OutlineInputBorder(),
               ),
-              validator: (value) =>
-                  value == null || value.trim().isEmpty
-                      ? 'Enter your full name'
-                      : null,
+              validator: (value) => value == null || value.trim().isEmpty
+                  ? 'Enter your full name'
+                  : null,
             ),
             const SizedBox(height: 16),
             TextFormField(
@@ -158,10 +150,9 @@ class _PassengerDetailsScreenState
                 hintText: 'e.g. 0991234567',
                 border: OutlineInputBorder(),
               ),
-              validator: (value) =>
-                  value == null || value.trim().length < 7
-                      ? 'Enter a valid phone number'
-                      : null,
+              validator: (value) => value == null || value.trim().length < 7
+                  ? 'Enter a valid phone number'
+                  : null,
             ),
             const SizedBox(height: 16),
             TextFormField(

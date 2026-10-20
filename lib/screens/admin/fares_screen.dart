@@ -1,5 +1,8 @@
-
 import 'package:flutter/material.dart';
+
+import '../../data/route_store.dart';
+import '../../data/trip_store.dart';
+import '../../models/route_model.dart';
 
 class FaresScreen extends StatefulWidget {
   const FaresScreen({super.key});
@@ -9,67 +12,76 @@ class FaresScreen extends StatefulWidget {
 }
 
 class _FaresScreenState extends State<FaresScreen> {
-  final List<Map<String, dynamic>> routes = [
-    {'name': 'Area 25 → City Centre', 'fare': 1500},
-    {'name': 'Area 25 → City Centre', 'fare': 1000},
-    {'name': 'Blantyre CBD → Limbe', 'fare': 2000},
-  ];
+  final _store = RouteStore.instance;
+  final _tripStore = TripStore.instance;
 
-  void showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+  @override
+  void initState() {
+    super.initState();
+    _store.load();
+    _tripStore.load();
   }
 
-  void editFare(int index) {
+  Future<void> _editFare(RouteModel route) async {
     final controller = TextEditingController(
-      text: routes[index]['fare'].toString(),
+      text: route.fare.toStringAsFixed(0),
     );
-
-    showDialog<void>(
+    final formKey = GlobalKey<FormState>();
+    final fare = await showDialog<double>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Update route fare'),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Fare in MWK',
-            prefixText: 'MK ',
-            border: OutlineInputBorder(),
+        title: Text('Update fare · ${route.name}'),
+        content: Form(
+          key: formKey,
+          child: TextFormField(
+            controller: controller,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'Fare in MWK',
+              prefixText: 'MWK ',
+              border: OutlineInputBorder(),
+            ),
+            validator: (value) {
+              final amount = double.tryParse(value?.trim() ?? '');
+              return amount == null || amount <= 0
+                  ? 'Enter a fare greater than zero'
+                  : null;
+            },
           ),
         ),
         actions: [
           TextButton(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              controller.dispose();
-            },
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           FilledButton(
             onPressed: () {
-              final fare = int.tryParse(
-                controller.text.trim(),
-              );
-
-              if (fare == null || fare < 0) {
-                showMessage('Enter a valid fare.');
-                return;
+              if (formKey.currentState!.validate()) {
+                Navigator.pop(dialogContext, double.parse(controller.text));
               }
-
-              setState(() {
-                routes[index]['fare'] = fare;
-              });
-
-              Navigator.pop(dialogContext);
-              controller.dispose();
-              showMessage('Fare updated.');
             },
             child: const Text('Save'),
           ),
         ],
       ),
+    );
+    controller.dispose();
+    if (fare == null) return;
+    await _store.saveRoute(route.copyWith(fare: fare));
+    final matchingTrips = _tripStore.trips.where(
+      (trip) =>
+          trip.origin.toLowerCase() == route.origin.toLowerCase() &&
+          trip.destination.toLowerCase() == route.destination.toLowerCase(),
+    );
+    await Future.wait(
+      matchingTrips.map((trip) => _tripStore.saveTrip(trip.copyWith(fare: fare))),
+    );
+    if (mounted) _message('Fare updated and saved.');
+  }
+
+  void _message(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
     );
   }
 
@@ -78,75 +90,59 @@ class _FaresScreenState extends State<FaresScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Manage fares',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 5),
-              const Text('Tap a route to update its fare'),
-              const SizedBox(height: 18),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: routes.length,
-                  itemBuilder: (context, index) {
-                    return Card(
-                      color: Colors.white,
-                      margin: const EdgeInsets.only(bottom: 14),
-                      child: ListTile(
-                        contentPadding:
-                            const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                        title: Text(
-                          routes[index]['name'],
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
+        child: ValueListenableBuilder<int>(
+          valueListenable: _store.changes,
+          builder: (context, _, _) {
+            final routes = _store.routes;
+            return Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Manage fares',
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 5),
+                  const Text('Fare changes are reflected in passenger routes.'),
+                  const SizedBox(height: 18),
+                  Expanded(
+                    child: !_store.isLoaded
+                        ? const Center(child: CircularProgressIndicator())
+                        : routes.isEmpty
+                        ? const Center(
+                            child: Text('Add a route before setting fares.'),
+                          )
+                        : ListView.builder(
+                            itemCount: routes.length,
+                            itemBuilder: (context, index) {
+                              final route = routes[index];
+                              return Card(
+                                color: Colors.white,
+                                margin: const EdgeInsets.only(bottom: 12),
+                                child: ListTile(
+                                  title: Text(route.name),
+                                  subtitle: Text(
+                                    route.active ? 'Active route' : 'Inactive',
+                                  ),
+                                  trailing: Text(
+                                    'MWK ${route.fare.toStringAsFixed(0)}',
+                                    style: const TextStyle(
+                                      color: Color(0xFFE87916),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  onTap: () => _editFare(route),
+                                ),
+                              );
+                            },
                           ),
-                        ),
-                        subtitle: const Text('Tap to edit'),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'MK ${routes[index]['fare']}',
-                              style: const TextStyle(
-                                color: Color(0xFFE87916),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            const Icon(Icons.chevron_right),
-                          ],
-                        ),
-                        onTap: () => editFare(index),
-                      ),
-                    );
-                  },
-                ),
+                  ),
+                ],
               ),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: () {
-                    showMessage(
-                      'Sample changes are not connected to a database.',
-                    );
-                  },
-                  icon: const Icon(Icons.publish),
-                  label: const Text('Publish changes'),
-                ),
-              ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );

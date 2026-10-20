@@ -3,7 +3,9 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../models/osm_route_model.dart';
+import '../../models/route_model.dart';
 import '../../services/openstreetmap_service.dart';
+import 'booking/booking_summary_screen.dart';
 import 'route_directions_details_screen.dart';
 
 class ResultsScreen extends StatefulWidget {
@@ -385,7 +387,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
   }
 }
 
-class CompareRoutesScreen extends StatelessWidget {
+class CompareRoutesScreen extends StatefulWidget {
   final List<OsmRouteModel> routes;
   final String origin;
   final String destination;
@@ -398,6 +400,40 @@ class CompareRoutesScreen extends StatelessWidget {
     required this.destination,
     required this.estimateFare,
   });
+
+  @override
+  State<CompareRoutesScreen> createState() => _CompareRoutesScreenState();
+}
+
+class _CompareRoutesScreenState extends State<CompareRoutesScreen> {
+  late int _selectedRouteIndex = 0;
+
+  void _continueWithSelectedRoute() {
+    final selectedRoute = widget.routes[_selectedRouteIndex];
+    final fare = (selectedRoute.distanceMeters / 1000 * 220).roundToDouble();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BookingSummaryScreen(
+          route: RouteModel(
+            id: selectedRoute.id,
+            companyName: 'Map route estimate',
+            name:
+                '${widget.origin} - ${widget.destination} · '
+                'Route ${_selectedRouteIndex + 1}',
+            origin: widget.origin,
+            destination: widget.destination,
+            stops: [widget.origin, widget.destination],
+            fare: fare,
+            duration: selectedRoute.durationLabel,
+            mapDistance: selectedRoute.distanceLabel,
+            transfers: 0,
+            fareIsEstimate: true,
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -414,7 +450,7 @@ class CompareRoutesScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '$origin → $destination',
+                '${widget.origin} → ${widget.destination}',
                 style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -433,9 +469,12 @@ class CompareRoutesScreen extends StatelessWidget {
                 style: TextStyle(color: Colors.black54, fontSize: 12),
               ),
               const SizedBox(height: 16),
-              for (var index = 0; index < routes.length; index++)
+              for (var index = 0; index < widget.routes.length; index++)
                 Card(
                   margin: const EdgeInsets.only(bottom: 12),
+                  color: index == _selectedRouteIndex
+                      ? Colors.deepPurple.shade50
+                      : null,
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
@@ -459,23 +498,63 @@ class CompareRoutesScreen extends StatelessWidget {
                               ),
                           ],
                         ),
+                        InkWell(
+                          key: ValueKey('route-option-selector-$index'),
+                          onTap: () {
+                            setState(() => _selectedRouteIndex = index);
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  index == _selectedRouteIndex
+                                      ? Icons.radio_button_checked
+                                      : Icons.radio_button_unchecked,
+                                  color: index == _selectedRouteIndex
+                                      ? Colors.deepPurple
+                                      : null,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  index == _selectedRouteIndex
+                                      ? 'Selected route'
+                                      : 'Choose this route',
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                         const Divider(),
                         _ComparisonMetric(
                           label: 'Estimated travel time (map)',
-                          value: routes[index].durationLabel,
+                          value: widget.routes[index].durationLabel,
                         ),
                         _ComparisonMetric(
                           label: 'Distance (map)',
-                          value: routes[index].distanceLabel,
+                          value: widget.routes[index].distanceLabel,
                         ),
                         _ComparisonMetric(
                           label: 'Estimated fare (Malawi kwacha)',
-                          value: estimateFare(routes[index]),
+                          value: widget.estimateFare(widget.routes[index]),
                         ),
                       ],
                     ),
                   ),
                 ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: widget.routes.isEmpty
+                      ? null
+                      : _continueWithSelectedRoute,
+                  icon: const Icon(Icons.check_circle_outline),
+                  label: Text(
+                    'Use Route ${_selectedRouteIndex + 1} in booking summary',
+                  ),
+                ),
+              ),
             ],
           ),
         ),

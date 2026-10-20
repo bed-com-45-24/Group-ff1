@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../data/sample_data.dart';
+import '../../../data/trip_store.dart';
 import '../../../models/trip_model.dart';
 import 'seat_selection_screen.dart';
 
@@ -14,29 +14,58 @@ class SelectTripScreen extends StatefulWidget {
 }
 
 class _SelectTripScreenState extends State<SelectTripScreen> {
+  final _tripStore = TripStore.instance;
   final originController = TextEditingController();
   final destinationController = TextEditingController();
 
-  DateTime travelDate = sampleTrips.first.departureTime;
-  List<Trip> results = sampleTrips;
+  DateTime travelDate = DateTime(2026, 11, 1);
+  List<Trip> results = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _tripStore.changes.addListener(_refreshTrips);
+    _tripStore.load();
+  }
+
+  void _refreshTrips() {
+    if (!mounted) return;
+    setState(() {
+      final upcomingTrips = _tripStore.trips
+          .where((trip) => !trip.departureTime.isBefore(DateTime.now()))
+          .toList();
+      if (upcomingTrips.isNotEmpty) {
+        travelDate = upcomingTrips.first.departureTime;
+      } else {
+        travelDate = DateTime.now();
+      }
+      _filterTrips();
+    });
+  }
+
+  void _filterTrips() {
+    final origin = originController.text.trim().toLowerCase();
+    final destination = destinationController.text.trim().toLowerCase();
+    results = _tripStore.trips.where((trip) {
+      return trip.availableSeats > 0 &&
+          !trip.departureTime.isBefore(DateTime.now()) &&
+          trip.origin.toLowerCase().contains(origin) &&
+          trip.destination.toLowerCase().contains(destination) &&
+          trip.departureTime.year == travelDate.year &&
+          trip.departureTime.month == travelDate.month &&
+          trip.departureTime.day == travelDate.day;
+    }).toList();
+  }
 
   void searchTrips() {
     setState(() {
-      results = sampleTrips.where((trip) {
-        final origin = originController.text.trim().toLowerCase();
-        final destination = destinationController.text.trim().toLowerCase();
-
-        return trip.origin.toLowerCase().contains(origin) &&
-            trip.destination.toLowerCase().contains(destination) &&
-            trip.departureTime.year == travelDate.year &&
-            trip.departureTime.month == travelDate.month &&
-            trip.departureTime.day == travelDate.day;
-      }).toList();
+      _filterTrips();
     });
   }
 
   @override
   void dispose() {
+    _tripStore.changes.removeListener(_refreshTrips);
     originController.dispose();
     destinationController.dispose();
     super.dispose();
@@ -78,7 +107,9 @@ class _SelectTripScreenState extends State<SelectTripScreen> {
             onTap: () async {
               final selected = await showDatePicker(
                 context: context,
-                initialDate: travelDate,
+                initialDate: travelDate.isBefore(DateTime.now())
+                    ? DateTime.now()
+                    : travelDate,
                 firstDate: DateTime.now(),
                 lastDate: DateTime.now().add(const Duration(days: 365)),
               );

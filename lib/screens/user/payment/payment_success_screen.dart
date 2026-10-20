@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../models/booking_model.dart';
 import '../../../data/booking_store.dart';
 import '../../../data/notification_store.dart';
+import '../../../data/trip_store.dart';
 import '../booking/booking_confirmation_screen.dart';
 
 class PaymentSuccessScreen extends StatefulWidget {
@@ -21,6 +22,7 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
     final booking = widget.booking;
     booking.paid = true;
     BookingStore.instance.addBooking(booking);
+    TripStore.instance.markSeatsBooked(booking);
     NotificationStore.instance.addPaymentConfirmation(
       paymentMethod: booking.paymentMethod,
       paymentReference: booking.paymentReference,

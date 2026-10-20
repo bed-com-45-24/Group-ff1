@@ -91,7 +91,8 @@ class AuthService {
         ? <dynamic>[]
         : jsonDecode(registeredUsersJson) as List<dynamic>;
     final matchingEmail = registeredUsers.where(
-      (user) => user['email'] == email,
+      (user) =>
+          (user['email'] as String?)?.toLowerCase() == email.toLowerCase(),
     );
 
     if (matchingEmail.isNotEmpty) {
@@ -105,7 +106,8 @@ class AuthService {
       return true;
     }
 
-    // Fallback for demo: accept any non-empty credentials
+    // Keep demo passenger sign-in permissive, but admins must be registered.
+    if (role == 'admin') return false;
     if (email.isNotEmpty && password.isNotEmpty) {
       await _saveLogin(prefs, email, email.split('@')[0], role);
       return true;
@@ -131,7 +133,9 @@ class AuthService {
     }
 
     // Check if email already exists
-    if (registeredUsers.any((u) => u['email'] == email)) {
+    if (registeredUsers.any(
+      (user) => (user['email'] as String).toLowerCase() == email.toLowerCase(),
+    )) {
       return false; // Email already registered
     }
 
