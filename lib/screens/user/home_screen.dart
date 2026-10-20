@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../data/sample_data.dart';
 import '../../models/route_model.dart';
 import '../../services/auth_service.dart';
-import '../../services/location_service.dart';
 import '../../widgets/route_card.dart';
 import 'map_screen.dart';
 import 'notifications_screen.dart';
@@ -87,7 +86,6 @@ class _HomeTab extends StatefulWidget {
 class _HomeTabState extends State<_HomeTab> with WidgetsBindingObserver {
   final _searchController = TextEditingController();
   final _authService = AuthService();
-  final _locationService = LocationService();
   String _userInitial = 'U';
   String _currentLocation = 'Detecting location...';
   bool _isLoadingLocation = false;
@@ -121,39 +119,17 @@ class _HomeTabState extends State<_HomeTab> with WidgetsBindingObserver {
   Future<void> _loadCurrentLocation() async {
     if (_isLoadingLocation) return;
     setState(() => _isLoadingLocation = true);
-    try {
-      final locationName = await _locationService.getCurrentLocationName();
-      if (!mounted) return;
-      setState(() => _currentLocation = locationName);
-    } catch (error) {
-      if (!mounted) return;
-      setState(
-        () => _currentLocation =
-            'Location error: '
-            '${error.toString().replaceFirst('Exception: ', '')}',
-      );
-    } finally {
-      if (mounted) setState(() => _isLoadingLocation = false);
-    }
+    await Future<void>.delayed(const Duration(seconds: 1));
+    if (!mounted) return;
+    setState(() {
+      _currentLocation = 'Zomba';
+      _isLoadingLocation = false;
+    });
   }
 
   Future<void> _refreshLocation() async {
     if (_isLoadingLocation) return;
-    try {
-      final openedSettings = await _locationService.openSettingsIfNeeded();
-      if (!mounted) return;
-      if (!openedSettings) await _loadCurrentLocation();
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Could not open location settings: '
-            '${error.toString().replaceFirst('Exception: ', '')}',
-          ),
-        ),
-      );
-    }
+    await _loadCurrentLocation();
   }
 
   void _openProfile() {
