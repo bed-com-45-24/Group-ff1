@@ -32,6 +32,9 @@ class RouteDirectionsDetailsScreen extends StatelessWidget {
               options: MapOptions(
                 initialCenter: points.first,
                 initialZoom: 8,
+                interactionOptions: const InteractionOptions(
+                  flags: InteractiveFlag.all,
+                ),
                 initialCameraFit: CameraFit.bounds(
                   bounds: LatLngBounds.fromPoints(points),
                   padding: const EdgeInsets.all(28),
@@ -84,6 +87,13 @@ class RouteDirectionsDetailsScreen extends StatelessWidget {
                   ],
                 ),
               ],
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.only(left: 16, right: 16, top: 8),
+            child: Text(
+              'Drag the map to move; pinch or scroll to zoom.',
+              style: TextStyle(color: Colors.black54, fontSize: 12),
             ),
           ),
           Padding(

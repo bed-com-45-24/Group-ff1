@@ -223,6 +223,9 @@ class _ResultsScreenState extends State<ResultsScreen> {
                     options: MapOptions(
                       initialCenter: _originPoint!,
                       initialZoom: 8,
+                      interactionOptions: const InteractionOptions(
+                        flags: InteractiveFlag.all,
+                      ),
                       onMapReady: () {
                         if (activeRoute.isNotEmpty) {
                           _fitMap(activeRoute.first);
@@ -305,7 +308,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
                       const SizedBox(height: 4),
                       const Text(
                         'Map-based travel times are estimates, not bus schedules. '
-                        'Fares are distance-based estimates in Malawi kwacha.',
+                        'Fares are distance-based estimates in Malawi kwacha. '
+                        'Drag the map to move; pinch or scroll to zoom.',
                         style: TextStyle(color: Colors.black54, fontSize: 12),
                       ),
                     ],

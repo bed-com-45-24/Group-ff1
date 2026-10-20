@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:mova/main.dart';
@@ -8,11 +9,43 @@ import 'package:mova/models/booking_model.dart';
 import 'package:mova/models/route_model.dart';
 import 'package:mova/models/trip_model.dart';
 import 'package:mova/data/route_store.dart';
+import 'package:mova/data/trip_store.dart';
 import 'package:mova/screens/user/booking/passenger_details_screen.dart';
 import 'package:mova/screens/user/booking/booking_summary_screen.dart';
+import 'package:mova/screens/user/booking/select_trip_screen.dart';
 import 'package:mova/screens/user/route_directions_details_screen.dart';
 import 'package:mova/screens/user/results_screen.dart';
 import 'package:mova/services/auth_service.dart';
+import 'package:mova/services/openstreetmap_service.dart';
+
+class _FakeOpenStreetMapService extends OpenStreetMapService {
+  final List<OsmRouteModel> routes = const [
+    OsmRouteModel(
+      id: 'route-1',
+      geoJson: {
+        'type': 'LineString',
+        'coordinates': [
+          [33.78, -13.96],
+          [34.00, -14.10],
+        ],
+      },
+      distanceMeters: 10000,
+      durationSeconds: 3600,
+      steps: [],
+    ),
+  ];
+
+  _FakeOpenStreetMapService();
+
+  @override
+  Future<LatLng> findPlace(String query) async => const LatLng(-13.96, 33.78);
+
+  @override
+  Future<List<OsmRouteModel>> findRoutes({
+    required LatLng origin,
+    required LatLng destination,
+  }) async => routes;
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -229,12 +262,122 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Bookings'), findsWidgets);
-      expect(find.text('Find a trip'), findsOneWidget);
+      expect(find.text('Book a trip'), findsWidgets);
       expect(find.text('My bookings'), findsOneWidget);
 
       await tester.tap(find.text('My bookings'));
       await tester.pumpAndSettle();
       expect(find.textContaining('No bookings yet'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Booking form validates details and continues to seat selection',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final now = DateTime.now();
+      final departureTime = DateTime(now.year, now.month, now.day, 23, 59, 59);
+      final trip = Trip(
+        id: 'BOOKING-FORM-TEST',
+        origin: 'Test Origin',
+        destination: 'Test Destination',
+        departureTime: departureTime,
+        arrivalTime: departureTime.add(const Duration(hours: 4)),
+        fare: 25000,
+        totalSeats: 10,
+      );
+      await TripStore.instance.saveTrip(trip);
+      addTearDown(() => TripStore.instance.removeTrip(trip.id));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SelectTripScreen(
+            openStreetMapService: _FakeOpenStreetMapService(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Plan your journey'), findsOneWidget);
+      expect(find.text('Departure location'), findsOneWidget);
+      expect(find.text('Destination'), findsOneWidget);
+      expect(find.text('Travel date'), findsOneWidget);
+      expect(find.text('Available trips'), findsNothing);
+
+      await tester.tap(find.text('Book a trip'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Enter your departure location'), findsOneWidget);
+      expect(find.text('Enter your destination'), findsOneWidget);
+      expect(find.text('Available trips'), findsNothing);
+
+      await tester.enterText(find.byType(TextFormField).at(0), 'Test Origin');
+      await tester.enterText(
+        find.byType(TextFormField).at(1),
+        'Test Destination',
+      );
+      await tester.tap(find.text('Book a trip'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Test Origin → Test Destination'), findsOneWidget);
+      expect(find.text('MWK 2200'), findsOneWidget);
+      expect(find.textContaining('10.0 km'), findsOneWidget);
+      expect(find.textContaining('map estimates'), findsOneWidget);
+      await tester.ensureVisible(find.text('Test Origin → Test Destination'));
+      await tester.tap(find.text('Test Origin → Test Destination'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Select Seats'), findsOneWidget);
+      expect(
+        find.textContaining('Estimated map fare per seat'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('MWK 220 per kilometre'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Booking can continue using a map-estimated fare without a schedule',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final now = DateTime.now();
+      final dateKey =
+          '${now.year.toString().padLeft(4, '0')}'
+          '${now.month.toString().padLeft(2, '0')}'
+          '${now.day.toString().padLeft(2, '0')}';
+      final tripId = 'MAP-ESTIMATE-$dateKey-test-town-other-town-route-1';
+      addTearDown(() => TripStore.instance.removeTrip(tripId));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SelectTripScreen(
+            openStreetMapService: _FakeOpenStreetMapService(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField).at(0), 'Test Town');
+      await tester.enterText(find.byType(TextFormField).at(1), 'Other Town');
+      await tester.tap(find.text('Book a trip'));
+      await tester.pumpAndSettle();
+
+      await tester.drag(find.byType(ListView), const Offset(0, -600));
+      await tester.pumpAndSettle();
+      expect(find.text('Test Town → Other Town'), findsOneWidget);
+      expect(find.text('MWK 2200'), findsOneWidget);
+      expect(find.textContaining('10.0 km'), findsOneWidget);
+      expect(
+        find.textContaining('not published operator fares'),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.text('Test Town → Other Town'));
+      await tester.pumpAndSettle();
+      expect(find.text('Select Seats'), findsOneWidget);
+      expect(
+        find.textContaining('Estimated map fare per seat'),
+        findsOneWidget,
+      );
     },
   );
 

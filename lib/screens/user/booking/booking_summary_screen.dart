@@ -192,6 +192,11 @@ class BookingSummaryScreen extends StatelessWidget {
                 _row('Departure', _formatDateTime(trip.departureTime)),
                 _row('Arrival', _formatDateTime(trip.arrivalTime)),
                 _row('Estimated journey time', durationText),
+                if (trip.mapDistanceMeters != null)
+                  _row(
+                    'Map distance',
+                    '${(trip.mapDistanceMeters! / 1000).toStringAsFixed(1)} km',
+                  ),
                 _row('Passenger', booking.passengerName),
                 if (booking.passengerEmail.isNotEmpty)
                   _row('Email', booking.passengerEmail),
@@ -216,7 +221,12 @@ class BookingSummaryScreen extends StatelessWidget {
                   'Fare breakdown',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-                _row('Fare per seat', 'MWK ${_money(trip.fare)}'),
+                _row(
+                  trip.fareIsEstimate
+                      ? 'Estimated map fare per seat'
+                      : 'Fare per seat',
+                  'MWK ${_money(trip.fare)}',
+                ),
                 _row('Number of seats', '${booking.selectedSeats.length}'),
                 const Divider(),
                 _row(
@@ -224,6 +234,15 @@ class BookingSummaryScreen extends StatelessWidget {
                   'MWK ${_money(booking.total)}',
                   bold: true,
                 ),
+                if (trip.fareIsEstimate) ...[
+                  const SizedBox(height: 8),
+                  const Text(
+                    'This is an estimated fare based on map route distance '
+                    'at MWK 220 per kilometre, not a published fare. Confirm '
+                    'the final fare with the transport operator.',
+                    style: TextStyle(color: Colors.black54),
+                  ),
+                ],
               ],
             ),
           ),

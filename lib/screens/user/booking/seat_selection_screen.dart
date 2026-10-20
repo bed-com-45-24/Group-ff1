@@ -1,5 +1,5 @@
-
 import 'package:flutter/material.dart';
+
 import '../../../models/trip_model.dart';
 import '../../../models/booking_model.dart';
 import 'passenger_details_screen.dart';
@@ -10,8 +10,7 @@ class SeatSelectionScreen extends StatefulWidget {
   const SeatSelectionScreen({super.key, required this.trip});
 
   @override
-  State<SeatSelectionScreen> createState() =>
-      _SeatSelectionScreenState();
+  State<SeatSelectionScreen> createState() => _SeatSelectionScreenState();
 }
 
 class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
@@ -40,8 +39,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
           Expanded(
             child: GridView.builder(
               padding: const EdgeInsets.all(20),
-              gridDelegate:
-                  const SliverGridDelegateWithFixedCrossAxisCount(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 4,
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
@@ -77,8 +75,8 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                       color: booked
                           ? Colors.grey.shade400
                           : selected
-                              ? Colors.teal
-                              : Colors.white,
+                          ? Colors.teal
+                          : Colors.white,
                       border: Border.all(
                         color: selected ? Colors.teal : Colors.grey,
                       ),
@@ -105,10 +103,24 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
             child: Column(
               children: [
                 Text('Selected seats: ${selectedSeats.length} / 5'),
+                if (trip.fareIsEstimate)
+                  Text(
+                    'Estimated map fare per seat: MWK '
+                    '${trip.fare.toStringAsFixed(0)}'
+                    '${trip.mapDistanceMeters == null ? '' : ' · '
+                              '${(trip.mapDistanceMeters! / 1000).toStringAsFixed(1)} km'}',
+                  ),
                 Text(
-                  'Total: MWK '
+                  '${trip.fareIsEstimate ? 'Estimated total' : 'Total'}: MWK '
                   '${(selectedSeats.length * trip.fare).toStringAsFixed(0)}',
                 ),
+                if (trip.fareIsEstimate)
+                  const Text(
+                    'Estimate: MWK 220 per kilometre. Confirm the final fare '
+                    'with the operator.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.black54),
+                  ),
                 const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
@@ -127,9 +139,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                               context,
                               MaterialPageRoute(
                                 builder: (_) =>
-                                    PassengerDetailsScreen(
-                                  booking: booking,
-                                ),
+                                    PassengerDetailsScreen(booking: booking),
                               ),
                             );
                           },

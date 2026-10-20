@@ -185,6 +185,9 @@ class _MapScreenState extends State<MapScreen> {
                   options: MapOptions(
                     initialCenter: _center!,
                     initialZoom: 7,
+                    interactionOptions: const InteractionOptions(
+                      flags: InteractiveFlag.all,
+                    ),
                     onMapReady: () => _mapReady = true,
                     onTap: (_, point) => _routeTo(point),
                   ),
@@ -267,7 +270,7 @@ class _MapScreenState extends State<MapScreen> {
                               _findingRoute
                                   ? 'Finding route...'
                                   : _route == null
-                                  ? 'Tap the map to plan a route from your location'
+                                  ? 'Drag to move · pinch or scroll to zoom · tap to plan a route'
                                   : '${_route!.distanceLabel} · ${_route!.durationLabel}',
                             ),
                           ),
