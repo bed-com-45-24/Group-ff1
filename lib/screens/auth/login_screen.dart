@@ -159,7 +159,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         decoration: InputDecoration(
                           labelText: 'Email',
                           hintText: widget.role == 'admin'
-                              ? 'praise@mova.com'
+                              ? 'admin@mova.com'
                               : 'Enter your email',
                           prefixIcon: const Icon(Icons.email_outlined),
                           border: OutlineInputBorder(
