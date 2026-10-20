@@ -503,25 +503,15 @@ class _CompareRoutesScreenState extends State<CompareRoutesScreen> {
                           onTap: () {
                             setState(() => _selectedRouteIndex = index);
                           },
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  index == _selectedRouteIndex
-                                      ? Icons.radio_button_checked
-                                      : Icons.radio_button_unchecked,
-                                  color: index == _selectedRouteIndex
-                                      ? Colors.deepPurple
-                                      : null,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  index == _selectedRouteIndex
-                                      ? 'Selected route'
-                                      : 'Choose this route',
-                                ),
-                              ],
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Checkbox(
+                              value: index == _selectedRouteIndex,
+                              onChanged: (selected) {
+                                if (selected == true) {
+                                  setState(() => _selectedRouteIndex = index);
+                                }
+                              },
                             ),
                           ),
                         ),
@@ -550,9 +540,7 @@ class _CompareRoutesScreenState extends State<CompareRoutesScreen> {
                       ? null
                       : _continueWithSelectedRoute,
                   icon: const Icon(Icons.check_circle_outline),
-                  label: Text(
-                    'Use Route ${_selectedRouteIndex + 1} in booking summary',
-                  ),
+                  label: const Text('View Trip Summary'),
                 ),
               ),
             ],

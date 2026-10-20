@@ -358,10 +358,10 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('route-option-selector-1')));
     await tester.pumpAndSettle();
-    expect(find.text('Use Route 2 in booking summary'), findsOneWidget);
+    expect(find.text('View Trip Summary'), findsOneWidget);
 
-    await tester.ensureVisible(find.text('Use Route 2 in booking summary'));
-    await tester.tap(find.text('Use Route 2 in booking summary'));
+    await tester.ensureVisible(find.text('View Trip Summary'));
+    await tester.tap(find.text('View Trip Summary'));
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Route 2'), findsWidgets);
