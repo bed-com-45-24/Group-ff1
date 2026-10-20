@@ -16,7 +16,7 @@ class TripsScreen extends StatelessWidget {
           title: const Text('Bookings'),
           bottom: const TabBar(
             tabs: [
-              Tab(icon: Icon(Icons.search), text: 'Find a trip'),
+              Tab(icon: Icon(Icons.directions_bus), text: 'Book a trip'),
               Tab(icon: Icon(Icons.confirmation_number), text: 'My bookings'),
             ],
           ),

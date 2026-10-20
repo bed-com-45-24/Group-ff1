@@ -1,4 +1,3 @@
-
 class Trip {
   final String id;
   final String origin;
@@ -6,6 +5,8 @@ class Trip {
   final DateTime departureTime;
   final DateTime arrivalTime;
   final double fare;
+  final double? mapDistanceMeters;
+  final bool fareIsEstimate;
   final int totalSeats;
   final List<int> bookedSeats;
   final String transportMode;
@@ -18,6 +19,8 @@ class Trip {
     required this.departureTime,
     required this.arrivalTime,
     required this.fare,
+    this.mapDistanceMeters,
+    this.fareIsEstimate = false,
     required this.totalSeats,
     this.bookedSeats = const [],
     this.transportMode = 'Bus',
@@ -32,6 +35,8 @@ class Trip {
     DateTime? departureTime,
     DateTime? arrivalTime,
     double? fare,
+    double? mapDistanceMeters,
+    bool? fareIsEstimate,
     int? totalSeats,
     List<int>? bookedSeats,
     String? transportMode,
@@ -44,6 +49,8 @@ class Trip {
       departureTime: departureTime ?? this.departureTime,
       arrivalTime: arrivalTime ?? this.arrivalTime,
       fare: fare ?? this.fare,
+      mapDistanceMeters: mapDistanceMeters ?? this.mapDistanceMeters,
+      fareIsEstimate: fareIsEstimate ?? this.fareIsEstimate,
       totalSeats: totalSeats ?? this.totalSeats,
       bookedSeats: bookedSeats ?? this.bookedSeats,
       transportMode: transportMode ?? this.transportMode,
@@ -58,6 +65,8 @@ class Trip {
     'departureTime': departureTime.toIso8601String(),
     'arrivalTime': arrivalTime.toIso8601String(),
     'fare': fare,
+    'mapDistanceMeters': mapDistanceMeters,
+    'fareIsEstimate': fareIsEstimate,
     'totalSeats': totalSeats,
     'bookedSeats': bookedSeats,
     'transportMode': transportMode,
@@ -71,6 +80,8 @@ class Trip {
     departureTime: DateTime.parse(json['departureTime'] as String),
     arrivalTime: DateTime.parse(json['arrivalTime'] as String),
     fare: (json['fare'] as num).toDouble(),
+    mapDistanceMeters: (json['mapDistanceMeters'] as num?)?.toDouble(),
+    fareIsEstimate: json['fareIsEstimate'] as bool? ?? false,
     totalSeats: json['totalSeats'] as int,
     bookedSeats: (json['bookedSeats'] as List<dynamic>? ?? const [])
         .cast<int>(),

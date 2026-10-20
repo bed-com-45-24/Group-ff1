@@ -1,5 +1,5 @@
-
 import 'package:flutter/material.dart';
+
 import '../../../models/booking_model.dart';
 import 'mobile_money_screen.dart';
 import 'card_payment_screen.dart';
@@ -7,10 +7,7 @@ import 'card_payment_screen.dart';
 class PaymentMethodScreen extends StatelessWidget {
   final BookingDraft booking;
 
-  const PaymentMethodScreen({
-    super.key,
-    required this.booking,
-  });
+  const PaymentMethodScreen({super.key, required this.booking});
 
   @override
   Widget build(BuildContext context) {
@@ -23,15 +20,18 @@ class PaymentMethodScreen extends StatelessWidget {
           children: [
             const Text(
               'Choose how you want to pay',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            Text(
-              'Total payable: MWK ${booking.total.toStringAsFixed(0)}',
-            ),
+            Text('Total payable: MWK ${booking.total.toStringAsFixed(0)}'),
+            if (booking.trip.fareIsEstimate) ...[
+              const SizedBox(height: 8),
+              const Text(
+                'This total uses a map-distance fare estimate, not a '
+                'published operator fare. Confirm the final fare before travel.',
+                style: TextStyle(color: Colors.black54),
+              ),
+            ],
             const SizedBox(height: 24),
             Card(
               child: ListTile(
@@ -47,8 +47,7 @@ class PaymentMethodScreen extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) =>
-                          MobileMoneyScreen(booking: booking),
+                      builder: (_) => MobileMoneyScreen(booking: booking),
                     ),
                   );
                 },
@@ -68,8 +67,7 @@ class PaymentMethodScreen extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) =>
-                          CardPaymentScreen(booking: booking),
+                      builder: (_) => CardPaymentScreen(booking: booking),
                     ),
                   );
                 },
