@@ -89,7 +89,7 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
               if (seatCount == null ||
                   seatCount <= 0 ||
                   seatCount < (existing?.bookedSeats.length ?? 0)) {
-                _message('Total seats cannot be below seats already booked.');
+                _message('Total seats cannot be below saeats already booked.');
                 return;
               }
               if (amount == null || amount <= 0) {
@@ -119,6 +119,18 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
         ],
       ),
     );
+    // origin.dispose();
+    // destination.dispose();
+    // departure.dispose();
+    // arrival.dispose();
+    // fare.dispose();
+    // seats.dispose();
+    // operator.dispose();
+    // if (result == null) return;
+    // await _store.saveTrip(result);
+    // if (mounted) _message('Schedule saved.');
+    await WidgetsBinding.instance.endOfFrame;
+
     origin.dispose();
     destination.dispose();
     departure.dispose();
@@ -126,9 +138,14 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
     fare.dispose();
     seats.dispose();
     operator.dispose();
+
     if (result == null) return;
+
     await _store.saveTrip(result);
-    if (mounted) _message('Schedule saved.');
+
+    if (mounted) {
+      _message('Schedule saved.');
+    }
   }
 
   Future<void> _deleteTrip(Trip trip) async {
