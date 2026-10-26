@@ -41,6 +41,16 @@ class OpenStreetMapService {
     );
   }
 
+  Future<List<OsmRouteModel>> findRoutesBetweenPlaces({
+    required String origin,
+    required String destination,
+  }) async {
+    final originPoint = await findPlace(origin);
+    await Future<void>.delayed(const Duration(seconds: 1));
+    final destinationPoint = await findPlace(destination);
+    return findRoutes(origin: originPoint, destination: destinationPoint);
+  }
+
   Future<LatLng> currentPosition() async {
     final position = await LocationService().getCurrentPosition();
     if (position == null) {

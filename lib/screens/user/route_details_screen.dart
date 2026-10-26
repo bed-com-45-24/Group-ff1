@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 
 import '../../models/route_model.dart';
 import '../../models/osm_route_model.dart';
@@ -30,11 +31,9 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
 
   Future<void> _loadMapRoute() async {
     try {
-      final origin = await _openStreetMap.findPlace(route.origin);
-      final destination = await _openStreetMap.findPlace(route.destination);
-      final routes = await _openStreetMap.findRoutes(
-        origin: origin,
-        destination: destination,
+      final routes = await _openStreetMap.findRoutesBetweenPlaces(
+        origin: route.origin,
+        destination: route.destination,
       );
       if (!mounted) return;
       setState(() {
@@ -89,6 +88,15 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
           const SizedBox(height: 8),
 
           Text('Transport company: ${route.companyName}'),
+
+          const SizedBox(height: 16),
+
+          Text(
+            '${route.origin} → ${route.destination}',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          _buildRouteMap(),
 
           const SizedBox(height: 16),
 
@@ -193,6 +201,142 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildRouteMap() {
+    if (_loadingMapRoute) {
+      return const SizedBox(
+        height: 240,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final points = _mapRoute?.points;
+    if (points == null || points.length < 2) {
+      return Container(
+        height: 180,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.deepPurple.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            _mapError == null
+                ? 'A map route is not available for ${route.origin} to ${route.destination}.'
+                : 'Map unavailable: $_mapError',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: SizedBox(
+        height: 280,
+        child: FlutterMap(
+          options: MapOptions(
+            initialCenter: points.first,
+            initialZoom: 8,
+            interactionOptions: const InteractionOptions(
+              flags: InteractiveFlag.all,
+            ),
+            initialCameraFit: CameraFit.bounds(
+              bounds: LatLngBounds.fromPoints(points),
+              padding: const EdgeInsets.all(48),
+            ),
+          ),
+          children: [
+            TileLayer(
+              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              userAgentPackageName: 'com.example.mova',
+            ),
+            PolylineLayer(
+              polylines: [
+                Polyline(
+                  points: points,
+                  color: Colors.deepPurple,
+                  strokeWidth: 5,
+                ),
+              ],
+            ),
+            MarkerLayer(
+              markers: [
+                Marker(
+                  point: points.first,
+                  width: 110,
+                  height: 54,
+                  child: _RouteMapMarker(
+                    label: route.origin,
+                    color: Colors.green.shade700,
+                    icon: Icons.trip_origin,
+                  ),
+                ),
+                Marker(
+                  point: points.last,
+                  width: 130,
+                  height: 54,
+                  child: _RouteMapMarker(
+                    label: route.destination,
+                    color: Colors.red.shade700,
+                    icon: Icons.location_on,
+                  ),
+                ),
+              ],
+            ),
+            RichAttributionWidget(
+              attributions: [
+                TextSourceAttribution(
+                  '© OpenStreetMap contributors',
+                  onTap: () {},
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RouteMapMarker extends StatelessWidget {
+  final String label;
+  final Color color;
+  final IconData icon;
+
+  const _RouteMapMarker({
+    required this.label,
+    required this.color,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: color, size: 26),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: color,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

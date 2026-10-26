@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../../data/route_store.dart';
 import '../../models/route_model.dart';
+import '../../services/openstreetmap_service.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/route_card.dart';
 import 'map_screen.dart';
 import 'notifications_screen.dart';
 import 'profile_screen.dart';
+import 'route_directions_details_screen.dart';
 import 'route_details_screen.dart';
 import 'trips_screen.dart';
 import 'search_screen.dart';
@@ -333,11 +335,67 @@ class AllPopularRoutesScreen extends StatefulWidget {
 
 class _AllPopularRoutesScreenState extends State<AllPopularRoutesScreen> {
   final _store = RouteStore.instance;
+  final _openStreetMap = OpenStreetMapService();
+  final _originController = TextEditingController();
+  final _destinationController = TextEditingController();
+  bool _searchingRoute = false;
+  String? _routeSearchError;
 
   @override
   void initState() {
     super.initState();
     _store.load();
+  }
+
+  @override
+  void dispose() {
+    _originController.dispose();
+    _destinationController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _searchRoute() async {
+    final origin = _originController.text.trim();
+    final destination = _destinationController.text.trim();
+    if (origin.isEmpty || destination.isEmpty) {
+      setState(() {
+        _routeSearchError = 'Enter both a starting point and destination.';
+      });
+      return;
+    }
+
+    setState(() {
+      _searchingRoute = true;
+      _routeSearchError = null;
+    });
+
+    try {
+      final routes = await _openStreetMap.findRoutesBetweenPlaces(
+        origin: origin,
+        destination: destination,
+      );
+      if (!mounted) return;
+      final route = routes.first;
+      final estimatedFare = ((route.distanceMeters / 1000) * 220).roundToDouble();
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RouteDirectionsDetailsScreen(
+            route: route,
+            origin: origin,
+            destination: destination,
+            estimatedFare: estimatedFare,
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _routeSearchError = error.toString().replaceFirst('Exception: ', '');
+      });
+    } finally {
+      if (mounted) setState(() => _searchingRoute = false);
+    }
   }
 
   @override
@@ -355,26 +413,96 @@ class _AllPopularRoutesScreenState extends State<AllPopularRoutesScreen> {
           if (!_store.isLoaded) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (routes.isEmpty) {
-            return const Center(child: Text('No active routes available.'));
-          }
-          return ListView.builder(
+          return ListView(
             padding: const EdgeInsets.symmetric(vertical: 8),
-            itemCount: routes.length,
-            itemBuilder: (context, index) {
-              final route = routes[index];
-              return RouteCard(
-                route: route,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => RouteDetailsScreen(route: route),
+            children: [
+              _buildRouteSearchCard(context),
+              if (routes.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text(
+                    'No saved routes are available yet. Search any origin and destination above.',
+                    textAlign: TextAlign.center,
                   ),
                 ),
-              );
-            },
+              ...routes.map(
+                (route) => RouteCard(
+                  route: route,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => RouteDetailsScreen(route: route),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildRouteSearchCard(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Find a route',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Choose any starting point and destination to view the route on a map.',
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _originController,
+              textCapitalization: TextCapitalization.words,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: 'From',
+                prefixIcon: Icon(Icons.trip_origin),
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _destinationController,
+              textCapitalization: TextCapitalization.words,
+              textInputAction: TextInputAction.search,
+              onSubmitted: (_) => _searchingRoute ? null : _searchRoute(),
+              decoration: const InputDecoration(
+                labelText: 'To',
+                prefixIcon: Icon(Icons.location_on_outlined),
+                border: OutlineInputBorder(),
+              ),
+            ),
+            if (_routeSearchError != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                _routeSearchError!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: _searchingRoute ? null : _searchRoute,
+              icon: _searchingRoute
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.map_outlined),
+              label: Text(_searchingRoute ? 'Finding route...' : 'Search route'),
+            ),
+          ],
+        ),
       ),
     );
   }
