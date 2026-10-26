@@ -1,15 +1,12 @@
-
 import 'package:flutter/material.dart';
+
 import '../../../models/booking_model.dart';
 import 'payment_processing_screen.dart';
 
 class CardPaymentScreen extends StatefulWidget {
   final BookingDraft booking;
 
-  const CardPaymentScreen({
-    super.key,
-    required this.booking,
-  });
+  const CardPaymentScreen({super.key, required this.booking});
 
   @override
   State<CardPaymentScreen> createState() => _CardPaymentScreenState();
@@ -40,19 +37,12 @@ class _CardPaymentScreenState extends State<CardPaymentScreen> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            const Icon(
-              Icons.credit_card,
-              size: 70,
-              color: Colors.teal,
-            ),
+            const Icon(Icons.credit_card, size: 70, color: Colors.teal),
             const SizedBox(height: 12),
             Text(
               'Amount: MWK ${widget.booking.total.toStringAsFixed(0)}',
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 24),
             TextFormField(
@@ -62,9 +52,7 @@ class _CardPaymentScreenState extends State<CardPaymentScreen> {
                 border: OutlineInputBorder(),
               ),
               validator: (value) =>
-                  value == null || value.trim().isEmpty
-                      ? 'Enter a name'
-                      : null,
+                  value == null || value.trim().isEmpty ? 'Enter a name' : null,
             ),
             const SizedBox(height: 16),
             TextFormField(
@@ -75,10 +63,9 @@ class _CardPaymentScreenState extends State<CardPaymentScreen> {
                 hintText: 'Use fictional test data only',
                 border: OutlineInputBorder(),
               ),
-              validator: (value) =>
-                  value == null || value.trim().length < 12
-                      ? 'Enter a demo card number'
-                      : null,
+              validator: (value) => value == null || value.trim().length < 12
+                  ? 'Enter a demo card number'
+                  : null,
             ),
             const SizedBox(height: 16),
             TextFormField(
@@ -87,10 +74,9 @@ class _CardPaymentScreenState extends State<CardPaymentScreen> {
                 labelText: 'Expiry (MM/YY)',
                 border: OutlineInputBorder(),
               ),
-              validator: (value) =>
-                  value == null || value.trim().isEmpty
-                      ? 'Enter an expiry value'
-                      : null,
+              validator: (value) => value == null || value.trim().isEmpty
+                  ? 'Enter an expiry value'
+                  : null,
             ),
             const SizedBox(height: 16),
             TextFormField(
@@ -106,16 +92,15 @@ class _CardPaymentScreenState extends State<CardPaymentScreen> {
               ),
               validator: (value) =>
                   value == null || !RegExp(r'^\d{4}$').hasMatch(value.trim())
-                      ? 'Enter a 4-digit demo PIN'
-                      : null,
+                  ? 'Enter a 4-digit demo PIN'
+                  : null,
             ),
             const SizedBox(height: 24),
             FilledButton(
               onPressed: () {
                 if (!formKey.currentState!.validate()) return;
 
-                widget.booking.paymentMethod = 'Bank Card (Demo)';
-                widget.booking.paymentReference =
+                final paymentReference =
                     'DEMO-${DateTime.now().millisecondsSinceEpoch}';
                 pinController.clear();
 
@@ -124,6 +109,8 @@ class _CardPaymentScreenState extends State<CardPaymentScreen> {
                   MaterialPageRoute(
                     builder: (_) => PaymentProcessingScreen(
                       booking: widget.booking,
+                      paymentMethod: 'Bank Card (Demo)',
+                      paymentReference: paymentReference,
                     ),
                   ),
                 );

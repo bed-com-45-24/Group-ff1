@@ -1,19 +1,15 @@
-
 import 'package:flutter/material.dart';
+
 import '../../../models/booking_model.dart';
 import 'payment_processing_screen.dart';
 
 class MobileMoneyScreen extends StatefulWidget {
   final BookingDraft booking;
 
-  const MobileMoneyScreen({
-    super.key,
-    required this.booking,
-  });
+  const MobileMoneyScreen({super.key, required this.booking});
 
   @override
-  State<MobileMoneyScreen> createState() =>
-      _MobileMoneyScreenState();
+  State<MobileMoneyScreen> createState() => _MobileMoneyScreenState();
 }
 
 class _MobileMoneyScreenState extends State<MobileMoneyScreen> {
@@ -39,19 +35,12 @@ class _MobileMoneyScreenState extends State<MobileMoneyScreen> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            const Icon(
-              Icons.phone_android,
-              size: 70,
-              color: Colors.teal,
-            ),
+            const Icon(Icons.phone_android, size: 70, color: Colors.teal),
             const SizedBox(height: 16),
             Text(
               'Amount: MWK ${widget.booking.total.toStringAsFixed(0)}',
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 24),
             DropdownButtonFormField<String>(
@@ -85,10 +74,9 @@ class _MobileMoneyScreenState extends State<MobileMoneyScreen> {
                 hintText: 'Enter your phone number',
                 border: OutlineInputBorder(),
               ),
-              validator: (value) =>
-                  value == null || value.trim().length < 7
-                      ? 'Enter a valid phone number'
-                      : null,
+              validator: (value) => value == null || value.trim().length < 7
+                  ? 'Enter a valid phone number'
+                  : null,
             ),
             const SizedBox(height: 16),
             TextFormField(
@@ -104,16 +92,15 @@ class _MobileMoneyScreenState extends State<MobileMoneyScreen> {
               ),
               validator: (value) =>
                   value == null || !RegExp(r'^\d{4}$').hasMatch(value.trim())
-                      ? 'Enter a 4-digit demo PIN'
-                      : null,
+                  ? 'Enter a 4-digit demo PIN'
+                  : null,
             ),
             const SizedBox(height: 24),
             FilledButton(
               onPressed: () {
                 if (!formKey.currentState!.validate()) return;
 
-                widget.booking.paymentMethod = provider;
-                widget.booking.paymentReference =
+                final paymentReference =
                     'DEMO-${DateTime.now().millisecondsSinceEpoch}';
                 pinController.clear();
 
@@ -122,6 +109,8 @@ class _MobileMoneyScreenState extends State<MobileMoneyScreen> {
                   MaterialPageRoute(
                     builder: (_) => PaymentProcessingScreen(
                       booking: widget.booking,
+                      paymentMethod: provider,
+                      paymentReference: paymentReference,
                     ),
                   ),
                 );

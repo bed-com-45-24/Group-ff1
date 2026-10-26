@@ -170,7 +170,7 @@ class BookingSummaryScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    booking.paid ? 'Payment complete' : 'Payment not completed',
+                    'Booking ${booking.status.label.toLowerCase()}',
                     style: const TextStyle(
                       color: Colors.deepPurple,
                       fontWeight: FontWeight.w600,
@@ -247,7 +247,7 @@ class BookingSummaryScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-          if (!booking.paid)
+          if (booking.status == BookingStatus.reviewed)
             FilledButton(
               style: FilledButton.styleFrom(
                 backgroundColor: Colors.deepPurple,
