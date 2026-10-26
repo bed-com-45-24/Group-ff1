@@ -45,6 +45,7 @@ class RouteStore {
 
   Future<void> saveRoute(RouteModel route) async {
     final index = _routes.indexWhere((item) => item.id == route.id);
+    print('Saving route: ${route.name}, index: $index');
     if (index == -1) {
       _routes = [..._routes, route];
     } else {
@@ -54,6 +55,7 @@ class RouteStore {
       ];
     }
     await _persist();
+    print('Route saved: ${route.name}');
     changes.value++;
   }
 
@@ -65,9 +67,10 @@ class RouteStore {
 
   Future<void> _persist([SharedPreferences? preferences]) async {
     final prefs = preferences ?? await SharedPreferences.getInstance();
+    print('Persisting routes: ${_routes.length} routes');
     await prefs.setString(
       _storageKey,
       jsonEncode(_routes.map((route) => route.toJson()).toList()),
     );
   }
-}
+} 

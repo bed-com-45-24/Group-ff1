@@ -132,11 +132,13 @@ class _RoutesScreenState extends State<RoutesScreen> {
         ],
       ),
     );
-    origin.dispose();
-    destination.dispose();
-    company.dispose();
-    fare.dispose();
-    departures.dispose();
+    //   await WidgetsBinding.instance.endOfFrame;
+
+    // origin.dispose();
+    // destination.dispose();
+    // company.dispose();
+    // fare.dispose();
+    // departures.dispose();
     if (result == null) return;
     await _store.saveRoute(result);
     if (mounted) _showMessage('Route saved.');
