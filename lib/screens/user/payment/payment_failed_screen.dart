@@ -10,7 +10,7 @@ class PaymentFailedScreen extends StatelessWidget {
   const PaymentFailedScreen({
     super.key,
     required this.booking,
-    this.message = 'Your demo payment was not completed. Please try again or select another method.',
+    this.message = 'Your payment was not completed. Please try again or select another method.',
   });
 
   @override

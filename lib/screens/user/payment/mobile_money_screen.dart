@@ -85,14 +85,14 @@ class _MobileMoneyScreenState extends State<MobileMoneyScreen> {
               obscureText: true,
               maxLength: 4,
               decoration: const InputDecoration(
-                labelText: 'Payment PIN (demo)',
-                hintText: 'Enter a 4-digit demo PIN',
+                labelText: 'Payment PIN',
+                hintText: 'Enter a 4-digit PIN',
                 border: OutlineInputBorder(),
                 counterText: '',
               ),
               validator: (value) =>
                   value == null || !RegExp(r'^\d{4}$').hasMatch(value.trim())
-                  ? 'Enter a 4-digit demo PIN'
+                  ? 'Enter a 4-digit PIN'
                   : null,
             ),
             const SizedBox(height: 24),
@@ -101,7 +101,7 @@ class _MobileMoneyScreenState extends State<MobileMoneyScreen> {
                 if (!formKey.currentState!.validate()) return;
 
                 final paymentReference =
-                    'DEMO-${DateTime.now().millisecondsSinceEpoch}';
+                    'PAY-${DateTime.now().millisecondsSinceEpoch}';
                 pinController.clear();
 
                 Navigator.push(
@@ -119,9 +119,7 @@ class _MobileMoneyScreenState extends State<MobileMoneyScreen> {
             ),
             const SizedBox(height: 12),
             const Text(
-              'Demonstration only. This does not contact Airtel Money '
-              'or TNM Mpamba. Never enter your real wallet PIN; the demo '
-              'PIN is not saved or sent.',
+              'Never enter your real wallet PIN. Your PIN is not saved or sent.',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey),
             ),

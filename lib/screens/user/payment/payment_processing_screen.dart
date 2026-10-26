@@ -37,7 +37,7 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
     if (!mounted) return;
 
     if (widget.simulateFailure) {
-      _showFailedPayment('Your demo payment was not completed.');
+      _showFailedPayment('Your payment was not completed.');
       return;
     }
 
@@ -83,7 +83,7 @@ class _PaymentProcessingScreenState extends State<PaymentProcessingScreen> {
               CircularProgressIndicator(),
               SizedBox(height: 24),
               Text(
-                'Processing your demo payment...',
+                'Processing your payment...',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               SizedBox(height: 8),

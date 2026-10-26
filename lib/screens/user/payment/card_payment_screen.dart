@@ -48,7 +48,7 @@ class _CardPaymentScreenState extends State<CardPaymentScreen> {
             TextFormField(
               controller: nameController,
               decoration: const InputDecoration(
-                labelText: 'Cardholder name (demo)',
+                labelText: 'Cardholder name',
                 border: OutlineInputBorder(),
               ),
               validator: (value) =>
@@ -64,7 +64,7 @@ class _CardPaymentScreenState extends State<CardPaymentScreen> {
                 border: OutlineInputBorder(),
               ),
               validator: (value) => value == null || value.trim().length < 12
-                  ? 'Enter a demo card number'
+                  ? 'Enter a valid card number'
                   : null,
             ),
             const SizedBox(height: 16),
@@ -85,14 +85,14 @@ class _CardPaymentScreenState extends State<CardPaymentScreen> {
               obscureText: true,
               maxLength: 4,
               decoration: const InputDecoration(
-                labelText: 'Payment PIN (demo)',
-                hintText: 'Enter a 4-digit demo PIN',
+                labelText: 'Payment PIN',
+                hintText: 'Enter a 4-digit PIN',
                 border: OutlineInputBorder(),
                 counterText: '',
               ),
               validator: (value) =>
                   value == null || !RegExp(r'^\d{4}$').hasMatch(value.trim())
-                  ? 'Enter a 4-digit demo PIN'
+                  ? 'Enter a 4-digit PIN'
                   : null,
             ),
             const SizedBox(height: 24),
@@ -101,7 +101,7 @@ class _CardPaymentScreenState extends State<CardPaymentScreen> {
                 if (!formKey.currentState!.validate()) return;
 
                 final paymentReference =
-                    'DEMO-${DateTime.now().millisecondsSinceEpoch}';
+                    'PAY-${DateTime.now().millisecondsSinceEpoch}';
                 pinController.clear();
 
                 Navigator.push(
@@ -109,18 +109,18 @@ class _CardPaymentScreenState extends State<CardPaymentScreen> {
                   MaterialPageRoute(
                     builder: (_) => PaymentProcessingScreen(
                       booking: widget.booking,
-                      paymentMethod: 'Bank Card (Demo)',
+                      paymentMethod: 'Bank Card',
                       paymentReference: paymentReference,
                     ),
                   ),
                 );
               },
-              child: const Text('Continue to Demo Payment'),
+              child: const Text('Continue to Payment'),
             ),
             const SizedBox(height: 12),
             const Text(
-              'Demo only: never enter real card details or your real bank PIN. '
-              'The demo PIN is not saved or sent.',
+              'Never enter real card details or your real bank PIN. '
+              'Your PIN is not saved or sent.',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.red),
             ),

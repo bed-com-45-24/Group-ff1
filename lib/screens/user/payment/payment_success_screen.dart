@@ -31,7 +31,7 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                'Demo payment reference:\n${widget.booking.paymentReference}',
+                'Payment reference:\n${widget.booking.paymentReference}',
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),
