@@ -22,7 +22,13 @@ class TripStore {
 
   Future<void> load() {
     if (_loaded) return Future<void>.value();
-    return _loadFuture ??= _load();
+    return _loadFuture ??= _load().catchError((
+      Object error,
+      StackTrace stackTrace,
+    ) {
+      _loadFuture = null;
+      Error.throwWithStackTrace(error, stackTrace);
+    });
   }
 
   Future<void> _load() async {
@@ -34,37 +40,45 @@ class TripStore {
           .map((value) => Trip.fromJson(value as Map<String, dynamic>))
           .toList();
     } else {
-      await _persist(prefs);
+      await _writeTrips(_trips, prefs);
     }
     _loaded = true;
     changes.value++;
   }
 
   Future<void> saveTrip(Trip trip) async {
+    await load();
     final index = _trips.indexWhere((item) => item.id == trip.id);
-    if (index == -1) {
-      _trips = [..._trips, trip];
-    } else {
-      _trips = [
-        for (var i = 0; i < _trips.length; i++)
-          if (i == index) trip else _trips[i],
-      ];
-    }
-    await _persist();
+    final updatedTrips = index == -1
+        ? [..._trips, trip]
+        : [
+            for (var i = 0; i < _trips.length; i++)
+              if (i == index) trip else _trips[i],
+          ];
+    await _writeTrips(updatedTrips);
+    _trips = updatedTrips;
     changes.value++;
   }
 
   Future<void> removeTrip(String id) async {
-    _trips = _trips.where((trip) => trip.id != id).toList();
-    await _persist();
+    await load();
+    final updatedTrips = _trips.where((trip) => trip.id != id).toList();
+    await _writeTrips(updatedTrips);
+    _trips = updatedTrips;
     changes.value++;
   }
 
-  Future<void> _persist([SharedPreferences? preferences]) async {
+  Future<void> _writeTrips(
+    List<Trip> trips, [
+    SharedPreferences? preferences,
+  ]) async {
     final prefs = preferences ?? await SharedPreferences.getInstance();
-    await prefs.setString(
+    final saved = await prefs.setString(
       _storageKey,
-      jsonEncode(_trips.map((trip) => trip.toJson()).toList()),
+      jsonEncode(trips.map((trip) => trip.toJson()).toList()),
     );
+    if (!saved) {
+      throw StateError('Scheduled trips could not be saved on this device.');
+    }
   }
 }

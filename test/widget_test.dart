@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:mova/main.dart';
@@ -16,36 +15,6 @@ import 'package:mova/screens/user/booking/select_trip_screen.dart';
 import 'package:mova/screens/user/route_directions_details_screen.dart';
 import 'package:mova/screens/user/results_screen.dart';
 import 'package:mova/services/auth_service.dart';
-import 'package:mova/services/openstreetmap_service.dart';
-
-class _FakeOpenStreetMapService extends OpenStreetMapService {
-  final List<OsmRouteModel> routes = const [
-    OsmRouteModel(
-      id: 'route-1',
-      geoJson: {
-        'type': 'LineString',
-        'coordinates': [
-          [33.78, -13.96],
-          [34.00, -14.10],
-        ],
-      },
-      distanceMeters: 10000,
-      durationSeconds: 3600,
-      steps: [],
-    ),
-  ];
-
-  _FakeOpenStreetMapService();
-
-  @override
-  Future<LatLng> findPlace(String query) async => const LatLng(-13.96, 33.78);
-
-  @override
-  Future<List<OsmRouteModel>> findRoutes({
-    required LatLng origin,
-    required LatLng destination,
-  }) async => routes;
-}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -284,73 +253,144 @@ void main() {
     },
   );
 
+  testWidgets('Booking search shows only matching admin schedules', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final departureTime = DateTime.now().add(const Duration(hours: 1));
+    final matchingTrip = Trip(
+      id: 'ADMIN-SCHEDULE-BOOKING-TEST',
+      origin: 'Scheduled Origin',
+      destination: 'Scheduled Destination',
+      departureTime: departureTime,
+      arrivalTime: departureTime.add(const Duration(hours: 3)),
+      fare: 34500,
+      totalSeats: 20,
+      operatorName: 'Scheduled Operator',
+    );
+    final unrelatedTrip = Trip(
+      id: 'ADMIN-SCHEDULE-UNRELATED-TEST',
+      origin: 'Other Origin',
+      destination: 'Other Destination',
+      departureTime: departureTime,
+      arrivalTime: departureTime.add(const Duration(hours: 3)),
+      fare: 99999,
+      totalSeats: 20,
+    );
+    await TripStore.instance.saveTrip(matchingTrip);
+    await TripStore.instance.saveTrip(unrelatedTrip);
+    addTearDown(() => TripStore.instance.removeTrip(matchingTrip.id));
+    addTearDown(() => TripStore.instance.removeTrip(unrelatedTrip.id));
+
+    await tester.pumpWidget(const MaterialApp(home: SelectTripScreen()));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byType(TextFormField).at(0),
+      'Scheduled Origin',
+    );
+    await tester.enterText(
+      find.byType(TextFormField).at(1),
+      'Scheduled Destination',
+    );
+    await tester.tap(find.text('Book a trip'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Scheduled Origin → Scheduled Destination'),
+      findsOneWidget,
+    );
+    expect(find.text('Other Origin → Other Destination'), findsNothing);
+    expect(find.text('MWK 34500'), findsOneWidget);
+    await tester.ensureVisible(
+      find.text('Scheduled Origin → Scheduled Destination'),
+    );
+    await tester.tap(find.text('Scheduled Origin → Scheduled Destination'));
+    await tester.pumpAndSettle();
+    expect(find.text('Select Seats'), findsOneWidget);
+  });
+
+  testWidgets('Booking search finds admin schedules on any upcoming date', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final departureTime = DateTime.now().add(const Duration(days: 5));
+    final trip = Trip(
+      id: 'ADMIN-SCHEDULE-FUTURE-DATE-TEST',
+      origin: 'Future Origin',
+      destination: 'Future Destination',
+      departureTime: departureTime,
+      arrivalTime: departureTime.add(const Duration(hours: 2)),
+      fare: 18000,
+      totalSeats: 16,
+    );
+    await TripStore.instance.saveTrip(trip);
+    addTearDown(() => TripStore.instance.removeTrip(trip.id));
+
+    await tester.pumpWidget(const MaterialApp(home: SelectTripScreen()));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byType(TextFormField).at(0),
+      'Future Origin Station',
+    );
+    await tester.enterText(
+      find.byType(TextFormField).at(1),
+      'Future Destination City',
+    );
+    await tester.tap(find.text('Book a trip'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Future Origin → Future Destination'), findsOneWidget);
+    expect(find.text('MWK 18000'), findsOneWidget);
+  });
+
+  testWidgets('Booking form validates and books a matching scheduled trip', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final departureTime = DateTime.now().add(const Duration(hours: 1));
+    final trip = Trip(
+      id: 'BOOKING-FORM-TEST',
+      origin: 'Test Origin',
+      destination: 'Test Destination',
+      departureTime: departureTime,
+      arrivalTime: departureTime.add(const Duration(hours: 4)),
+      fare: 25000,
+      totalSeats: 10,
+    );
+    await TripStore.instance.saveTrip(trip);
+    addTearDown(() => TripStore.instance.removeTrip(trip.id));
+
+    await tester.pumpWidget(const MaterialApp(home: SelectTripScreen()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Plan your journey'), findsOneWidget);
+    expect(find.text('Departure location'), findsOneWidget);
+    expect(find.text('Destination'), findsOneWidget);
+    expect(find.text('Travel date'), findsOneWidget);
+
+    await tester.tap(find.text('Book a trip'));
+    await tester.pumpAndSettle();
+    expect(find.text('Enter your departure location'), findsOneWidget);
+    expect(find.text('Enter your destination'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextFormField).at(0), 'Test Origin');
+    await tester.enterText(
+      find.byType(TextFormField).at(1),
+      'Test Destination',
+    );
+    await tester.tap(find.text('Book a trip'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Test Origin → Test Destination'), findsOneWidget);
+    expect(find.text('MWK 25000'), findsOneWidget);
+    await tester.ensureVisible(find.text('Test Origin → Test Destination'));
+    await tester.tap(find.text('Test Origin → Test Destination'));
+    await tester.pumpAndSettle();
+    expect(find.text('Select Seats'), findsOneWidget);
+  });
+
   testWidgets(
-    'Booking form validates details and continues to seat selection',
-    (tester) async {
-      SharedPreferences.setMockInitialValues({});
-      final now = DateTime.now();
-      final departureTime = DateTime(now.year, now.month, now.day, 23, 59, 59);
-      final trip = Trip(
-        id: 'BOOKING-FORM-TEST',
-        origin: 'Test Origin',
-        destination: 'Test Destination',
-        departureTime: departureTime,
-        arrivalTime: departureTime.add(const Duration(hours: 4)),
-        fare: 25000,
-        totalSeats: 10,
-      );
-      await TripStore.instance.saveTrip(trip);
-      addTearDown(() => TripStore.instance.removeTrip(trip.id));
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: SelectTripScreen(
-            openStreetMapService: _FakeOpenStreetMapService(),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('Plan your journey'), findsOneWidget);
-      expect(find.text('Departure location'), findsOneWidget);
-      expect(find.text('Destination'), findsOneWidget);
-      expect(find.text('Travel date'), findsOneWidget);
-      expect(find.text('Available trips'), findsNothing);
-
-      await tester.tap(find.text('Book a trip'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Enter your departure location'), findsOneWidget);
-      expect(find.text('Enter your destination'), findsOneWidget);
-      expect(find.text('Available trips'), findsNothing);
-
-      await tester.enterText(find.byType(TextFormField).at(0), 'Test Origin');
-      await tester.enterText(
-        find.byType(TextFormField).at(1),
-        'Test Destination',
-      );
-      await tester.tap(find.text('Book a trip'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Test Origin → Test Destination'), findsOneWidget);
-      expect(find.text('MWK 2200'), findsOneWidget);
-      expect(find.textContaining('10.0 km'), findsOneWidget);
-      expect(find.textContaining('map estimates'), findsOneWidget);
-      await tester.ensureVisible(find.text('Test Origin → Test Destination'));
-      await tester.tap(find.text('Test Origin → Test Destination'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Select Seats'), findsOneWidget);
-      expect(
-        find.textContaining('Estimated map fare per seat'),
-        findsOneWidget,
-      );
-      expect(find.textContaining('MWK 220 per kilometre'), findsOneWidget);
-    },
-  );
-
-  testWidgets(
-    'Booking can continue using a map-estimated fare without a schedule',
+    'Booking search does not offer map trips without an admin schedule',
     (tester) async {
       SharedPreferences.setMockInitialValues({});
       final now = DateTime.now();
@@ -359,38 +399,32 @@ void main() {
           '${now.month.toString().padLeft(2, '0')}'
           '${now.day.toString().padLeft(2, '0')}';
       final tripId = 'MAP-ESTIMATE-$dateKey-test-town-other-town-route-1';
-      addTearDown(() => TripStore.instance.removeTrip(tripId));
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: SelectTripScreen(
-            openStreetMapService: _FakeOpenStreetMapService(),
-          ),
+      await TripStore.instance.saveTrip(
+        Trip(
+          id: tripId,
+          origin: 'Test Town',
+          destination: 'Other Town',
+          departureTime: now.add(const Duration(hours: 1)),
+          arrivalTime: now.add(const Duration(hours: 2)),
+          fare: 2200,
+          totalSeats: 40,
+          fareIsEstimate: true,
         ),
       );
+      addTearDown(() => TripStore.instance.removeTrip(tripId));
+
+      await tester.pumpWidget(const MaterialApp(home: SelectTripScreen()));
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextFormField).at(0), 'Test Town');
       await tester.enterText(find.byType(TextFormField).at(1), 'Other Town');
       await tester.tap(find.text('Book a trip'));
       await tester.pumpAndSettle();
 
-      await tester.drag(find.byType(ListView), const Offset(0, -600));
-      await tester.pumpAndSettle();
-      expect(find.text('Test Town → Other Town'), findsOneWidget);
-      expect(find.text('MWK 2200'), findsOneWidget);
-      expect(find.textContaining('10.0 km'), findsOneWidget);
       expect(
-        find.textContaining('not published operator fares'),
+        find.text('No scheduled trips match this route and travel date.'),
         findsOneWidget,
       );
-
-      await tester.tap(find.text('Test Town → Other Town'));
-      await tester.pumpAndSettle();
-      expect(find.text('Select Seats'), findsOneWidget);
-      expect(
-        find.textContaining('Estimated map fare per seat'),
-        findsOneWidget,
-      );
+      expect(find.text('Test Town → Other Town'), findsNothing);
     },
   );
 
