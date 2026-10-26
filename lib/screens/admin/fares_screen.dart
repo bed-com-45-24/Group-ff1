@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 
 import '../../data/route_store.dart';
@@ -65,7 +66,7 @@ class _FaresScreenState extends State<FaresScreen> {
         ],
       ),
     );
-    
+
     if (fare == null) return;
     await _store.saveRoute(route.copyWith(fare: fare));
     final matchingTrips = _tripStore.trips.where(
@@ -74,7 +75,9 @@ class _FaresScreenState extends State<FaresScreen> {
           trip.destination.toLowerCase() == route.destination.toLowerCase(),
     );
     await Future.wait(
-      matchingTrips.map((trip) => _tripStore.saveTrip(trip.copyWith(fare: fare))),
+      matchingTrips.map(
+        (trip) => _tripStore.saveTrip(trip.copyWith(fare: fare)),
+      ),
     );
     if (mounted) _message('Fare updated and saved.');
   }
@@ -101,43 +104,64 @@ class _FaresScreenState extends State<FaresScreen> {
                 children: [
                   const Text(
                     'Manage fares',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 5),
-                  const Text('Fare changes are reflected in passenger routes.'),
+                  const Text(
+                    'Fare changes are reflected in passenger routes.',
+                  ),
                   const SizedBox(height: 18),
                   Expanded(
                     child: !_store.isLoaded
                         ? const Center(child: CircularProgressIndicator())
                         : routes.isEmpty
-                        ? const Center(
-                            child: Text('Add a route before setting fares.'),
-                          )
-                        : ListView.builder(
-                            itemCount: routes.length,
-                            itemBuilder: (context, index) {
-                              final route = routes[index];
-                              return Card(
-                                color: Colors.white,
-                                margin: const EdgeInsets.only(bottom: 12),
-                                child: ListTile(
-                                  title: Text(route.name),
-                                  subtitle: Text(
-                                    route.active ? 'Active route' : 'Inactive',
-                                  ),
-                                  trailing: Text(
-                                    'MWK ${route.fare.toStringAsFixed(0)}',
-                                    style: const TextStyle(
-                                      color: Color(0xFFE87916),
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                  onTap: () => _editFare(route),
+                            ? const Center(
+                                child: Text(
+                                  'Add a route before setting fares.',
                                 ),
-                              );
-                            },
-                          ),
+                              )
+                            : ListView.builder(
+                                itemCount: routes.length,
+                                itemBuilder: (context, index) {
+                                  final route = routes[index];
+                                  return Card(
+                                    color: Colors.white,
+                                    margin: const EdgeInsets.only(bottom: 12),
+                                    child: ListTile(
+                                      title: Text(route.name),
+                                      subtitle: Text(
+                                        route.active
+                                            ? 'Active route'
+                                            : 'Inactive',
+                                      ),
+                                      trailing: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            'MWK ${route.fare.toStringAsFixed(0)}',
+                                            style: const TextStyle(
+                                              color: Color(0xFFE87916),
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          IconButton(
+                                            onPressed: () => _editFare(route),
+                                            icon: const Icon(
+                                              Icons.edit,
+                                              size: 18,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
                   ),
                 ],
               ),
