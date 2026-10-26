@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../data/booking_store.dart';
+import '../../../data/booking_service.dart';
 import '../../../models/booking_model.dart';
 import '../../../services/auth_service.dart';
 import 'booking_summary_screen.dart';
@@ -73,24 +73,25 @@ class _PassengerDetailsScreenState extends State<PassengerDetailsScreen> {
       );
       if (!mounted) return;
 
-      widget.booking.passengerName = name;
-      widget.booking.passengerEmail = email;
-      widget.booking.phoneNumber = phone;
-      widget.booking.identificationNumber = identificationNumber;
-      BookingStore.instance.addBooking(widget.booking);
+      final reviewedBooking = await BookingService.instance.review(
+        reference: widget.booking.reference,
+        passengerName: name,
+        passengerEmail: email,
+        phoneNumber: phone,
+        identificationNumber: identificationNumber,
+      );
+      if (!mounted) return;
 
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => BookingSummaryScreen(booking: widget.booking),
+          builder: (_) => BookingSummaryScreen(booking: reviewedBooking),
         ),
       );
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not save passenger details. Please try again.'),
-        ),
+        SnackBar(content: Text('Could not review booking: $error')),
       );
     } finally {
       if (mounted) setState(() => _isSaving = false);

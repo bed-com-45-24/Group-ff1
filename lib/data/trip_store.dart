@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../models/booking_model.dart';
 import '../models/trip_model.dart';
 import 'sample_data.dart';
 
@@ -57,20 +56,6 @@ class TripStore {
 
   Future<void> removeTrip(String id) async {
     _trips = _trips.where((trip) => trip.id != id).toList();
-    await _persist();
-    changes.value++;
-  }
-
-  Future<void> markSeatsBooked(BookingDraft booking) async {
-    final index = _trips.indexWhere((trip) => trip.id == booking.trip.id);
-    if (index == -1) return;
-    final trip = _trips[index];
-    final seats = {...trip.bookedSeats, ...booking.selectedSeats}.toList()
-      ..sort();
-    _trips = [
-      for (var i = 0; i < _trips.length; i++)
-        if (i == index) trip.copyWith(bookedSeats: seats) else _trips[i],
-    ];
     await _persist();
     changes.value++;
   }

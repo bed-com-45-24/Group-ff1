@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../data/booking_service.dart';
+import '../../../data/booking_store.dart';
 import '../../../models/trip_model.dart';
-import '../../../models/booking_model.dart';
 import 'passenger_details_screen.dart';
 
 class SeatSelectionScreen extends StatefulWidget {
@@ -15,10 +16,64 @@ class SeatSelectionScreen extends StatefulWidget {
 
 class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
   final Set<int> selectedSeats = {};
+  bool _isLoadingBookings = true;
+  bool _isCreatingBooking = false;
+  String? _bookingLoadError;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBookings();
+  }
+
+  Future<void> _loadBookings() async {
+    try {
+      await BookingStore.instance.load();
+      if (mounted) {
+        setState(() {
+          _isLoadingBookings = false;
+          _bookingLoadError = null;
+        });
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _isLoadingBookings = false;
+          _bookingLoadError = 'Could not load bookings: $error';
+        });
+      }
+    }
+  }
+
+  Future<void> _continueToPassengerDetails() async {
+    setState(() => _isCreatingBooking = true);
+    try {
+      final booking = await BookingService.instance.createDraft(
+        trip: widget.trip,
+        reference: 'MOVA-${DateTime.now().millisecondsSinceEpoch}',
+        selectedSeats: selectedSeats.toList()..sort(),
+      );
+      if (!mounted) return;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PassengerDetailsScreen(booking: booking),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not create booking: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _isCreatingBooking = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final trip = widget.trip;
+    final bookingStore = BookingStore.instance;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Select Seats')),
@@ -37,66 +92,91 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
           ),
           const SizedBox(height: 12),
           Expanded(
-            child: GridView.builder(
-              padding: const EdgeInsets.all(20),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 4,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-              ),
-              itemCount: trip.totalSeats,
-              itemBuilder: (context, index) {
-                final seat = index + 1;
-                final booked = trip.bookedSeats.contains(seat);
-                final selected = selectedSeats.contains(seat);
-
-                return InkWell(
-                  onTap: booked
-                      ? null
-                      : () {
-                          setState(() {
-                            if (selected) {
-                              selectedSeats.remove(seat);
-                            } else if (selectedSeats.length >= 5) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'You can book a maximum of 5 seats.',
-                                  ),
-                                ),
-                              );
-                            } else {
-                              selectedSeats.add(seat);
-                            }
-                          });
-                        },
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: booked
-                          ? Colors.grey.shade400
-                          : selected
-                          ? Colors.teal
-                          : Colors.white,
-                      border: Border.all(
-                        color: selected ? Colors.teal : Colors.grey,
-                      ),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Center(
-                      child: Text(
-                        '$seat',
-                        style: TextStyle(
-                          color: booked || selected
-                              ? Colors.white
-                              : Colors.black,
-                          fontWeight: FontWeight.bold,
+            child: _isLoadingBookings
+                ? const Center(child: CircularProgressIndicator())
+                : _bookingLoadError != null
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(_bookingLoadError!, textAlign: TextAlign.center),
+                        TextButton(
+                          onPressed: () {
+                            setState(() => _isLoadingBookings = true);
+                            _loadBookings();
+                          },
+                          child: const Text('Retry'),
                         ),
-                      ),
+                      ],
+                    ),
+                  )
+                : ValueListenableBuilder<int>(
+                    valueListenable: bookingStore.changes,
+                    builder: (context, _, _) => GridView.builder(
+                      padding: const EdgeInsets.all(20),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 4,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                          ),
+                      itemCount: trip.totalSeats,
+                      itemBuilder: (context, index) {
+                        final seat = index + 1;
+                        final booked = bookingStore
+                            .occupiedSeatsForTrip(trip)
+                            .contains(seat);
+                        final selected = selectedSeats.contains(seat);
+
+                        return InkWell(
+                          onTap: booked
+                              ? null
+                              : () {
+                                  setState(() {
+                                    if (selected) {
+                                      selectedSeats.remove(seat);
+                                    } else if (selectedSeats.length >= 5) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'You can book a maximum of 5 seats.',
+                                              ),
+                                            ),
+                                          );
+                                    } else {
+                                      selectedSeats.add(seat);
+                                    }
+                                  });
+                                },
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: booked
+                                  ? Colors.grey.shade400
+                                  : selected
+                                  ? Colors.teal
+                                  : Colors.white,
+                              border: Border.all(
+                                color: selected ? Colors.teal : Colors.grey,
+                              ),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Center(
+                              child: Text(
+                                '$seat',
+                                style: TextStyle(
+                                  color: booked || selected
+                                      ? Colors.white
+                                      : Colors.black,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
-                );
-              },
-            ),
           ),
           Padding(
             padding: const EdgeInsets.all(16),
@@ -125,25 +205,15 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
-                    onPressed: selectedSeats.isEmpty
+                    onPressed:
+                        selectedSeats.isEmpty ||
+                            _isLoadingBookings ||
+                            _isCreatingBooking
                         ? null
-                        : () {
-                            final booking = BookingDraft(
-                              trip: trip,
-                              reference:
-                                  'MOVA-${DateTime.now().millisecondsSinceEpoch}',
-                              selectedSeats: selectedSeats.toList()..sort(),
-                            );
-
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    PassengerDetailsScreen(booking: booking),
-                              ),
-                            );
-                          },
-                    child: const Text('Continue'),
+                        : _continueToPassengerDetails,
+                    child: _isCreatingBooking
+                        ? const CircularProgressIndicator()
+                        : const Text('Continue'),
                   ),
                 ),
               ],

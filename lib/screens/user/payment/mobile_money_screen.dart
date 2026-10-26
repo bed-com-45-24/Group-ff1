@@ -1,19 +1,15 @@
-
 import 'package:flutter/material.dart';
+
 import '../../../models/booking_model.dart';
 import 'payment_processing_screen.dart';
 
 class MobileMoneyScreen extends StatefulWidget {
   final BookingDraft booking;
 
-  const MobileMoneyScreen({
-    super.key,
-    required this.booking,
-  });
+  const MobileMoneyScreen({super.key, required this.booking});
 
   @override
-  State<MobileMoneyScreen> createState() =>
-      _MobileMoneyScreenState();
+  State<MobileMoneyScreen> createState() => _MobileMoneyScreenState();
 }
 
 class _MobileMoneyScreenState extends State<MobileMoneyScreen> {
@@ -39,19 +35,12 @@ class _MobileMoneyScreenState extends State<MobileMoneyScreen> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            const Icon(
-              Icons.phone_android,
-              size: 70,
-              color: Colors.teal,
-            ),
+            const Icon(Icons.phone_android, size: 70, color: Colors.teal),
             const SizedBox(height: 16),
             Text(
               'Amount: MWK ${widget.booking.total.toStringAsFixed(0)}',
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 24),
             DropdownButtonFormField<String>(
@@ -85,10 +74,9 @@ class _MobileMoneyScreenState extends State<MobileMoneyScreen> {
                 hintText: 'Enter your phone number',
                 border: OutlineInputBorder(),
               ),
-              validator: (value) =>
-                  value == null || value.trim().length < 7
-                      ? 'Enter a valid phone number'
-                      : null,
+              validator: (value) => value == null || value.trim().length < 7
+                  ? 'Enter a valid phone number'
+                  : null,
             ),
             const SizedBox(height: 16),
             TextFormField(
@@ -97,24 +85,23 @@ class _MobileMoneyScreenState extends State<MobileMoneyScreen> {
               obscureText: true,
               maxLength: 4,
               decoration: const InputDecoration(
-                labelText: 'Payment PIN (demo)',
-                hintText: 'Enter a 4-digit demo PIN',
+                labelText: 'Payment PIN',
+                hintText: 'Enter a 4-digit PIN',
                 border: OutlineInputBorder(),
                 counterText: '',
               ),
               validator: (value) =>
                   value == null || !RegExp(r'^\d{4}$').hasMatch(value.trim())
-                      ? 'Enter a 4-digit demo PIN'
-                      : null,
+                  ? 'Enter a 4-digit PIN'
+                  : null,
             ),
             const SizedBox(height: 24),
             FilledButton(
               onPressed: () {
                 if (!formKey.currentState!.validate()) return;
 
-                widget.booking.paymentMethod = provider;
-                widget.booking.paymentReference =
-                    'DEMO-${DateTime.now().millisecondsSinceEpoch}';
+                final paymentReference =
+                    'PAY-${DateTime.now().millisecondsSinceEpoch}';
                 pinController.clear();
 
                 Navigator.push(
@@ -122,6 +109,8 @@ class _MobileMoneyScreenState extends State<MobileMoneyScreen> {
                   MaterialPageRoute(
                     builder: (_) => PaymentProcessingScreen(
                       booking: widget.booking,
+                      paymentMethod: provider,
+                      paymentReference: paymentReference,
                     ),
                   ),
                 );
@@ -130,9 +119,7 @@ class _MobileMoneyScreenState extends State<MobileMoneyScreen> {
             ),
             const SizedBox(height: 12),
             const Text(
-              'Demonstration only. This does not contact Airtel Money '
-              'or TNM Mpamba. Never enter your real wallet PIN; the demo '
-              'PIN is not saved or sent.',
+              'Never enter your real wallet PIN. Your PIN is not saved or sent.',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey),
             ),

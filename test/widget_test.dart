@@ -197,6 +197,7 @@ void main() {
           totalSeats: 40,
         ),
         reference: 'MOVA-TEST',
+        selectedSeats: [1],
       );
 
       await tester.pumpWidget(

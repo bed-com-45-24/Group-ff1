@@ -12,11 +12,12 @@ class AdminBookingsScreen extends StatefulWidget {
 
 class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
   final _store = BookingStore.instance;
+  late final Future<void> _loadFuture;
 
   @override
   void initState() {
     super.initState();
-    _store.load();
+    _loadFuture = _store.load();
   }
 
   @override
@@ -24,21 +25,33 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),
       body: SafeArea(
-        child: ValueListenableBuilder<int>(
-          valueListenable: _store.changes,
-          builder: (context, _, _) {
-            final bookings = _store.bookings.reversed.toList();
-            if (!_store.isLoaded) {
+        child: FutureBuilder<void>(
+          future: _loadFuture,
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return Center(
+                child: Text('Could not load bookings: ${snapshot.error}'),
+              );
+            }
+            if (snapshot.connectionState != ConnectionState.done) {
               return const Center(child: CircularProgressIndicator());
             }
-            if (bookings.isEmpty) {
-              return const Center(child: Text('No bookings have been made.'));
-            }
-            return ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: bookings.length,
-              itemBuilder: (context, index) =>
-                  _BookingCard(booking: bookings[index]),
+            return ValueListenableBuilder<int>(
+              valueListenable: _store.changes,
+              builder: (context, _, _) {
+                final bookings = _store.bookings.reversed.toList();
+                if (bookings.isEmpty) {
+                  return const Center(
+                    child: Text('No bookings have been made.'),
+                  );
+                }
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: bookings.length,
+                  itemBuilder: (context, index) =>
+                      _BookingCard(booking: bookings[index]),
+                );
+              },
             );
           },
         ),
@@ -62,9 +75,7 @@ class _BookingCard extends StatelessWidget {
           color: booking.paid ? Colors.green : Colors.orange,
         ),
         title: Text('${trip.origin} → ${trip.destination}'),
-        subtitle: Text(
-          '${booking.passengerName} · ${booking.paid ? 'Paid' : 'Pending'}',
-        ),
+        subtitle: Text('${booking.passengerName} · ${booking.status.label}'),
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         children: [
           _detail('Booking reference', booking.reference),
@@ -76,7 +87,7 @@ class _BookingCard extends StatelessWidget {
           _detail('Amount', 'MWK ${booking.total.toStringAsFixed(0)}'),
           _detail('Payment method', booking.paymentMethod),
           _detail('Payment reference', booking.paymentReference),
-          _detail('Status', booking.cancelled ? 'Cancelled' : 'Active'),
+          _detail('Status', booking.status.label),
         ],
       ),
     );

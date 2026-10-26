@@ -1,14 +1,16 @@
-
 import 'package:flutter/material.dart';
+
 import '../../../models/booking_model.dart';
 import 'payment_method_screen.dart';
 
 class PaymentFailedScreen extends StatelessWidget {
   final BookingDraft booking;
+  final String message;
 
   const PaymentFailedScreen({
     super.key,
     required this.booking,
+    this.message = 'Your payment was not completed. Please try again or select another method.',
   });
 
   @override
@@ -21,25 +23,14 @@ class PaymentFailedScreen extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.error_outline,
-                color: Colors.red,
-                size: 90,
-              ),
+              const Icon(Icons.error_outline, color: Colors.red, size: 90),
               const SizedBox(height: 20),
               const Text(
                 'Payment Unsuccessful',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 12),
-              const Text(
-                'Your demo payment was not completed. '
-                'Please try again or select another method.',
-                textAlign: TextAlign.center,
-              ),
+              Text(message, textAlign: TextAlign.center),
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
@@ -48,8 +39,7 @@ class PaymentFailedScreen extends StatelessWidget {
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
-                        builder: (_) =>
-                            PaymentMethodScreen(booking: booking),
+                        builder: (_) => PaymentMethodScreen(booking: booking),
                       ),
                     );
                   },

@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../models/booking_model.dart';
-import '../../../data/booking_store.dart';
-import '../../../data/notification_store.dart';
-import '../../../data/trip_store.dart';
 import '../booking/booking_confirmation_screen.dart';
 
 class PaymentSuccessScreen extends StatefulWidget {
@@ -16,20 +13,6 @@ class PaymentSuccessScreen extends StatefulWidget {
 }
 
 class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
-  @override
-  void initState() {
-    super.initState();
-    final booking = widget.booking;
-    booking.paid = true;
-    BookingStore.instance.addBooking(booking);
-    TripStore.instance.markSeatsBooked(booking);
-    NotificationStore.instance.addPaymentConfirmation(
-      paymentMethod: booking.paymentMethod,
-      paymentReference: booking.paymentReference,
-      amount: booking.total,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -48,7 +31,7 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                'Demo payment reference:\n${widget.booking.paymentReference}',
+                'Payment reference:\n${widget.booking.paymentReference}',
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),

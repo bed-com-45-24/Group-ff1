@@ -75,7 +75,7 @@ class PaymentMethodScreen extends StatelessWidget {
             ),
             const Spacer(),
             const Text(
-              'Demo only: no real payment will be taken.',
+              'No real payment will be taken.',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey),
             ),
