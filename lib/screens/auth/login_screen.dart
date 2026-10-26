@@ -52,7 +52,7 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       } else {
         setState(() {
-          _errorMessage = 'Invalid credentials. Please check your email and password or sign up.';
+          _errorMessage = 'Account not found or credentials are incorrect. Please sign up first.';
           _isLoading = false;
         });
       }

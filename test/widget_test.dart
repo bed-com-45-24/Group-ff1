@@ -152,6 +152,18 @@ void main() {
     );
   });
 
+  test('Unregistered credentials cannot sign in as passenger', () async {
+    SharedPreferences.setMockInitialValues({});
+    expect(
+      await AuthService().login(
+        'unknown@mova.test',
+        'password123',
+        role: 'passenger',
+      ),
+      isFalse,
+    );
+  });
+
   test('Admin route updates are stored for passenger browsing', () async {
     SharedPreferences.setMockInitialValues({});
     final store = RouteStore.instance;

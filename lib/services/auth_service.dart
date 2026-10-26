@@ -83,7 +83,6 @@ class AuthService {
     required String role,
   }) async {
     // TODO: Replace with actual API authentication
-    // For demo, check against registered users or accept any non-empty credentials
     final prefs = await SharedPreferences.getInstance();
     final registeredUsersJson = prefs.getString(_keyRegisteredUsers);
 
@@ -106,12 +105,6 @@ class AuthService {
       return true;
     }
 
-    // Keep demo passenger sign-in permissive, but admins must be registered.
-    if (role == 'admin') return false;
-    if (email.isNotEmpty && password.isNotEmpty) {
-      await _saveLogin(prefs, email, email.split('@')[0], role);
-      return true;
-    }
     return false;
   }
 
