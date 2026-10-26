@@ -65,7 +65,7 @@ class _FaresScreenState extends State<FaresScreen> {
         ],
       ),
     );
-    controller.dispose();
+    
     if (fare == null) return;
     await _store.saveRoute(route.copyWith(fare: fare));
     final matchingTrips = _tripStore.trips.where(
