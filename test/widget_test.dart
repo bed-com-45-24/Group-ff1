@@ -15,6 +15,7 @@ import 'package:mova/screens/user/booking/select_trip_screen.dart';
 import 'package:mova/screens/user/route_directions_details_screen.dart';
 import 'package:mova/screens/user/results_screen.dart';
 import 'package:mova/services/auth_service.dart';
+import 'package:mova/widgets/route_card.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -155,6 +156,60 @@ void main() {
     expect(prefs.getString('admin_routes_v1'), contains('Test Destination'));
     await store.removeRoute(route.id);
   });
+
+  test(
+    'Route pickup defaults to an origin depot and preserves custom depot',
+    () {
+      const legacyRoute = RouteModel(
+        id: 'LEGACY-ROUTE',
+        companyName: 'MOVA',
+        name: 'Blantyre - Lilongwe',
+        origin: 'Blantyre',
+        destination: 'Lilongwe',
+        stops: ['Blantyre', 'Lilongwe'],
+        fare: 75000,
+      );
+      expect(legacyRoute.pickupPoint, 'Blantyre Depot');
+
+      final savedRoute = RouteModel.fromJson({
+        ...legacyRoute.toJson(),
+        'pickupLocation': 'Limbe Depot',
+      });
+      expect(savedRoute.pickupPoint, 'Limbe Depot');
+      expect(
+        RouteModel.fromJson(legacyRoute.toJson()).pickupPoint,
+        'Blantyre Depot',
+      );
+    },
+  );
+
+  testWidgets(
+    'Route cards show map travel time instead of unpublished duration',
+    (tester) async {
+      const route = RouteModel(
+        id: 'ROUTE-CARD-DURATION-TEST',
+        companyName: 'MOVA',
+        name: 'Blantyre - Lilongwe',
+        origin: 'Blantyre',
+        destination: 'Lilongwe',
+        stops: ['Blantyre', 'Lilongwe'],
+        fare: 75000,
+        duration: 'Not published',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: RouteCard(route: route, onTap: () {}),
+          ),
+        ),
+      );
+
+      expect(find.textContaining('Not published'), findsNothing);
+      expect(find.textContaining('Duration: '), findsOneWidget);
+      expect(find.textContaining('Open route details'), findsNothing);
+    },
+  );
 
   testWidgets(
     'Passenger details form is prefilled from local account storage',

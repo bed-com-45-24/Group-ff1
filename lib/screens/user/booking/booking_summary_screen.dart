@@ -67,7 +67,7 @@ class BookingSummaryScreen extends StatelessWidget {
                   _row('Selected route option', route.name),
                 _row('Pickup point', route.pickupPoint),
                 _row('Drop-off point', route.dropOffPoint),
-                _row('Journey duration', route.duration ?? 'Not published'),
+                _row('Journey duration', _durationLabel(route)),
                 _row('Distance (map)', route.mapDistance ?? 'Not available'),
                 _row('Stops', route.stops.join(' → ')),
               ],
@@ -122,6 +122,16 @@ class BookingSummaryScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _durationLabel(RouteModel route) {
+    final duration = route.duration?.trim();
+    if (duration == null ||
+        duration.isEmpty ||
+        duration.toLowerCase() == 'not published') {
+      return 'Map estimate unavailable';
+    }
+    return duration;
   }
 
   Widget _buildBookingSummary(BuildContext context, BookingDraft booking) {

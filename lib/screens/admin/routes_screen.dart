@@ -25,15 +25,17 @@ class _RoutesScreenState extends State<RoutesScreen> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _editRoute([RouteModel? existing]) async {
     final origin = TextEditingController(text: existing?.origin ?? '');
     final destination = TextEditingController(
       text: existing?.destination ?? '',
+    );
+    final pickupLocation = TextEditingController(
+      text: existing?.pickupLocation ?? '',
     );
     final company = TextEditingController(
       text: existing?.companyName ?? 'MOVA',
@@ -58,6 +60,15 @@ class _RoutesScreenState extends State<RoutesScreen> {
               children: [
                 _field(origin, 'Origin'),
                 _field(destination, 'Destination'),
+                _field(pickupLocation, 'Pickup depot', required: false),
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 12),
+                  child: Text(
+                    'Use a known pickup point such as Limbe Depot. Leave blank '
+                    'to use the origin name followed by “Depot”.',
+                    style: TextStyle(color: mutedText),
+                  ),
+                ),
                 _field(company, 'Transport company'),
                 _field(
                   fare,
@@ -107,12 +118,16 @@ class _RoutesScreenState extends State<RoutesScreen> {
               Navigator.pop(
                 dialogContext,
                 RouteModel(
-                  id: existing?.id ??
+                  id:
+                      existing?.id ??
                       'R-${DateTime.now().microsecondsSinceEpoch}',
                   companyName: company.text.trim(),
                   name: '$from - $to',
                   origin: from,
                   destination: to,
+                  pickupLocation: pickupLocation.text.trim().isEmpty
+                      ? null
+                      : pickupLocation.text.trim(),
                   stops: [from, ...intermediateStops, to],
                   fare: double.parse(fare.text.trim()),
                   duration: existing?.duration,
@@ -132,13 +147,13 @@ class _RoutesScreenState extends State<RoutesScreen> {
         ],
       ),
     );
-    //   await WidgetsBinding.instance.endOfFrame;
-
-    // origin.dispose();
-    // destination.dispose();
-    // company.dispose();
-    // fare.dispose();
-    // departures.dispose();
+    await WidgetsBinding.instance.endOfFrame;
+    origin.dispose();
+    destination.dispose();
+    pickupLocation.dispose();
+    company.dispose();
+    fare.dispose();
+    departures.dispose();
     if (result == null) return;
     await _store.saveRoute(result);
     if (mounted) _showMessage('Route saved.');

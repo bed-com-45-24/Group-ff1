@@ -49,11 +49,12 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
     }
   }
 
-  String get _effectiveDurationText =>
-      _mapRoute?.durationLabel ??
-      (_loadingMapRoute
-          ? 'Loading map estimate...'
-          : route.duration ?? 'Not available');
+  String get _effectiveDurationText {
+    return _mapRoute?.durationLabel ??
+        (_loadingMapRoute
+            ? 'Loading map estimate...'
+            : 'Map estimate unavailable');
+  }
 
   String get _effectiveDistanceText =>
       _mapRoute?.distanceLabel ??
@@ -69,6 +70,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
       name: route.name,
       origin: route.origin,
       destination: route.destination,
+      pickupLocation: route.pickupLocation,
       stops: route.stops,
       fare: route.fare,
       duration: _effectiveDurationText,
@@ -111,7 +113,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
 
           ListTile(
             leading: const Icon(Icons.trip_origin),
-            title: const Text('Origin / Pickup'),
+            title: const Text('Pickup depot'),
             subtitle: Text(route.pickupPoint),
           ),
 

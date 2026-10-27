@@ -4,6 +4,7 @@ class RouteModel {
   final String name;
   final String origin;
   final String destination;
+  final String? pickupLocation;
   final List<String> stops;
   final double fare;
   final String? duration;
@@ -19,6 +20,7 @@ class RouteModel {
     required this.name,
     required this.origin,
     required this.destination,
+    this.pickupLocation,
     required this.stops,
     required this.fare,
     this.duration,
@@ -29,7 +31,13 @@ class RouteModel {
     this.active = true,
   });
 
-  String get pickupPoint => origin;
+  String get pickupPoint {
+    final savedPickup = pickupLocation?.trim();
+    if (savedPickup != null && savedPickup.isNotEmpty) return savedPickup;
+    return RegExp(r'\bdepot\b', caseSensitive: false).hasMatch(origin)
+        ? origin.trim()
+        : '${origin.trim()} Depot';
+  }
 
   String get dropOffPoint => destination;
 
@@ -38,6 +46,7 @@ class RouteModel {
     String? name,
     String? origin,
     String? destination,
+    String? pickupLocation,
     List<String>? stops,
     double? fare,
     String? duration,
@@ -53,6 +62,7 @@ class RouteModel {
       name: name ?? this.name,
       origin: origin ?? this.origin,
       destination: destination ?? this.destination,
+      pickupLocation: pickupLocation ?? this.pickupLocation,
       stops: stops ?? this.stops,
       fare: fare ?? this.fare,
       duration: duration ?? this.duration,
@@ -70,6 +80,7 @@ class RouteModel {
     'name': name,
     'origin': origin,
     'destination': destination,
+    'pickupLocation': pickupLocation,
     'stops': stops,
     'fare': fare,
     'duration': duration,
@@ -86,6 +97,7 @@ class RouteModel {
     name: json['name'] as String,
     origin: json['origin'] as String,
     destination: json['destination'] as String,
+    pickupLocation: json['pickupLocation'] as String?,
     stops: (json['stops'] as List<dynamic>).cast<String>(),
     fare: (json['fare'] as num).toDouble(),
     duration: json['duration'] as String?,

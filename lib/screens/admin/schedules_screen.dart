@@ -181,6 +181,13 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
       '${value.hour.toString().padLeft(2, '0')}:'
       '${value.minute.toString().padLeft(2, '0')}';
 
+  String _durationLabel(Trip trip) {
+    final duration = trip.arrivalTime.difference(trip.departureTime);
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60);
+    return hours == 0 ? '$minutes min' : '${hours}h ${minutes}m';
+  }
+
   DateTime? _parseDateTime(String value) {
     final match = RegExp(r'^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$')
         .firstMatch(value.trim());
@@ -260,7 +267,9 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
                                     '${trip.origin} → ${trip.destination}',
                                   ),
                                   subtitle: Text(
-                                    '${_dateTimeString(trip.departureTime)} · '
+                                    '${_dateTimeString(trip.departureTime)} → '
+                                    '${_dateTimeString(trip.arrivalTime)} · '
+                                    '${_durationLabel(trip)} · '
                                     '${trip.availableSeats}/${trip.totalSeats} '
                                     'seats · MWK '
                                     '${trip.fare.toStringAsFixed(0)}',
