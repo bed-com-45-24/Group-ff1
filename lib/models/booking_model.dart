@@ -48,6 +48,7 @@ class BookingDraft {
          bookedSeats: List.unmodifiable(trip.bookedSeats),
          transportMode: trip.transportMode,
          operatorName: trip.operatorName,
+         routeName: trip.routeName,
        ),
        selectedSeats = List.unmodifiable(selectedSeats) {
     if (reference.trim().isEmpty) {

@@ -141,7 +141,7 @@ class RouteDirectionsDetailsScreen extends StatelessWidget {
                           route: RouteModel(
                             id: route.id,
                             companyName: 'Map route estimate',
-                            name: '$origin - $destination',
+                            name: route.routeName,
                             origin: origin,
                             destination: destination,
                             stops: [origin, destination],

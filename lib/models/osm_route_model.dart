@@ -6,6 +6,7 @@ class OsmRouteModel {
   final double distanceMeters;
   final double durationSeconds;
   final List<String> steps;
+  final List<String> roadNames;
 
   const OsmRouteModel({
     required this.id,
@@ -13,6 +14,7 @@ class OsmRouteModel {
     required this.distanceMeters,
     required this.durationSeconds,
     required this.steps,
+    this.roadNames = const [],
   });
 
   List<LatLng> get points {
@@ -34,9 +36,26 @@ class OsmRouteModel {
     return hours == 0 ? '$minutes min' : '${hours}h ${remainingMinutes}m';
   }
 
+  String get roadNamesLabel =>
+      roadNames.isEmpty ? 'Road name unavailable' : roadNames.join(' → ');
+
+  String get routeName =>
+      roadNames.isEmpty ? 'Route ${id.replaceFirst('route-', '')}' : roadNamesLabel;
+
   factory OsmRouteModel.fromJson(Map<String, dynamic> json, int index) {
     final geometry = json['geometry'] as Map<String, dynamic>;
     final legs = json['legs'] as List<dynamic>;
+    final roadNames = legs
+        .expand(
+          (leg) => (leg as Map<String, dynamic>)['steps'] as List<dynamic>,
+        )
+        .map((step) => step['name']?.toString().trim() ?? '')
+        .where((name) => name.isNotEmpty)
+        .fold<List<String>>([], (names, name) {
+          if (!names.contains(name)) names.add(name);
+          return names;
+        })
+        .toList();
     final steps = legs
         .expand(
           (leg) => (leg as Map<String, dynamic>)['steps'] as List<dynamic>,
@@ -64,6 +83,7 @@ class OsmRouteModel {
       distanceMeters: (json['distance'] as num).toDouble(),
       durationSeconds: (json['duration'] as num).toDouble(),
       steps: steps,
+      roadNames: roadNames,
     );
   }
 }

@@ -90,6 +90,7 @@ final List<Trip> sampleTrips = [
     bookedSeats: [2, 5, 9],
     transportMode: 'Bus',
     operatorName: 'Northern Express',
+    routeName: 'M1 Road',
   ),
   Trip(
     id: 'TRIP003',

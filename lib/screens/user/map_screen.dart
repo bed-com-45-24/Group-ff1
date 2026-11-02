@@ -271,7 +271,8 @@ class _MapScreenState extends State<MapScreen> {
                                   ? 'Finding route...'
                                   : _route == null
                                   ? 'Drag to move · pinch or scroll to zoom · tap to plan a route'
-                                  : '${_route!.distanceLabel} · ${_route!.durationLabel}',
+                                  : '${_route!.distanceLabel} · ${_route!.durationLabel}\n'
+                                    'Roads: ${_route!.roadNamesLabel}',
                             ),
                           ),
                           if (_route != null)

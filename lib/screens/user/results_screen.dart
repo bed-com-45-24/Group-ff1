@@ -336,13 +336,14 @@ class _ResultsScreenState extends State<ResultsScreen> {
                                 : Icons.radio_button_unchecked,
                             color: selected ? Colors.deepPurple : null,
                           ),
-                          title: Text('Route ${index + 1}'),
+                          title: Text(route.routeName),
                           subtitle: Text(
                             'Distance: ${route.distanceLabel} · '
                             'Map time: ${route.durationLabel}\n'
+                            'Roads: ${route.roadNamesLabel}\n'
                             'Estimated fare: ${_estimateFare(route)}',
                           ),
-                          isThreeLine: true,
+                          isThreeLine: false,
                         ),
                       );
                     },
@@ -422,9 +423,7 @@ class _CompareRoutesScreenState extends State<CompareRoutesScreen> {
           route: RouteModel(
             id: selectedRoute.id,
             companyName: 'Map route estimate',
-            name:
-                '${widget.origin} - ${widget.destination} · '
-                'Route ${_selectedRouteIndex + 1}',
+            name: selectedRoute.routeName,
             origin: widget.origin,
             destination: widget.destination,
             stops: [widget.origin, widget.destination],
@@ -488,7 +487,7 @@ class _CompareRoutesScreenState extends State<CompareRoutesScreen> {
                           children: [
                             Expanded(
                               child: Text(
-                                'Route ${index + 1}',
+                                widget.routes[index].routeName,
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
@@ -527,6 +526,10 @@ class _CompareRoutesScreenState extends State<CompareRoutesScreen> {
                         _ComparisonMetric(
                           label: 'Distance (map)',
                           value: widget.routes[index].distanceLabel,
+                        ),
+                        _ComparisonMetric(
+                          label: 'Road names used',
+                          value: widget.routes[index].roadNamesLabel,
                         ),
                         _ComparisonMetric(
                           label: 'Estimated fare (Malawi kwacha)',

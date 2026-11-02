@@ -39,6 +39,9 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
     final operator = TextEditingController(
       text: existing?.operatorName ?? 'MOVA Express',
     );
+    final routeName = TextEditingController(
+      text: existing?.routeName ?? '',
+    );
     final formKey = GlobalKey<FormState>();
 
     final result = await showDialog<Trip>(
@@ -58,6 +61,7 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
                 _field(fare, 'Fare per seat (MWK)', number: true),
                 _field(seats, 'Total seats', number: true),
                 _field(operator, 'Operator'),
+                _field(routeName, 'Route name / road (for example M1 Road)'),
               ],
             ),
           ),
@@ -110,6 +114,7 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
                   totalSeats: seatCount,
                   bookedSeats: existing?.bookedSeats ?? const [],
                   operatorName: operator.text.trim(),
+                  routeName: routeName.text.trim(),
                   transportMode: existing?.transportMode ?? 'Bus',
                 ),
               );
@@ -138,6 +143,7 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
     fare.dispose();
     seats.dispose();
     operator.dispose();
+    routeName.dispose();
 
     if (result == null) return;
 

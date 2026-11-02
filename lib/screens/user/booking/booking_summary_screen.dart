@@ -202,6 +202,12 @@ class BookingSummaryScreen extends StatelessWidget {
                 _row('Departure', _formatDateTime(trip.departureTime)),
                 _row('Arrival', _formatDateTime(trip.arrivalTime)),
                 _row('Estimated journey time', durationText),
+                _row(
+                  'Route name',
+                  trip.routeName.trim().isEmpty
+                      ? 'Not specified'
+                      : trip.routeName.trim(),
+                ),
                 if (trip.mapDistanceMeters != null)
                   _row(
                     'Map distance',
