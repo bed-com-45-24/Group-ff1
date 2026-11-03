@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 import '../../models/osm_route_model.dart';
 import '../../services/openstreetmap_service.dart';
 import '../../services/location_service.dart';
+import '../../utils/malawi_map.dart';
 import 'profile_screen.dart';
 import 'search_screen.dart';
 
@@ -185,11 +186,24 @@ class _MapScreenState extends State<MapScreen> {
                   options: MapOptions(
                     initialCenter: _center!,
                     initialZoom: 7,
+                    cameraConstraint: CameraConstraint.containCenter(
+                      bounds: malawiBounds,
+                    ),
                     interactionOptions: const InteractionOptions(
                       flags: InteractiveFlag.all,
                     ),
                     onMapReady: () => _mapReady = true,
-                    onTap: (_, point) => _routeTo(point),
+                    onTap: (_, point) {
+                      if (!isWithinMalawi(point)) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Select a destination within Malawi.'),
+                          ),
+                        );
+                        return;
+                      }
+                      _routeTo(point);
+                    },
                   ),
                   children: [
                     TileLayer(

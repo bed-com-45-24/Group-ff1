@@ -6,6 +6,7 @@ import '../../models/osm_route_model.dart';
 import '../../models/route_model.dart';
 import '../../services/openstreetmap_service.dart';
 import '../../utils/malawi_route_names.dart';
+import '../../utils/malawi_map.dart';
 import 'booking/booking_summary_screen.dart';
 import 'route_directions_details_screen.dart';
 
@@ -145,6 +146,17 @@ class _ResultsScreenState extends State<ResultsScreen> {
           ? knownMalawiRouteName(_originName, _destinationName)
           : route.routeName;
 
+  LatLng? _routeLabelPoint(OsmRouteModel route) {
+    if (route.points.isEmpty) return null;
+    return route.points[route.points.length ~/ 2];
+  }
+
+  String _mapRouteLabel(OsmRouteModel route) {
+    final knownName = knownMalawiRouteName(_originName, _destinationName);
+    if (knownName.isNotEmpty) return '$knownName Road';
+    return route.roadNames.isEmpty ? route.routeName : route.roadNamesLabel;
+  }
+
   void _compareRoutes() {
     if (_routes.length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -229,6 +241,9 @@ class _ResultsScreenState extends State<ResultsScreen> {
                     options: MapOptions(
                       initialCenter: _originPoint!,
                       initialZoom: 8,
+                      cameraConstraint: CameraConstraint.containCenter(
+                        bounds: malawiBounds,
+                      ),
                       interactionOptions: const InteractionOptions(
                         flags: InteractiveFlag.all,
                       ),
@@ -258,6 +273,46 @@ class _ResultsScreenState extends State<ResultsScreen> {
                       ),
                       MarkerLayer(
                         markers: [
+                          if (activeRoute.isNotEmpty &&
+                              _routeLabelPoint(activeRoute.first) != null)
+                            Marker(
+                              point: _routeLabelPoint(activeRoute.first)!,
+                              width: 110,
+                              height: 36,
+                              alignment: Alignment.center,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(18),
+                                  border: Border.all(
+                                    color: Colors.deepPurple,
+                                    width: 2,
+                                  ),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Colors.black26,
+                                      blurRadius: 4,
+                                      offset: Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Text(
+                                  _mapRouteLabel(activeRoute.first),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    color: Colors.deepPurple,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
                           Marker(
                             point: _originPoint!,
                             width: 38,

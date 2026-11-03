@@ -4,6 +4,7 @@ import 'package:flutter_map/flutter_map.dart';
 import '../../models/osm_route_model.dart';
 import '../../models/route_model.dart';
 import '../../utils/malawi_route_names.dart';
+import '../../utils/malawi_map.dart';
 import 'booking/booking_summary_screen.dart';
 
 class RouteDirectionsDetailsScreen extends StatelessWidget {
@@ -33,6 +34,9 @@ class RouteDirectionsDetailsScreen extends StatelessWidget {
               options: MapOptions(
                 initialCenter: points.first,
                 initialZoom: 8,
+                cameraConstraint: CameraConstraint.containCenter(
+                  bounds: malawiBounds,
+                ),
                 interactionOptions: const InteractionOptions(
                   flags: InteractiveFlag.all,
                 ),

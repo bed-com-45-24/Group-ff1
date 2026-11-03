@@ -4,6 +4,8 @@ import 'package:flutter_map/flutter_map.dart';
 import '../../models/route_model.dart';
 import '../../models/osm_route_model.dart';
 import '../../services/openstreetmap_service.dart';
+import '../../utils/malawi_map.dart';
+import '../../utils/malawi_route_names.dart';
 import 'booking/booking_summary_screen.dart';
 
 class RouteDetailsScreen extends StatefulWidget {
@@ -238,11 +240,14 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: SizedBox(
-        height: 280,
+        height: 320,
         child: FlutterMap(
           options: MapOptions(
             initialCenter: points.first,
             initialZoom: 8,
+            cameraConstraint: CameraConstraint.containCenter(
+              bounds: malawiBounds,
+            ),
             interactionOptions: const InteractionOptions(
               flags: InteractiveFlag.all,
             ),
@@ -267,6 +272,38 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
             ),
             MarkerLayer(
               markers: [
+                Marker(
+                  point: points[points.length ~/ 2],
+                  width: 260,
+                  height: 72,
+                  child: Container(
+                    alignment: Alignment.center,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 5,
+                    ),
+                    child: Text(
+                      knownMalawiRouteName(route.origin, route.destination)
+                              .isEmpty
+                          ? (_mapRoute?.roadNamesLabel ?? 'Route on map')
+                          : '${knownMalawiRouteName(route.origin, route.destination)} Road',
+                      maxLines: 4,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.deepPurple,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        backgroundColor: Colors.white,
+                        shadows: [
+                          Shadow(
+                            color: Colors.white,
+                            blurRadius: 3,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
                 Marker(
                   point: points.first,
                   width: 110,
