@@ -12,6 +12,7 @@ class RouteDirectionsDetailsScreen extends StatelessWidget {
   final String origin;
   final String destination;
   final double estimatedFare;
+  final RouteModel? configuredRoute;
 
   const RouteDirectionsDetailsScreen({
     super.key,
@@ -19,11 +20,17 @@ class RouteDirectionsDetailsScreen extends StatelessWidget {
     required this.origin,
     required this.destination,
     required this.estimatedFare,
+    this.configuredRoute,
   });
 
   @override
   Widget build(BuildContext context) {
     final points = route.points;
+    final routeForSummary = configuredRoute?.copyWith(
+      duration: route.durationLabel,
+      mapDistance: route.distanceLabel,
+      fareIsEstimate: false,
+    );
     return Scaffold(
       appBar: AppBar(title: const Text('Full route details')),
       body: ListView(
@@ -132,7 +139,9 @@ class RouteDirectionsDetailsScreen extends StatelessWidget {
                 const SizedBox(height: 12),
                 _RouteMetric(
                   icon: Icons.payments_outlined,
-                  label: 'Estimated fare (Malawi kwacha)',
+                  label: configuredRoute == null
+                      ? 'Estimated fare (Malawi kwacha)'
+                      : 'Administrator-set fare',
                   value: 'MWK ${estimatedFare.toStringAsFixed(0)}',
                 ),
                 const SizedBox(height: 20),
@@ -143,21 +152,26 @@ class RouteDirectionsDetailsScreen extends StatelessWidget {
                       context,
                       MaterialPageRoute(
                         builder: (_) => BookingSummaryScreen(
-                          route: RouteModel(
-                            id: route.id,
-                            companyName: 'Map route estimate',
-                            name: knownMalawiRouteName(origin, destination)
-                                    .isNotEmpty
-                                ? knownMalawiRouteName(origin, destination)
-                                : route.routeName,
-                            origin: origin,
-                            destination: destination,
-                            stops: [origin, destination],
-                            fare: estimatedFare,
-                            duration: route.durationLabel,
-                            transfers: 0,
-                            fareIsEstimate: true,
-                          ),
+                          route:
+                              routeForSummary ??
+                              RouteModel(
+                                id: route.id,
+                                companyName: 'Map route estimate',
+                                name:
+                                    knownMalawiRouteName(
+                                      origin,
+                                      destination,
+                                    ).isNotEmpty
+                                    ? knownMalawiRouteName(origin, destination)
+                                    : route.routeName,
+                                origin: origin,
+                                destination: destination,
+                                stops: [origin, destination],
+                                fare: estimatedFare,
+                                duration: route.durationLabel,
+                                transfers: 0,
+                                fareIsEstimate: true,
+                              ),
                         ),
                       ),
                     ),
