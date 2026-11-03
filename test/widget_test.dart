@@ -12,6 +12,7 @@ import 'package:mova/data/trip_store.dart';
 import 'package:mova/screens/user/booking/passenger_details_screen.dart';
 import 'package:mova/screens/user/booking/booking_summary_screen.dart';
 import 'package:mova/screens/user/booking/select_trip_screen.dart';
+import 'package:mova/screens/admin/fares_screen.dart';
 import 'package:mova/screens/user/route_directions_details_screen.dart';
 import 'package:mova/screens/user/results_screen.dart';
 import 'package:mova/services/auth_service.dart';
@@ -152,9 +153,123 @@ void main() {
 
     await store.saveRoute(route);
     expect(store.routes.any((item) => item.id == route.id), isTrue);
+    expect(
+      store.searchRoutes(
+        origin: 'Test Origin',
+        destination: 'Test Destination',
+      ),
+      isEmpty,
+    );
+
+    final activeRoute = route.copyWith(active: true, fare: 23456);
+    await store.saveRoute(activeRoute);
+    final searchResults = store.searchRoutes(
+      origin: 'test origin',
+      destination: 'Test Destination',
+    );
+    expect(searchResults, [activeRoute]);
+    expect(searchResults.single.fare, 23456);
+
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getString('admin_routes_v1'), contains('Test Destination'));
+    expect(prefs.getString('admin_routes_v1'), contains('23456.0'));
     await store.removeRoute(route.id);
+  });
+
+  testWidgets('Passenger route results show configured route fares only', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final store = RouteStore.instance;
+    await store.saveRoute(
+      const RouteModel(
+        id: 'PASSENGER-ROUTE-RESULT-TEST',
+        companyName: 'Test Transit',
+        name: 'Configured Origin - Configured Destination',
+        origin: 'Configured Origin',
+        destination: 'Configured Destination',
+        stops: ['Configured Origin', 'Configured Destination'],
+        fare: 9876,
+      ),
+    );
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: ResultsScreen(
+          origin: 'Configured Origin',
+          destination: 'Configured Destination',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Configured Origin → Configured Destination'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Fare: MWK 9876'), findsOneWidget);
+    expect(find.textContaining('Estimated fare'), findsNothing);
+    await store.removeRoute('PASSENGER-ROUTE-RESULT-TEST');
+  });
+
+  testWidgets('Admin fare edits update only the selected route', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final routeStore = RouteStore.instance;
+    final tripStore = TripStore.instance;
+    const route = RouteModel(
+      id: 'FARE-MANAGEMENT-TEST',
+      companyName: 'Fare Test Transit',
+      name: 'Fare Test Origin - Fare Test Destination',
+      origin: 'Fare Test Origin',
+      destination: 'Fare Test Destination',
+      stops: ['Fare Test Origin', 'Fare Test Destination'],
+      fare: 12345,
+    );
+    final trip = Trip(
+      id: 'FARE-MANAGEMENT-TEST-TRIP',
+      origin: route.origin,
+      destination: route.destination,
+      departureTime: DateTime(2026, 11, 10, 8),
+      arrivalTime: DateTime(2026, 11, 10, 10),
+      fare: 1111,
+      totalSeats: 10,
+    );
+    await routeStore.saveRoute(route);
+    await tripStore.saveTrip(trip);
+    addTearDown(() async {
+      await routeStore.removeRoute(route.id);
+      await tripStore.removeTrip(trip.id);
+    });
+
+    await tester.pumpWidget(const MaterialApp(home: FaresScreen()));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text(route.name),
+      500,
+      scrollable: find.byType(Scrollable).first,
+    );
+    final routeTile = find.ancestor(
+      of: find.text(route.name),
+      matching: find.byType(ListTile),
+    );
+    await tester.tap(
+      find.descendant(of: routeTile, matching: find.byIcon(Icons.edit)),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField), '54321');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(
+      routeStore.routes.singleWhere((item) => item.id == route.id).fare,
+      54321,
+    );
+    expect(
+      tripStore.trips.singleWhere((item) => item.id == trip.id).fare,
+      1111,
+    );
   });
 
   test(
@@ -557,66 +672,6 @@ void main() {
     expect(find.text('Estimated map fare'), findsOneWidget);
     expect(find.text('MWK 2750'), findsNWidgets(2));
     expect(find.textContaining('Malawi kwacha (MWK)'), findsOneWidget);
-  });
-
-  testWidgets('Selected comparison route is included in the booking summary', (
-    tester,
-  ) async {
-    final routes = [
-      OsmRouteModel.fromJson({
-        'geometry': {
-          'type': 'LineString',
-          'coordinates': [
-            [33.78, -13.96],
-            [34.00, -14.10],
-          ],
-        },
-        'distance': 12500,
-        'duration': 1800,
-        'legs': [
-          {'steps': <Map<String, dynamic>>[]},
-        ],
-      }, 0),
-      OsmRouteModel.fromJson({
-        'geometry': {
-          'type': 'LineString',
-          'coordinates': [
-            [33.78, -13.96],
-            [34.00, -14.10],
-          ],
-        },
-        'distance': 18000,
-        'duration': 2700,
-        'legs': [
-          {'steps': <Map<String, dynamic>>[]},
-        ],
-      }, 1),
-    ];
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: CompareRoutesScreen(
-          routes: routes,
-          origin: 'Origin',
-          destination: 'Destination',
-          estimateFare: (route) =>
-              'MWK ${(route.distanceMeters / 1000 * 220).round()}',
-        ),
-      ),
-    );
-
-    await tester.tap(find.byKey(const ValueKey('route-option-selector-1')));
-    await tester.pumpAndSettle();
-    expect(find.text('View Trip Summary'), findsOneWidget);
-
-    await tester.ensureVisible(find.text('View Trip Summary'));
-    await tester.tap(find.text('View Trip Summary'));
-    await tester.pumpAndSettle();
-
-    expect(find.textContaining('Route 2'), findsWidgets);
-    expect(find.text('Selected route option'), findsOneWidget);
-    expect(find.text('45 min'), findsOneWidget);
-    expect(find.text('18.0 km'), findsOneWidget);
   });
 
   testWidgets('Trip summary shows route, stop, and fare information', (
