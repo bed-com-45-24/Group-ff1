@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 import '../../models/osm_route_model.dart';
 import '../../models/route_model.dart';
 import '../../services/openstreetmap_service.dart';
+import '../../utils/malawi_route_names.dart';
 import 'booking/booking_summary_screen.dart';
 import 'route_directions_details_screen.dart';
 
@@ -138,6 +139,11 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
   String _estimateFare(OsmRouteModel route) =>
       'MWK ${_estimatedFareAmount(route).toStringAsFixed(0)}';
+
+  String _displayRouteName(OsmRouteModel route) =>
+      knownMalawiRouteName(_originName, _destinationName).isNotEmpty
+          ? knownMalawiRouteName(_originName, _destinationName)
+          : route.routeName;
 
   void _compareRoutes() {
     if (_routes.length < 2) {
@@ -336,7 +342,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                                 : Icons.radio_button_unchecked,
                             color: selected ? Colors.deepPurple : null,
                           ),
-                          title: Text(route.routeName),
+                          title: Text(_displayRouteName(route)),
                           subtitle: Text(
                             'Distance: ${route.distanceLabel} · '
                             'Map time: ${route.durationLabel}\n'
@@ -423,7 +429,10 @@ class _CompareRoutesScreenState extends State<CompareRoutesScreen> {
           route: RouteModel(
             id: selectedRoute.id,
             companyName: 'Map route estimate',
-            name: selectedRoute.routeName,
+            name:
+                knownMalawiRouteName(widget.origin, widget.destination).isNotEmpty
+                    ? knownMalawiRouteName(widget.origin, widget.destination)
+                    : selectedRoute.routeName,
             origin: widget.origin,
             destination: widget.destination,
             stops: [widget.origin, widget.destination],
@@ -487,7 +496,15 @@ class _CompareRoutesScreenState extends State<CompareRoutesScreen> {
                           children: [
                             Expanded(
                               child: Text(
-                                widget.routes[index].routeName,
+                                knownMalawiRouteName(
+                                      widget.origin,
+                                      widget.destination,
+                                    ).isNotEmpty
+                                    ? knownMalawiRouteName(
+                                        widget.origin,
+                                        widget.destination,
+                                      )
+                                    : widget.routes[index].routeName,
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,

@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 
 import '../../models/osm_route_model.dart';
 import '../../models/route_model.dart';
+import '../../utils/malawi_route_names.dart';
 import 'booking/booking_summary_screen.dart';
 
 class RouteDirectionsDetailsScreen extends StatelessWidget {
@@ -141,7 +142,10 @@ class RouteDirectionsDetailsScreen extends StatelessWidget {
                           route: RouteModel(
                             id: route.id,
                             companyName: 'Map route estimate',
-                            name: route.routeName,
+                            name: knownMalawiRouteName(origin, destination)
+                                    .isNotEmpty
+                                ? knownMalawiRouteName(origin, destination)
+                                : route.routeName,
                             origin: origin,
                             destination: destination,
                             stops: [origin, destination],

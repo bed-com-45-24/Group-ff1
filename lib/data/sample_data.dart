@@ -78,6 +78,7 @@ final List<Trip> sampleTrips = [
     bookedSeats: [3, 7, 12],
     transportMode: 'Bus',
     operatorName: 'MOVA Express',
+    routeName: 'M1',
   ),
   Trip(
     id: 'TRIP002',
@@ -90,7 +91,7 @@ final List<Trip> sampleTrips = [
     bookedSeats: [2, 5, 9],
     transportMode: 'Bus',
     operatorName: 'Northern Express',
-    routeName: 'M1 Road',
+    routeName: 'M1',
   ),
   Trip(
     id: 'TRIP003',
