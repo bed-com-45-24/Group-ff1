@@ -22,7 +22,13 @@ class RouteStore {
 
   Future<void> load() {
     if (_loaded) return Future<void>.value();
-    return _loadFuture ??= _load();
+    return _loadFuture ??= _load().catchError((
+      Object error,
+      StackTrace stackTrace,
+    ) {
+      _loadFuture = null;
+      Error.throwWithStackTrace(error, stackTrace);
+    });
   }
 
   Future<void> _load() async {
@@ -31,46 +37,72 @@ class RouteStore {
     if (stored != null) {
       final values = jsonDecode(stored) as List<dynamic>;
       _routes = values
-          .map(
-            (value) =>
-                RouteModel.fromJson(value as Map<String, dynamic>),
-          )
+          .map((value) => RouteModel.fromJson(value as Map<String, dynamic>))
           .toList();
     } else {
-      await _persist(prefs);
+      await _persist(preferences: prefs);
     }
     _loaded = true;
     changes.value++;
   }
 
   Future<void> saveRoute(RouteModel route) async {
+    await load();
     final index = _routes.indexWhere((item) => item.id == route.id);
-    print('Saving route: ${route.name}, index: $index');
-    if (index == -1) {
-      _routes = [..._routes, route];
-    } else {
-      _routes = [
-        for (var i = 0; i < _routes.length; i++)
-          if (i == index) route else _routes[i],
-      ];
-    }
-    await _persist();
-    print('Route saved: ${route.name}');
+    final updatedRoutes = index == -1
+        ? [..._routes, route]
+        : [
+            for (var i = 0; i < _routes.length; i++)
+              if (i == index) route else _routes[i],
+          ];
+    await _persist(routes: updatedRoutes);
+    _routes = updatedRoutes;
     changes.value++;
   }
 
   Future<void> removeRoute(String id) async {
-    _routes = _routes.where((route) => route.id != id).toList();
-    await _persist();
+    await load();
+    final updatedRoutes = _routes.where((route) => route.id != id).toList();
+    await _persist(routes: updatedRoutes);
+    _routes = updatedRoutes;
     changes.value++;
   }
 
-  Future<void> _persist([SharedPreferences? preferences]) async {
+  Future<void> _persist({
+    SharedPreferences? preferences,
+    List<RouteModel>? routes,
+  }) async {
     final prefs = preferences ?? await SharedPreferences.getInstance();
-    print('Persisting routes: ${_routes.length} routes');
-    await prefs.setString(
+    final saved = await prefs.setString(
       _storageKey,
-      jsonEncode(_routes.map((route) => route.toJson()).toList()),
+      jsonEncode((routes ?? _routes).map((route) => route.toJson()).toList()),
     );
+    if (!saved) {
+      throw StateError('Routes could not be saved on this device.');
+    }
   }
-} 
+
+  List<RouteModel> searchRoutes({String origin = '', String destination = ''}) {
+    final normalizedOrigin = _normalize(origin);
+    final normalizedDestination = _normalize(destination);
+    if (normalizedOrigin.isEmpty && normalizedDestination.isEmpty) {
+      return const [];
+    }
+
+    return _routes.where((route) {
+      if (!route.active) return false;
+      return _matchesEndpoint(route.origin, normalizedOrigin) &&
+          _matchesEndpoint(route.destination, normalizedDestination);
+    }).toList();
+  }
+
+  String _normalize(String value) =>
+      value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+
+  bool _matchesEndpoint(String endpoint, String query) {
+    if (query.isEmpty) return true;
+    final normalizedEndpoint = _normalize(endpoint);
+    return normalizedEndpoint.contains(query) ||
+        query.contains(normalizedEndpoint);
+  }
+}
