@@ -8,7 +8,6 @@ import 'map_screen.dart';
 import 'notifications_screen.dart';
 import 'profile_screen.dart';
 import 'route_details_screen.dart';
-import 'trips_screen.dart';
 import 'search_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -26,7 +25,6 @@ class _HomeScreenState extends State<HomeScreen> {
     final pages = <Widget>[
       const _HomeTab(),
       const AllPopularRoutesScreen(),
-      const TripsScreen(),
       const MapScreen(),
     ];
 
@@ -59,11 +57,6 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.alt_route_outlined),
             selectedIcon: Icon(Icons.alt_route),
             label: 'Routes',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.confirmation_number_outlined),
-            selectedIcon: Icon(Icons.confirmation_number),
-            label: 'Bookings',
           ),
           NavigationDestination(
             icon: Icon(Icons.map_outlined),
@@ -193,10 +186,11 @@ class _HomeTabState extends State<_HomeTab> with WidgetsBindingObserver {
             icon: const Icon(Icons.notifications_outlined),
           ),
           Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: GestureDetector(
-              onTap: _openProfile,
-              child: CircleAvatar(
+            padding: const EdgeInsets.only(right: 8),
+            child: IconButton(
+              tooltip: 'Profile',
+              onPressed: _openProfile,
+              icon: CircleAvatar(
                 backgroundColor: Colors.white,
                 child: Text(
                   _userInitial,
@@ -404,6 +398,16 @@ class _AllPopularRoutesScreenState extends State<AllPopularRoutesScreen> {
         title: const Text('All routes'),
         backgroundColor: Colors.deepPurple,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            tooltip: 'Profile',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ProfileScreen()),
+            ),
+            icon: const Icon(Icons.account_circle_outlined),
+          ),
+        ],
       ),
       body: ValueListenableBuilder<int>(
         valueListenable: _store.changes,

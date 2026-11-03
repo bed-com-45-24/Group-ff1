@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 
 import '../../../data/trip_store.dart';
+import '../../../models/route_model.dart';
 import '../../../models/trip_model.dart';
 import 'seat_selection_screen.dart';
 
 class SelectTripScreen extends StatefulWidget {
   final bool showAppBar;
+  final RouteModel? initialRoute;
 
-  const SelectTripScreen({super.key, this.showAppBar = true});
+  const SelectTripScreen({
+    super.key,
+    this.showAppBar = true,
+    this.initialRoute,
+  });
 
   @override
   State<SelectTripScreen> createState() => _SelectTripScreenState();
@@ -16,8 +22,8 @@ class SelectTripScreen extends StatefulWidget {
 class _SelectTripScreenState extends State<SelectTripScreen> {
   final _tripStore = TripStore.instance;
   final _formKey = GlobalKey<FormState>();
-  final _originController = TextEditingController();
-  final _destinationController = TextEditingController();
+  late final TextEditingController _originController;
+  late final TextEditingController _destinationController;
 
   DateTime? travelDate;
   List<Trip> results = const [];
@@ -25,8 +31,26 @@ class _SelectTripScreenState extends State<SelectTripScreen> {
   bool _isLoading = false;
   String? _searchMessage;
 
+  @override
+  void initState() {
+    super.initState();
+    _originController = TextEditingController(
+      text: widget.initialRoute?.origin ?? '',
+    );
+    _destinationController = TextEditingController(
+      text: widget.initialRoute?.destination ?? '',
+    );
+  }
+
   Future<void> searchTrips() async {
     if (!_formKey.currentState!.validate()) return;
+    if (widget.initialRoute != null && travelDate == null) {
+      final selectedDate = await _selectTravelDate();
+      if (selectedDate != null && mounted) {
+        await searchTrips();
+      }
+      return;
+    }
 
     setState(() {
       _isLoading = true;
@@ -84,7 +108,7 @@ class _SelectTripScreenState extends State<SelectTripScreen> {
     return scheduled.contains(search) || search.contains(scheduled);
   }
 
-  Future<void> _selectTravelDate() async {
+  Future<DateTime?> _selectTravelDate() async {
     final today = DateUtils.dateOnly(DateTime.now());
     final selected = await showDatePicker(
       context: context,
@@ -98,12 +122,24 @@ class _SelectTripScreenState extends State<SelectTripScreen> {
     if (selected != null) {
       setState(() => travelDate = DateUtils.dateOnly(selected));
     }
+    return selected;
   }
 
   void _selectScheduledTrip(Trip trip) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => SeatSelectionScreen(trip: trip)),
+      MaterialPageRoute(
+        builder: (_) => SeatSelectionScreen(
+          trip: widget.initialRoute == null
+              ? trip
+              : trip.copyWith(
+                  fare: widget.initialRoute!.fare,
+                  operatorName: widget.initialRoute!.companyName,
+                  routeName: widget.initialRoute!.name,
+                  fareIsEstimate: widget.initialRoute!.fareIsEstimate,
+                ),
+        ),
+      ),
     );
   }
 
@@ -130,8 +166,12 @@ class _SelectTripScreenState extends State<SelectTripScreen> {
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 6),
-            const Text(
-              'Enter your route and travel date to see scheduled trips.',
+            Text(
+              widget.initialRoute == null
+                  ? 'Enter your route and travel date to see scheduled trips.'
+                  : 'Choose a travel date to see scheduled trips for '
+                        '${widget.initialRoute!.origin} to '
+                        '${widget.initialRoute!.destination}.',
             ),
             const SizedBox(height: 20),
             TextFormField(
@@ -181,12 +221,12 @@ class _SelectTripScreenState extends State<SelectTripScreen> {
                       ),
                     IconButton(
                       tooltip: 'Choose travel date',
-                      onPressed: _selectTravelDate,
+                      onPressed: () => _selectTravelDate(),
                       icon: const Icon(Icons.edit_calendar),
                     ),
                   ],
                 ),
-                onTap: _selectTravelDate,
+                onTap: () => _selectTravelDate(),
               ),
             ),
             const SizedBox(height: 12),
@@ -201,7 +241,13 @@ class _SelectTripScreenState extends State<SelectTripScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.directions_bus),
-                label: const Text('Book a trip'),
+                label: Text(
+                  widget.initialRoute == null
+                      ? 'Book a trip'
+                      : travelDate == null
+                      ? 'Select travel date'
+                      : 'Find available trips',
+                ),
               ),
             ),
             if (_isLoading)

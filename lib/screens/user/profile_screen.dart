@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import '../../services/location_service.dart';
 import 'notifications_screen.dart';
+import 'trips_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -194,6 +195,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             const SizedBox(height: 24),
 
+            _buildMenuSection(
+              icon: Icons.confirmation_number,
+              title: 'My Bookings',
+              subtitle: 'View your tickets and booking history',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const MyBookingsScreen()),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
             // Recent journeys
             _buildMenuSection(
               icon: Icons.history,
@@ -314,29 +327,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       ),
-      child: ListTile(
-        leading: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.deepPurple.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        clipBehavior: Clip.antiAlias,
+        child: ListTile(
+          leading: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.deepPurple.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: Colors.deepPurple, size: 24),
           ),
-          child: Icon(icon, color: Colors.deepPurple, size: 24),
+          title: Text(
+            title,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+          subtitle: Text(
+            subtitle,
+            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+          ),
+          trailing: const Icon(
+            Icons.arrow_forward_ios,
+            size: 16,
+            color: Colors.grey,
+          ),
+          onTap: onTap,
         ),
-        title: Text(
-          title,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-        ),
-        trailing: const Icon(
-          Icons.arrow_forward_ios,
-          size: 16,
-          color: Colors.grey,
-        ),
-        onTap: onTap,
       ),
     );
   }

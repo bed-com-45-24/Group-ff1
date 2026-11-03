@@ -29,6 +29,18 @@ class TripsScreen extends StatelessWidget {
   }
 }
 
+class MyBookingsScreen extends StatelessWidget {
+  const MyBookingsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('My Bookings')),
+      body: const _MyBookingsTab(),
+    );
+  }
+}
+
 class _MyBookingsTab extends StatefulWidget {
   const _MyBookingsTab();
 

@@ -13,6 +13,7 @@ import 'package:mova/screens/user/booking/passenger_details_screen.dart';
 import 'package:mova/screens/user/booking/booking_summary_screen.dart';
 import 'package:mova/screens/user/booking/select_trip_screen.dart';
 import 'package:mova/screens/admin/fares_screen.dart';
+import 'package:mova/screens/user/route_details_screen.dart';
 import 'package:mova/screens/user/route_directions_details_screen.dart';
 import 'package:mova/screens/user/results_screen.dart';
 import 'package:mova/services/auth_service.dart';
@@ -414,18 +415,59 @@ void main() {
       expect(find.text('To'), findsOneWidget);
       expect(find.text('Search route'), findsOneWidget);
 
-      await tester.tap(find.text('Bookings'));
-      await tester.pumpAndSettle();
+      expect(find.text('Bookings'), findsNothing);
+      expect(find.byType(NavigationDestination), findsNWidgets(3));
+      await tester.tap(find.byTooltip('Profile'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.text('Bookings'), findsWidgets);
-      expect(find.text('Book a trip'), findsWidgets);
-      expect(find.text('My bookings'), findsOneWidget);
+      expect(find.text('My Bookings'), findsOneWidget);
 
-      await tester.tap(find.text('My bookings'));
-      await tester.pumpAndSettle();
+      await tester.tap(find.text('My Bookings'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
       expect(find.textContaining('No bookings yet'), findsOneWidget);
     },
   );
+
+  testWidgets('Route details opens booking with route prefilled', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    const route = RouteModel(
+      id: 'ROUTE-DETAILS-BOOKING-TEST',
+      companyName: 'Booking Test Transit',
+      name: 'Booking Origin - Booking Destination',
+      origin: 'Booking Origin',
+      destination: 'Booking Destination',
+      stops: ['Booking Origin', 'Booking Destination'],
+      fare: 7654,
+      departureTimes: ['09:00'],
+    );
+
+    await tester.pumpWidget(
+      const MaterialApp(home: RouteDetailsScreen(route: route)),
+    );
+    expect(find.text('Book This Trip'), findsOneWidget);
+    await tester.tap(find.text('Book This Trip'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Plan your journey'), findsOneWidget);
+    expect(
+      (tester
+              .widget<TextFormField>(find.byType(TextFormField).at(0))
+              .controller)
+          ?.text,
+      route.origin,
+    );
+    expect(
+      (tester
+              .widget<TextFormField>(find.byType(TextFormField).at(1))
+              .controller)
+          ?.text,
+      route.destination,
+    );
+  });
 
   testWidgets('Booking search shows only matching admin schedules', (
     tester,

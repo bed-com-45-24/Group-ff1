@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 
+import '../../data/booking_store.dart';
+import '../../data/trip_store.dart';
 import '../../models/route_model.dart';
 import '../../models/osm_route_model.dart';
+import '../../models/trip_model.dart';
 import '../../services/openstreetmap_service.dart';
 import '../../utils/malawi_map.dart';
 import '../../utils/malawi_route_names.dart';
-import 'booking/booking_summary_screen.dart';
+import 'booking/select_trip_screen.dart';
 
 class RouteDetailsScreen extends StatefulWidget {
   final RouteModel route;
@@ -19,9 +22,13 @@ class RouteDetailsScreen extends StatefulWidget {
 
 class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
   final _openStreetMap = OpenStreetMapService();
+  final _mapKey = GlobalKey();
   OsmRouteModel? _mapRoute;
   String? _mapError;
   bool _loadingMapRoute = true;
+  bool _loadingSchedules = true;
+  String? _scheduleError;
+  List<Trip> _scheduledTrips = [];
 
   RouteModel get route => widget.route;
 
@@ -29,6 +36,62 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
   void initState() {
     super.initState();
     _loadMapRoute();
+    _loadSchedules();
+  }
+
+  Future<void> _loadSchedules() async {
+    try {
+      await Future.wait([
+        TripStore.instance.load(),
+        BookingStore.instance.load(),
+      ]);
+      final origin = _normalizeLocation(route.origin);
+      final destination = _normalizeLocation(route.destination);
+      final trips =
+          TripStore.instance.trips
+              .where(
+                (trip) =>
+                    trip.departureTime.isAfter(DateTime.now()) &&
+                    _normalizeLocation(trip.origin) == origin &&
+                    _normalizeLocation(trip.destination) == destination,
+              )
+              .toList()
+            ..sort(
+              (first, second) =>
+                  first.departureTime.compareTo(second.departureTime),
+            );
+      if (!mounted) return;
+      setState(() {
+        _scheduledTrips = trips;
+        _loadingSchedules = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _scheduleError = error.toString().replaceFirst('Exception: ', '');
+        _loadingSchedules = false;
+      });
+    }
+  }
+
+  String _normalizeLocation(String value) =>
+      value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+
+  Future<void> _viewMap() async {
+    final mapContext = _mapKey.currentContext;
+    if (mapContext == null) return;
+    await Scrollable.ensureVisible(
+      mapContext,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  void _bookThisTrip() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => SelectTripScreen(initialRoute: route)),
+    );
   }
 
   Future<void> _loadMapRoute() async {
@@ -66,22 +129,6 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final routeForSummary = RouteModel(
-      id: route.id,
-      companyName: route.companyName,
-      name: route.name,
-      origin: route.origin,
-      destination: route.destination,
-      pickupLocation: route.pickupLocation,
-      stops: route.stops,
-      fare: route.fare,
-      duration: _effectiveDurationText,
-      mapDistance: _effectiveDistanceText,
-      transfers: route.transfers,
-      departureTimes: route.departureTimes,
-      fareIsEstimate: route.fareIsEstimate,
-    );
-
     return Scaffold(
       appBar: AppBar(title: const Text('MOVA Route Details')),
       body: ListView(
@@ -100,7 +147,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
-          _buildRouteMap(),
+          Container(key: _mapKey, child: _buildRouteMap()),
 
           const SizedBox(height: 16),
 
@@ -144,7 +191,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
 
           ListTile(
             leading: const Icon(Icons.payments),
-            title: const Text('Reference Fare'),
+            title: const Text('Fare'),
             subtitle: Text('MWK ${route.fare.toStringAsFixed(0)}'),
           ),
 
@@ -176,34 +223,108 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
               subtitle: Text(route.departureTimes.join(', ')),
             ),
 
+          ListTile(
+            leading: const Icon(Icons.directions_bus),
+            title: const Text('Bus type'),
+            subtitle: Text(
+              _loadingSchedules
+                  ? 'Loading scheduled bus types...'
+                  : _scheduleError != null
+                  ? 'Unavailable: $_scheduleError'
+                  : _scheduledTrips.isEmpty
+                  ? 'Shown with available scheduled trips'
+                  : _scheduledTrips
+                        .map((trip) => trip.transportMode)
+                        .toSet()
+                        .join(', '),
+            ),
+          ),
+
+          const Divider(height: 32),
+
+          const Text(
+            'Scheduled trips',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          if (_loadingSchedules)
+            const ListTile(
+              leading: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              title: Text('Loading seat availability...'),
+            )
+          else if (_scheduleError != null)
+            ListTile(
+              leading: const Icon(Icons.error_outline, color: Colors.red),
+              title: const Text('Schedule information unavailable'),
+              subtitle: Text(_scheduleError!),
+            )
+          else if (_scheduledTrips.isEmpty)
+            const ListTile(
+              leading: Icon(Icons.info_outline),
+              title: Text('No upcoming scheduled trips'),
+              subtitle: Text(
+                'Choose Book This Trip to check available travel dates.',
+              ),
+            )
+          else
+            for (final trip in _scheduledTrips)
+              ValueListenableBuilder<int>(
+                valueListenable: BookingStore.instance.changes,
+                builder: (context, _, _) {
+                  final occupiedSeats = BookingStore.instance
+                      .occupiedSeatsForTrip(trip);
+                  final availableSeats = trip.totalSeats - occupiedSeats.length;
+                  return ListTile(
+                    leading: const Icon(Icons.directions_bus),
+                    title: Text(
+                      '${MaterialLocalizations.of(context).formatMediumDate(trip.departureTime)} · '
+                      '${MaterialLocalizations.of(context).formatTimeOfDay(TimeOfDay.fromDateTime(trip.departureTime))}',
+                    ),
+                    subtitle: Text(
+                      '${trip.transportMode} · ${trip.operatorName}\n'
+                      '$availableSeats of ${trip.totalSeats} seats available',
+                    ),
+                    isThreeLine: true,
+                  );
+                },
+              ),
+
           const SizedBox(height: 16),
 
           const Text(
-            'Confirm the applicable fare and schedule with the transport '
-            'operator before travelling.',
+            'The fare shown is set by the transport administrator.',
             style: TextStyle(fontSize: 12, color: Colors.grey),
           ),
-
-          const SizedBox(height: 24),
-
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _loadingMapRoute
-                  ? null
-                  : () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              BookingSummaryScreen(route: routeForSummary),
-                        ),
-                      );
-                    },
-              child: const Text('View Trip Summary'),
-            ),
-          ),
+          const SizedBox(height: 16),
         ],
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _viewMap,
+                  icon: const Icon(Icons.map_outlined),
+                  label: const Text('View on Map'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: _bookThisTrip,
+                  icon: const Icon(Icons.confirmation_number_outlined),
+                  label: const Text('Book This Trip'),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -283,8 +404,10 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                       vertical: 5,
                     ),
                     child: Text(
-                      knownMalawiRouteName(route.origin, route.destination)
-                              .isEmpty
+                      knownMalawiRouteName(
+                            route.origin,
+                            route.destination,
+                          ).isEmpty
                           ? (_mapRoute?.roadNamesLabel ?? 'Route on map')
                           : '${knownMalawiRouteName(route.origin, route.destination)} Road',
                       maxLines: 4,
@@ -294,12 +417,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
                         backgroundColor: Colors.white,
-                        shadows: [
-                          Shadow(
-                            color: Colors.white,
-                            blurRadius: 3,
-                          ),
-                        ],
+                        shadows: [Shadow(color: Colors.white, blurRadius: 3)],
                       ),
                     ),
                   ),
