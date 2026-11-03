@@ -2,13 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../data/route_store.dart';
 import '../../models/route_model.dart';
-import '../../services/openstreetmap_service.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/route_card.dart';
 import 'map_screen.dart';
 import 'notifications_screen.dart';
 import 'profile_screen.dart';
-import 'route_directions_details_screen.dart';
 import 'route_details_screen.dart';
 import 'trips_screen.dart';
 import 'search_screen.dart';
@@ -335,7 +333,6 @@ class AllPopularRoutesScreen extends StatefulWidget {
 
 class _AllPopularRoutesScreenState extends State<AllPopularRoutesScreen> {
   final _store = RouteStore.instance;
-  final _openStreetMap = OpenStreetMapService();
   final _originController = TextEditingController();
   final _destinationController = TextEditingController();
   bool _searchingRoute = false;
@@ -370,22 +367,24 @@ class _AllPopularRoutesScreenState extends State<AllPopularRoutesScreen> {
     });
 
     try {
-      final routes = await _openStreetMap.findRoutesBetweenPlaces(
+      await _store.load();
+      final routes = _store.searchRoutes(
         origin: origin,
         destination: destination,
       );
       if (!mounted) return;
-      final route = routes.first;
-      final estimatedFare = ((route.distanceMeters / 1000) * 220).roundToDouble();
+      if (routes.isEmpty) {
+        setState(() {
+          _routeSearchError =
+              'No administrator-configured route is available for '
+              '$origin to $destination.';
+        });
+        return;
+      }
       await Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => RouteDirectionsDetailsScreen(
-            route: route,
-            origin: origin,
-            destination: destination,
-            estimatedFare: estimatedFare,
-          ),
+          builder: (_) => RouteDetailsScreen(route: routes.first),
         ),
       );
     } catch (error) {
@@ -421,7 +420,7 @@ class _AllPopularRoutesScreenState extends State<AllPopularRoutesScreen> {
                 const Padding(
                   padding: EdgeInsets.all(24),
                   child: Text(
-                    'No saved routes are available yet. Search any origin and destination above.',
+                    'No administrator-configured routes are available yet.',
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -451,13 +450,10 @@ class _AllPopularRoutesScreenState extends State<AllPopularRoutesScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              'Find a route',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+            Text('Find a route', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 4),
             const Text(
-              'Choose any starting point and destination to view the route on a map.',
+              'Search routes configured by the transport administrator.',
             ),
             const SizedBox(height: 12),
             TextField(
@@ -498,8 +494,10 @@ class _AllPopularRoutesScreenState extends State<AllPopularRoutesScreen> {
                       height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Icon(Icons.map_outlined),
-              label: Text(_searchingRoute ? 'Finding route...' : 'Search route'),
+                  : const Icon(Icons.search),
+              label: Text(
+                _searchingRoute ? 'Finding route...' : 'Search route',
+              ),
             ),
           ],
         ),
