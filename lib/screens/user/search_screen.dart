@@ -13,7 +13,9 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _pickupController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
+  final FocusNode _pickupFocusNode = FocusNode();
   Timer? _debounceTimer;
   List<Map<String, dynamic>> _destinations = [];
   List<String> _recentSearches = [];
@@ -24,7 +26,10 @@ class _SearchScreenState extends State<SearchScreen> {
   String? _selectedAddress;
   String? _selectedLatitude;
   String? _selectedLongitude;
+  String? _selectedOrigin;
+  String? _selectedOriginAddress;
   int _searchRequestId = 0;
+  bool _editingPickup = false;
   final List<Map<String, String>> _suggestedPlaces = [
     {'name': 'Lilongwe City Centre', 'address': 'Lilongwe, Malawi'},
     {'name': 'Area 47 Shopping Centre', 'address': 'Area 47, Lilongwe'},
@@ -86,12 +91,15 @@ class _SearchScreenState extends State<SearchScreen> {
       _showSearchResults = true;
       _isLoading = true;
       _errorMessage = null;
-      _selectedDestination = null;
-      _selectedAddress = null;
-      _selectedLatitude = null;
-      _selectedLongitude = null;
-      _selectedLatitude = null;
-      _selectedLongitude = null;
+      if (_editingPickup) {
+        _selectedOrigin = null;
+        _selectedOriginAddress = null;
+      } else {
+        _selectedDestination = null;
+        _selectedAddress = null;
+        _selectedLatitude = null;
+        _selectedLongitude = null;
+      }
     });
     _debounceTimer = Timer(const Duration(seconds: 1), () async {
       try {
@@ -157,19 +165,29 @@ class _SearchScreenState extends State<SearchScreen> {
         ? address!.trim()
         : destination;
     setState(() {
-      _selectedDestination = destination;
-      _selectedAddress = destinationAddress;
-      _selectedLatitude = latitude;
-      _selectedLongitude = longitude;
-      _searchController.text = destination;
+      if (_editingPickup) {
+        _selectedOrigin = destination;
+        _selectedOriginAddress = destinationAddress;
+        _pickupController.text = destination;
+      } else {
+        _selectedDestination = destination;
+        _selectedAddress = destinationAddress;
+        _selectedLatitude = latitude;
+        _selectedLongitude = longitude;
+        _searchController.text = destination;
+      }
       _destinations = [];
       _isLoading = false;
       _showSearchResults = false;
       _errorMessage = null;
     });
     _searchFocusNode.unfocus();
-    await _saveRecentSearch(destination);
-    if (mounted) _continueToResults();
+    if (_editingPickup) {
+      _pickupFocusNode.unfocus();
+    } else {
+      await _saveRecentSearch(destination);
+      if (mounted && _selectedOrigin != null) _continueToResults();
+    }
   }
 
   void _clearSearch() {
@@ -185,17 +203,22 @@ class _SearchScreenState extends State<SearchScreen> {
       _selectedAddress = null;
       _selectedLatitude = null;
       _selectedLongitude = null;
+      _selectedOrigin = null;
+      _selectedOriginAddress = null;
+      _pickupController.clear();
     });
   }
 
   void _continueToResults() {
-    if (_selectedDestination == null) return;
+    if (_selectedOrigin == null || _selectedDestination == null) return;
     Navigator.pushNamed(
       context,
       '/results',
       arguments: {
+        'origin': _selectedOrigin!,
         'name': _selectedDestination!,
         'address': _selectedAddress ?? _selectedDestination!,
+        'pickupAddress': _selectedOriginAddress,
         if (_selectedLatitude != null && _selectedLongitude != null) ...{
           'latitude': _selectedLatitude!,
           'longitude': _selectedLongitude!,
@@ -208,7 +231,9 @@ class _SearchScreenState extends State<SearchScreen> {
   void dispose() {
     _debounceTimer?.cancel();
     _searchController.dispose();
+    _pickupController.dispose();
     _searchFocusNode.dispose();
+    _pickupFocusNode.dispose();
     super.dispose();
   }
 
@@ -275,9 +300,34 @@ class _SearchScreenState extends State<SearchScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   TextField(
+                    controller: _pickupController,
+                    focusNode: _pickupFocusNode,
+                    onTap: () => _editingPickup = true,
+                    onChanged: (value) {
+                      _editingPickup = true;
+                      _searchDestinations(value);
+                    },
+                    textInputAction: TextInputAction.next,
+                    decoration: InputDecoration(
+                      hintText: 'Pickup location',
+                      prefixIcon: const Icon(Icons.my_location, color: Colors.green),
+                      filled: true,
+                      fillColor: const Color(0xFFF0F1F3),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(18),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
                     controller: _searchController,
                     focusNode: _searchFocusNode,
-                    onChanged: _searchDestinations,
+                    onTap: () => _editingPickup = false,
+                    onChanged: (value) {
+                      _editingPickup = false;
+                      _searchDestinations(value);
+                    },
                     textInputAction: TextInputAction.search,
                     decoration: InputDecoration(
                       hintText: 'Search a place or landmark',
@@ -431,6 +481,7 @@ class _SearchScreenState extends State<SearchScreen> {
                               overflow: TextOverflow.ellipsis,
                             ),
                             onTap: () {
+                              _editingPickup = false;
                               _selectDestination(name: destination);
                             },
                           ),
@@ -488,6 +539,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                 ),
                               ),
                               onTap: () {
+                                _editingPickup = false;
                                 _selectDestination(
                                   name: place['name']!,
                                   address: place['address']!,

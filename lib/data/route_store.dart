@@ -91,9 +91,16 @@ class RouteStore {
 
     return _routes.where((route) {
       if (!route.active) return false;
-      return _matchesEndpoint(route.origin, normalizedOrigin) &&
-          _matchesEndpoint(route.destination, normalizedDestination);
+      final pickupPoints = [route.origin, route.pickupPoint, ...route.stops];
+      final dropOffPoints = [route.destination, ...route.stops];
+      return _matchesAny(pickupPoints, normalizedOrigin) &&
+          _matchesAny(dropOffPoints, normalizedDestination);
     }).toList();
+  }
+
+  bool _matchesAny(List<String> locations, String query) {
+    if (query.isEmpty) return true;
+    return locations.any((location) => _matchesEndpoint(location, query));
   }
 
   String _normalize(String value) =>
