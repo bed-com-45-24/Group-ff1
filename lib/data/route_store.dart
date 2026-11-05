@@ -93,9 +93,35 @@ class RouteStore {
       if (!route.active) return false;
       final pickupPoints = [route.origin, route.pickupPoint, ...route.stops];
       final dropOffPoints = [route.destination, ...route.stops];
-      return _matchesAny(pickupPoints, normalizedOrigin) &&
-          _matchesAny(dropOffPoints, normalizedDestination);
+      if (!_matchesAny(pickupPoints, normalizedOrigin) ||
+          !_matchesAny(dropOffPoints, normalizedDestination)) {
+        return false;
+      }
+
+      if (normalizedOrigin.isEmpty || normalizedDestination.isEmpty) {
+        return true;
+      }
+      final journeyPoints = [route.origin, ...route.stops, route.destination]
+          .where((point) => point.trim().isNotEmpty)
+          .toList();
+      final departureIndex = _matchingLocationIndex(
+        journeyPoints,
+        normalizedOrigin,
+      );
+      final destinationIndex = _matchingLocationIndex(
+        journeyPoints,
+        normalizedDestination,
+      );
+      if (departureIndex == -1 || destinationIndex == -1) return true;
+      return departureIndex <= destinationIndex;
     }).toList();
+  }
+
+  int _matchingLocationIndex(List<String> locations, String query) {
+    for (var index = 0; index < locations.length; index++) {
+      if (_matchesEndpoint(locations[index], query)) return index;
+    }
+    return -1;
   }
 
   bool _matchesAny(List<String> locations, String query) {

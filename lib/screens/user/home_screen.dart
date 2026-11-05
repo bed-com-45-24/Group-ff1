@@ -8,6 +8,7 @@ import 'map_screen.dart';
 import 'notifications_screen.dart';
 import 'profile_screen.dart';
 import 'route_details_screen.dart';
+import 'results_screen.dart';
 import 'search_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -378,7 +379,10 @@ class _AllPopularRoutesScreenState extends State<AllPopularRoutesScreen> {
       await Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => RouteDetailsScreen(route: routes.first),
+          builder: (_) => ResultsScreen(
+            origin: origin,
+            destination: destination,
+          ),
         ),
       );
     } catch (error) {
