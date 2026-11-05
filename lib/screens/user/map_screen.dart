@@ -76,6 +76,12 @@ class _MapScreenState extends State<MapScreen> {
     return _routes.isEmpty ? null : _routes.first;
   }
 
+  LatLng? _routeLabelPoint(OsmRouteModel route) {
+    final points = route.points;
+    if (points.isEmpty) return null;
+    return points[points.length ~/ 2];
+  }
+
   Future<void> _routeTo(LatLng destination) async {
     if (_findingRoute) return;
     setState(() {
@@ -251,6 +257,35 @@ class _MapScreenState extends State<MapScreen> {
                     if (_userLocation != null || _destination != null)
                       MarkerLayer(
                         markers: [
+                          for (var index = 0; index < _routes.length; index++)
+                            if (_routeLabelPoint(_routes[index]) != null)
+                              Marker(
+                              point: _routeLabelPoint(_routes[index])!,
+                              width: 42,
+                              height: 42,
+                              child: Container(
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: _routes[index].id == _selectedRouteId
+                                      ? Colors.deepPurple
+                                      : Colors.white,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.deepPurple,
+                                    width: 2,
+                                  ),
+                                ),
+                                child: Text(
+                                  '${index + 1}',
+                                  style: TextStyle(
+                                    color: _routes[index].id == _selectedRouteId
+                                        ? Colors.white
+                                        : Colors.deepPurple,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
                           if (_userLocation != null)
                             Marker(
                               point: _userLocation!,
@@ -315,7 +350,7 @@ class _MapScreenState extends State<MapScreen> {
                                       ? 'Finding route...'
                                       : _selectedRoute == null
                                       ? 'Drag to move · pinch or scroll to zoom · tap to plan a route'
-                                      : '${_routes.length} route${_routes.length == 1 ? '' : 's'} · '
+                                      : 'Route ${_routes.indexOf(_selectedRoute!) + 1} of ${_routes.length} · '
                                         '${_selectedRoute!.distanceLabel} · '
                                         '${_selectedRoute!.durationLabel}\n'
                                         '${_selectedRoute!.roadNamesLabel}',
@@ -335,22 +370,21 @@ class _MapScreenState extends State<MapScreen> {
                           ),
                           if (_routes.length > 1) ...[
                             const SizedBox(height: 8),
-                            Wrap(
-                              spacing: 6,
-                              runSpacing: 6,
-                              children: [
-                                for (var index = 0; index < _routes.length; index++)
-                                  ChoiceChip(
-                                    label: Text(
-                                      'Route ${index + 1}: '
-                                      '${_routes[index].distanceLabel}',
-                                    ),
-                                    selected: _routes[index].id == _selectedRouteId,
-                                    onSelected: (_) {
+                            SizedBox(
+                              height: 92,
+                              child: ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: _routes.length,
+                                separatorBuilder: (_, _) =>
+                                    const SizedBox(width: 8),
+                                itemBuilder: (context, index) {
+                                  final route = _routes[index];
+                                  final selected = route.id == _selectedRouteId;
+                                  return InkWell(
+                                    onTap: () {
                                       setState(() {
-                                        _selectedRouteId = _routes[index].id;
+                                        _selectedRouteId = route.id;
                                       });
-                                      final route = _routes[index];
                                       _mapController.fitCamera(
                                         CameraFit.bounds(
                                           bounds: LatLngBounds.fromPoints(route.points),
@@ -358,8 +392,49 @@ class _MapScreenState extends State<MapScreen> {
                                         ),
                                       );
                                     },
-                                  ),
-                              ],
+                                    child: Container(
+                                      width: 260,
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: selected
+                                            ? Colors.deepPurple.shade50
+                                            : Colors.white,
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: selected
+                                              ? Colors.deepPurple
+                                              : Colors.grey.shade300,
+                                        ),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Route ${index + 1}',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.deepPurple,
+                                            ),
+                                          ),
+                                          Text(
+                                            '${route.distanceLabel} · ${route.durationLabel}',
+                                            style: const TextStyle(fontSize: 12),
+                                          ),
+                                          Expanded(
+                                            child: Text(
+                                              route.roadNamesLabel,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(fontSize: 12),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
                             ),
                           ],
                         ],
