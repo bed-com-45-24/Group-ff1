@@ -326,7 +326,7 @@ class _MapScreenState extends State<MapScreen> {
                   right: 12,
                   child: Card(
                     child: Padding(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -371,7 +371,7 @@ class _MapScreenState extends State<MapScreen> {
                           if (_routes.length > 1) ...[
                             const SizedBox(height: 8),
                             SizedBox(
-                              height: 92,
+                              height: 72,
                               child: ListView.separated(
                                 scrollDirection: Axis.horizontal,
                                 itemCount: _routes.length,
@@ -393,8 +393,11 @@ class _MapScreenState extends State<MapScreen> {
                                       );
                                     },
                                     child: Container(
-                                      width: 260,
-                                      padding: const EdgeInsets.all(10),
+                                      width: 220,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 5,
+                                      ),
                                       decoration: BoxDecoration(
                                         color: selected
                                             ? Colors.deepPurple.shade50
@@ -415,6 +418,7 @@ class _MapScreenState extends State<MapScreen> {
                                             style: const TextStyle(
                                               fontWeight: FontWeight.bold,
                                               color: Colors.deepPurple,
+                                              fontSize: 12,
                                             ),
                                           ),
                                           Text(
