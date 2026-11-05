@@ -79,18 +79,6 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
       appBar: AppBar(title: const Text('Select Seats')),
       body: Column(
         children: [
-          const SizedBox(height: 12),
-          const Text('Choose up to 5 seats'),
-          Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 16,
-            children: [
-              _legend(Colors.grey, 'Booked'),
-              _legend(Colors.teal, 'Selected'),
-              _legend(Colors.white, 'Available'),
-            ],
-          ),
-          const SizedBox(height: 12),
           Expanded(
             child: _isLoadingBookings
                 ? const Center(child: CircularProgressIndicator())
@@ -112,70 +100,215 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                   )
                 : ValueListenableBuilder<int>(
                     valueListenable: bookingStore.changes,
-                    builder: (context, _, _) => GridView.builder(
-                      padding: const EdgeInsets.all(20),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 4,
-                            crossAxisSpacing: 12,
-                            mainAxisSpacing: 12,
+                    builder: (context, _, _) {
+                      final occupiedSeats = bookingStore.occupiedSeatsForTrip(
+                        trip,
+                      );
+                      final hasRearAisleSeat =
+                          trip.totalSeats >= 5 && trip.totalSeats % 4 == 1;
+                      final standardSeatCount = hasRearAisleSeat
+                          ? trip.totalSeats - 1
+                          : trip.totalSeats;
+                      final rowCount = (standardSeatCount + 3) ~/ 4;
+                      return Column(
+                        children: [
+                          const SizedBox(height: 12),
+                          const Text(
+                            'Choose up to 5 seats',
+                            style: TextStyle(fontWeight: FontWeight.w600),
                           ),
-                      itemCount: trip.totalSeats,
-                      itemBuilder: (context, index) {
-                        final seat = index + 1;
-                        final booked = bookingStore
-                            .occupiedSeatsForTrip(trip)
-                            .contains(seat);
-                        final selected = selectedSeats.contains(seat);
-
-                        return InkWell(
-                          onTap: booked
-                              ? null
-                              : () {
-                                  setState(() {
-                                    if (selected) {
-                                      selectedSeats.remove(seat);
-                                    } else if (selectedSeats.length >= 5) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                            const SnackBar(
-                                              content: Text(
-                                                'You can book a maximum of 5 seats.',
-                                              ),
-                                            ),
-                                          );
-                                    } else {
-                                      selectedSeats.add(seat);
-                                    }
-                                  });
-                                },
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: booked
-                                  ? Colors.grey.shade400
-                                  : selected
-                                  ? Colors.teal
-                                  : Colors.white,
-                              border: Border.all(
-                                color: selected ? Colors.teal : Colors.grey,
+                          const SizedBox(height: 8),
+                          Wrap(
+                            alignment: WrapAlignment.center,
+                            spacing: 16,
+                            children: [
+                              _legend(Colors.deepPurple.shade300, 'Booked'),
+                              _legend(Colors.deepPurple, 'Selected'),
+                              _legend(Colors.deepPurple.shade400, 'Available'),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
                               ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Center(
-                              child: Text(
-                                '$seat',
-                                style: TextStyle(
-                                  color: booked || selected
-                                      ? Colors.white
-                                      : Colors.black,
-                                  fontWeight: FontWeight.bold,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.deepPurple.shade50,
+                                  border: Border.all(
+                                    color: Colors.deepPurple.shade100,
+                                  ),
+                                  borderRadius: BorderRadius.circular(24),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Container(
+                                      margin: const EdgeInsets.fromLTRB(
+                                        12,
+                                        12,
+                                        12,
+                                        4,
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 10,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.deepPurple.shade100,
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                      child: const Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.directions_bus, size: 18),
+                                          SizedBox(width: 8),
+                                          Text(
+                                            'FRONT  ·  DRIVER',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              letterSpacing: 1,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: ListView.separated(
+                                        padding: const EdgeInsets.all(12),
+                                        itemCount: rowCount,
+                                        separatorBuilder: (_, _) => SizedBox(
+                                          height: 6,
+                                          child: Row(
+                                            children: [
+                                              const Expanded(
+                                                child: SizedBox.shrink(),
+                                              ),
+                                              Container(
+                                                width: 30,
+                                                color:
+                                                    Colors.deepPurple.shade100,
+                                              ),
+                                              const Expanded(
+                                                child: SizedBox.shrink(),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        itemBuilder: (context, rowIndex) {
+                                          final firstSeat = rowIndex * 4 + 1;
+                                          final isRearRow =
+                                              rowIndex == rowCount - 1;
+                                          if (hasRearAisleSeat && isRearRow) {
+                                            return Row(
+                                              children: [
+                                                Expanded(
+                                                  child: _seatButton(
+                                                    firstSeat,
+                                                    trip.totalSeats,
+                                                    occupiedSeats,
+                                                  ),
+                                                ),
+                                                Expanded(
+                                                  child: _seatButton(
+                                                    firstSeat + 1,
+                                                    trip.totalSeats,
+                                                    occupiedSeats,
+                                                  ),
+                                                ),
+                                                Expanded(
+                                                  child: _seatButton(
+                                                    trip.totalSeats,
+                                                    trip.totalSeats,
+                                                    occupiedSeats,
+                                                  ),
+                                                ),
+                                                Expanded(
+                                                  child: _seatButton(
+                                                    firstSeat + 2,
+                                                    trip.totalSeats,
+                                                    occupiedSeats,
+                                                  ),
+                                                ),
+                                                Expanded(
+                                                  child: _seatButton(
+                                                    firstSeat + 3,
+                                                    trip.totalSeats,
+                                                    occupiedSeats,
+                                                  ),
+                                                ),
+                                              ],
+                                            );
+                                          }
+
+                                          final seatsInRow =
+                                              (standardSeatCount -
+                                                      firstSeat +
+                                                      1)
+                                                  .clamp(0, 4);
+                                          return Row(
+                                            children: [
+                                              for (
+                                                var offset = 0;
+                                                offset < 2;
+                                                offset++
+                                              )
+                                                _seatSlot(
+                                                  firstSeat + offset,
+                                                  offset < seatsInRow,
+                                                  trip.totalSeats,
+                                                  occupiedSeats,
+                                                ),
+                                              SizedBox(
+                                                width: 30,
+                                                child: Container(
+                                                  color: Colors
+                                                      .deepPurple
+                                                      .shade100,
+                                                  alignment: Alignment.center,
+                                                  child: RotatedBox(
+                                                    quarterTurns: 3,
+                                                    child: Text(
+                                                      rowIndex == 0
+                                                          ? 'AISLE'
+                                                          : '',
+                                                      style: TextStyle(
+                                                        color: Colors
+                                                            .deepPurple
+                                                            .shade300,
+                                                        fontSize: 9,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        letterSpacing: 1,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              for (
+                                                var offset = 2;
+                                                offset < 4;
+                                                offset++
+                                              )
+                                                _seatSlot(
+                                                  firstSeat + offset,
+                                                  offset < seatsInRow,
+                                                  trip.totalSeats,
+                                                  occupiedSeats,
+                                                ),
+                                            ],
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
                           ),
-                        );
-                      },
-                    ),
+                        ],
+                      );
+                    },
                   ),
           ),
           Padding(
@@ -183,6 +316,35 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
             child: Column(
               children: [
                 Text('Selected seats: ${selectedSeats.length} / 5'),
+                if (selectedSeats.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 12,
+                    runSpacing: 6,
+                    children: (selectedSeats.toList()..sort())
+                        .map(
+                          (seat) => Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.event_seat,
+                                size: 20,
+                                color: Colors.deepPurple.shade700,
+                              ),
+                              const SizedBox(width: 3),
+                              Text(
+                                '$seat',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ],
                 if (trip.fareIsEstimate)
                   Text(
                     'Estimated map fare per seat: MWK '
@@ -224,20 +386,82 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
     );
   }
 
+  Widget _seatSlot(
+    int seat,
+    bool hasSeat,
+    int totalSeats,
+    Set<int> occupiedSeats,
+  ) {
+    if (!hasSeat || seat > totalSeats) {
+      return const Expanded(child: SizedBox(height: 60));
+    }
+    return Expanded(child: _seatButton(seat, totalSeats, occupiedSeats));
+  }
+
+  Widget _seatButton(int seat, int totalSeats, Set<int> occupiedSeats) {
+    if (seat > totalSeats) return const SizedBox(height: 60);
+
+    final booked = occupiedSeats.contains(seat);
+    final selected = selectedSeats.contains(seat);
+    final color = booked
+        ? Colors.deepPurple.shade400
+        : selected
+        ? Colors.deepPurple.shade900
+        : Colors.deepPurple.shade500;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 3),
+      child: Semantics(
+        button: true,
+        enabled: !booked,
+        label:
+            'Seat $seat, ${booked
+                ? 'booked'
+                : selected
+                ? 'selected'
+                : 'available'}',
+        child: InkWell(
+          onTap: booked
+              ? null
+              : () {
+                  setState(() {
+                    if (selected) {
+                      selectedSeats.remove(seat);
+                    } else if (selectedSeats.length >= 5) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('You can book a maximum of 5 seats.'),
+                        ),
+                      );
+                    } else {
+                      selectedSeats.add(seat);
+                    }
+                  });
+                },
+          child: SizedBox(
+            height: 60,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.event_seat, size: selected ? 28 : 24, color: color),
+                Text(
+                  '$seat',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _legend(Color color, String label) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: 14,
-          height: 14,
-          decoration: BoxDecoration(
-            color: color,
-            border: Border.all(color: Colors.grey),
-            borderRadius: BorderRadius.circular(3),
-          ),
-        ),
-        const SizedBox(width: 4),
+        Icon(Icons.event_seat, size: 18, color: color),
+        const SizedBox(width: 3),
         Text(label),
       ],
     );

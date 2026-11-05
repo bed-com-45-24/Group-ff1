@@ -223,7 +223,7 @@ class BookingSummaryScreen extends StatelessWidget {
                       ? 'Not provided'
                       : booking.identificationNumber,
                 ),
-                _row('Selected seats', booking.selectedSeats.join(', ')),
+                _selectedSeats(booking.selectedSeats),
                 _row('Booking reference', booking.reference),
               ],
             ),
@@ -317,6 +317,50 @@ class BookingSummaryScreen extends StatelessWidget {
   }
 
   String _money(num value) => value.toStringAsFixed(0);
+
+  Widget _selectedSeats(List<int> seats) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Expanded(
+            child: Text(
+              'Selected seats',
+              style: TextStyle(color: Colors.black54),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Flexible(
+            child: Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 12,
+              runSpacing: 6,
+              children: seats
+                  .map(
+                    (seat) => Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.event_seat,
+                          size: 20,
+                          color: Colors.deepPurple.shade700,
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          '$seat',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _row(String label, String value, {bool bold = false}) {
     return Padding(

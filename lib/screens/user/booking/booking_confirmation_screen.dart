@@ -81,7 +81,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                   ),
                   _ticketRow('Passenger', booking.passengerName),
                   _ticketRow('Phone', booking.phoneNumber),
-                  _ticketRow('Seats', booking.selectedSeats.join(', ')),
+                  _ticketSeats(booking.selectedSeats),
                   _ticketRow(
                     'Departure',
                     booking.trip.departureTime.toString(),
@@ -136,6 +136,45 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
               value,
               textAlign: TextAlign.end,
               style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _ticketSeats(List<int> seats) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Expanded(child: Text('Seats')),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 4,
+              runSpacing: 4,
+              children: seats
+                  .map(
+                    (seat) => Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.event_seat,
+                          size: 18,
+                          color: Colors.deepPurple.shade700,
+                        ),
+                        const SizedBox(width: 2),
+                        Text(
+                          '$seat',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  )
+                  .toList(),
             ),
           ),
         ],
