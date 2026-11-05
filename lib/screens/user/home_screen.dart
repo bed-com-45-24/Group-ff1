@@ -57,7 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
           NavigationDestination(
             icon: Icon(Icons.alt_route_outlined),
             selectedIcon: Icon(Icons.alt_route),
-            label: 'Routes & Booking',
+            label: 'Routes',
           ),
           NavigationDestination(
             icon: Icon(Icons.map_outlined),
