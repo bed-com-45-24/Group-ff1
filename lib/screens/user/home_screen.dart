@@ -57,7 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
           NavigationDestination(
             icon: Icon(Icons.alt_route_outlined),
             selectedIcon: Icon(Icons.alt_route),
-            label: 'Routes',
+            label: 'Routes & Booking',
           ),
           NavigationDestination(
             icon: Icon(Icons.map_outlined),
@@ -399,7 +399,7 @@ class _AllPopularRoutesScreenState extends State<AllPopularRoutesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('All routes'),
+        title: const Text('Routes & Booking'),
         backgroundColor: Colors.deepPurple,
         foregroundColor: Colors.white,
         actions: [
