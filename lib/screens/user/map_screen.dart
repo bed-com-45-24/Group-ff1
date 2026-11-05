@@ -23,7 +23,8 @@ class _MapScreenState extends State<MapScreen> {
   LatLng? _center;
   LatLng? _userLocation;
   LatLng? _destination;
-  OsmRouteModel? _route;
+  final List<OsmRouteModel> _routes = [];
+  String? _selectedRouteId;
   String? _locationError;
   bool _locating = false;
   bool _findingRoute = false;
@@ -68,12 +69,20 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  OsmRouteModel? get _selectedRoute {
+    for (final route in _routes) {
+      if (route.id == _selectedRouteId) return route;
+    }
+    return _routes.isEmpty ? null : _routes.first;
+  }
+
   Future<void> _routeTo(LatLng destination) async {
     if (_findingRoute) return;
     setState(() {
       _findingRoute = true;
       _destination = destination;
-      _route = null;
+      _routes.clear();
+      _selectedRouteId = null;
     });
     try {
       final position = await _locationService.getCurrentPosition();
@@ -92,7 +101,10 @@ class _MapScreenState extends State<MapScreen> {
       setState(() {
         _userLocation = origin;
         _destination = destination;
-        _route = route;
+        _routes
+          ..clear()
+          ..addAll(routes);
+        _selectedRouteId = route.id;
         _center = origin;
         _locationError = null;
       });
@@ -105,12 +117,14 @@ class _MapScreenState extends State<MapScreen> {
             ),
           );
         }
+
       });
     } catch (error) {
       if (!mounted) return;
       setState(() {
         _destination = null;
-        _route = null;
+        _routes.clear();
+        _selectedRouteId = null;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -211,15 +225,28 @@ class _MapScreenState extends State<MapScreen> {
                           'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                       userAgentPackageName: 'com.example.mova',
                     ),
-                    if (_route != null)
+                    if (_routes.isNotEmpty)
                       PolylineLayer(
-                        polylines: [
-                          Polyline(
-                            points: _route!.points,
-                            color: Colors.deepPurple,
-                            strokeWidth: 6,
-                          ),
-                        ],
+                        polylines: _routes.map((route) {
+                          final colors = [
+                            Colors.deepPurple,
+                            Colors.orange,
+                            Colors.teal,
+                            Colors.blue,
+                            Colors.red,
+                          ];
+                          final index = _routes.indexOf(route);
+                          final selected = route.id == _selectedRouteId;
+                          return Polyline(
+                            points: route.points,
+                            color: selected
+                                ? colors[index % colors.length]
+                                : colors[index % colors.length].withValues(
+                                    alpha: 0.35,
+                                  ),
+                            strokeWidth: selected ? 7 : 4,
+                          );
+                        }).toList(),
                       ),
                     if (_userLocation != null || _destination != null)
                       MarkerLayer(
@@ -265,39 +292,76 @@ class _MapScreenState extends State<MapScreen> {
                   child: Card(
                     child: Padding(
                       padding: const EdgeInsets.all(12),
-                      child: Row(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (_findingRoute)
-                            const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          else
-                            const Icon(
-                              Icons.touch_app_outlined,
-                              color: Colors.deepPurple,
+                          Row(
+                            children: [
+                              if (_findingRoute)
+                                const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              else
+                                const Icon(
+                                  Icons.touch_app_outlined,
+                                  color: Colors.deepPurple,
+                                ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  _findingRoute
+                                      ? 'Finding route...'
+                                      : _selectedRoute == null
+                                      ? 'Drag to move · pinch or scroll to zoom · tap to plan a route'
+                                      : '${_routes.length} route${_routes.length == 1 ? '' : 's'} · '
+                                        '${_selectedRoute!.distanceLabel} · '
+                                        '${_selectedRoute!.durationLabel}\n'
+                                        '${_selectedRoute!.roadNamesLabel}',
+                                ),
                             ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              _findingRoute
-                                  ? 'Finding route...'
-                                  : _route == null
-                                  ? 'Drag to move · pinch or scroll to zoom · tap to plan a route'
-                                  : '${_route!.distanceLabel} · ${_route!.durationLabel}\n'
-                                    'Roads: ${_route!.roadNamesLabel}',
-                            ),
+                              if (_routes.isNotEmpty)
+                                IconButton(
+                                  tooltip: 'Clear route',
+                                  onPressed: () => setState(() {
+                                    _routes.clear();
+                                    _selectedRouteId = null;
+                                    _destination = null;
+                                  }),
+                                  icon: const Icon(Icons.close),
+                                ),
+                            ],
                           ),
-                          if (_route != null)
-                            IconButton(
-                              tooltip: 'Clear route',
-                              onPressed: () => setState(() {
-                                _route = null;
-                                _destination = null;
-                              }),
-                              icon: const Icon(Icons.close),
+                          if (_routes.length > 1) ...[
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              children: [
+                                for (var index = 0; index < _routes.length; index++)
+                                  ChoiceChip(
+                                    label: Text(
+                                      'Route ${index + 1}: '
+                                      '${_routes[index].distanceLabel}',
+                                    ),
+                                    selected: _routes[index].id == _selectedRouteId,
+                                    onSelected: (_) {
+                                      setState(() {
+                                        _selectedRouteId = _routes[index].id;
+                                      });
+                                      final route = _routes[index];
+                                      _mapController.fitCamera(
+                                        CameraFit.bounds(
+                                          bounds: LatLngBounds.fromPoints(route.points),
+                                          padding: const EdgeInsets.all(56),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                              ],
                             ),
+                          ],
                         ],
                       ),
                     ),
