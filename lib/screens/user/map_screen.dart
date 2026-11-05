@@ -371,7 +371,7 @@ class _MapScreenState extends State<MapScreen> {
                           if (_routes.length > 1) ...[
                             const SizedBox(height: 8),
                             SizedBox(
-                              height: 72,
+                              height: 108,
                               child: ListView.separated(
                                 scrollDirection: Axis.horizontal,
                                 itemCount: _routes.length,
@@ -393,7 +393,7 @@ class _MapScreenState extends State<MapScreen> {
                                       );
                                     },
                                     child: Container(
-                                      width: 220,
+                                      width: 400,
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 8,
                                         vertical: 5,
@@ -428,8 +428,6 @@ class _MapScreenState extends State<MapScreen> {
                                           Expanded(
                                             child: Text(
                                               route.roadNamesLabel,
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
                                               style: const TextStyle(fontSize: 12),
                                             ),
                                           ),
