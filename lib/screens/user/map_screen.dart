@@ -68,91 +68,6 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  Future<void> _loadConfiguredRoutes(String origin, String destination) async {
-    await RouteStore.instance.load();
-    final routes = destination.isEmpty
-        ? RouteStore.instance.searchRoutes(origin: origin)
-        : RouteStore.instance.searchRoutes(
-            origin: origin,
-            destination: destination,
-          );
-    if (!mounted) return;
-    _configuredRoutes
-      ..clear()
-      ..addAll(routes.take(6));
-    setState(() {});
-    await _loadConfiguredRoutePaths();
-  }
-
-  Future<void> _loadConfiguredRoutePaths() async {
-    final paths = <OsmRouteModel>[];
-    final labels = <String, String>{};
-    for (final route in _configuredRoutes) {
-      try {
-        final origin = await _openStreetMap.findPlace(route.pickupPoint);
-        await Future<void>.delayed(const Duration(milliseconds: 700));
-        final destination = await _openStreetMap.findPlace(route.dropOffPoint);
-        final alternatives = await _openStreetMap.findRoutes(
-          origin: origin,
-          destination: destination,
-        );
-        if (alternatives.isNotEmpty) {
-          final mapRoute = alternatives.first;
-          final configuredRoute = OsmRouteModel(
-            id: 'configured-${route.id}',
-            geoJson: mapRoute.geoJson,
-            distanceMeters: mapRoute.distanceMeters,
-            durationSeconds: mapRoute.durationSeconds,
-            steps: mapRoute.steps,
-            roadNames: mapRoute.roadNames,
-          );
-          paths.add(configuredRoute);
-          labels[configuredRoute.id] =
-              '${route.name} · ${route.pickupPoint} to ${route.dropOffPoint}';
-        }
-      } catch (_) {}
-    }
-    if (!mounted) return;
-    setState(() {
-      _routes
-        ..clear()
-        ..addAll(paths);
-      _configuredRouteLabels
-        ..clear()
-        ..addAll(labels);
-      if (_routes.isNotEmpty) {
-        _selectedRouteId = _routes.first.id;
-        _userLocation = _routes.first.points.firstOrNull;
-        _destination = _routes.first.points.lastOrNull;
-      }
-    });
-  }
-
-  OsmRouteModel? get _selectedRoute {
-    for (final route in _routes) {
-      if (route.id == _selectedRouteId) return route;
-    }
-    return _routes.isEmpty ? null : _routes.first;
-  }
-
-  String _displayRouteName(OsmRouteModel route, int index) {
-    final configuredName = _configuredRouteLabels[route.id]?.trim();
-    if (configuredName != null && configuredName.isNotEmpty) {
-      return configuredName;
-    }
-    final roads = route.roadNamesLabel.trim();
-    if (roads.isNotEmpty && roads != 'Road name unavailable') {
-      return roads;
-    }
-    return 'Route ${index + 1}';
-  }
-
-  LatLng? _routeLabelPoint(OsmRouteModel route) {
-    final points = route.points;
-    if (points.isEmpty) return null;
-    return points[points.length ~/ 2];
-  }
-
   Future<void> _routeTo(LatLng destination) async {
     if (_findingRoute) return;
     setState(() {
@@ -374,52 +289,14 @@ class _MapScreenState extends State<MapScreen> {
                                     'Roads: ${_route!.roadNamesLabel}',
                             ),
                           ),
-                          if (_routes.isNotEmpty) ...[
-                            const SizedBox(height: 8),
-                            SizedBox(
-                              height: 28 * _routes.length.toDouble(),
-                              child: ListView.separated(
-                                itemCount: _routes.length,
-                                separatorBuilder: (_, _) =>
-                                    const SizedBox(height: 2),
-                                itemBuilder: (context, index) {
-                                  final route = _routes[index];
-                                  final selected = route.id == _selectedRouteId;
-                                  return InkWell(
-                                    onTap: () {
-                                      setState(() {
-                                        _selectedRouteId = route.id;
-                                      });
-                                      _mapController.fitCamera(
-                                        CameraFit.bounds(
-                                          bounds: LatLngBounds.fromPoints(route.points),
-                                          padding: const EdgeInsets.all(56),
-                                        ),
-                                      );
-                                    },
-                                    child: Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: Text(
-                                        'Route ${index + 1} · '
-                                        '${route.distanceLabel} · '
-                                        '${route.durationLabel} · '
-                                        '${_displayRouteName(route, index)}',
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          fontWeight: selected
-                                              ? FontWeight.bold
-                                              : FontWeight.normal,
-                                          color: selected
-                                              ? Colors.deepPurple
-                                              : Colors.black87,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
+                          if (_route != null)
+                            IconButton(
+                              tooltip: 'Clear route',
+                              onPressed: () => setState(() {
+                                _route = null;
+                                _destination = null;
+                              }),
+                              icon: const Icon(Icons.close),
                             ),
                         ],
                       ),
