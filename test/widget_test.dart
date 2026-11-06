@@ -409,7 +409,7 @@ void main() {
 
       await tester.tap(find.text('Routes'));
       await tester.pumpAndSettle();
-      expect(find.text('Routes & Booking'), findsOneWidget);
+      expect(find.text('All routes'), findsOneWidget);
       expect(find.text('Find a route'), findsOneWidget);
       expect(find.text('From'), findsOneWidget);
       expect(find.text('To'), findsOneWidget);

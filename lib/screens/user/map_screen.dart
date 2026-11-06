@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
-import '../../data/route_store.dart';
 import '../../models/osm_route_model.dart';
-import '../../models/route_model.dart';
 import '../../services/openstreetmap_service.dart';
 import '../../services/location_service.dart';
 import '../../utils/malawi_map.dart';
@@ -12,10 +10,7 @@ import 'profile_screen.dart';
 import 'search_screen.dart';
 
 class MapScreen extends StatefulWidget {
-  final String origin;
-  final String destination;
-
-  const MapScreen({super.key, this.origin = '', this.destination = ''});
+  const MapScreen({super.key});
 
   @override
   State<MapScreen> createState() => _MapScreenState();
@@ -28,10 +23,7 @@ class _MapScreenState extends State<MapScreen> {
   LatLng? _center;
   LatLng? _userLocation;
   LatLng? _destination;
-  final List<OsmRouteModel> _routes = [];
-  final List<RouteModel> _configuredRoutes = [];
-  final Map<String, String> _configuredRouteLabels = {};
-  String? _selectedRouteId;
+  OsmRouteModel? _route;
   String? _locationError;
   bool _locating = false;
   bool _findingRoute = false;
@@ -61,19 +53,16 @@ class _MapScreenState extends State<MapScreen> {
         _locationError = null;
       });
       if (_mapReady) _mapController.move(point, 14);
-      await _loadConfiguredRoutes(
-        widget.origin.isNotEmpty
-            ? widget.origin
-            : await _locationService.getCurrentLocationName(),
-        widget.destination,
-      );
     } catch (error) {
       if (!mounted) return;
       setState(
-        () => _locationError =
-            'Turn on location services and allow MOVA to access your location.',
+        () => _locationError = error.toString().replaceFirst('Exception: ', ''),
       );
-      _center ??= malawiCenter;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.toString().replaceFirst('Exception: ', '')),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _locating = false);
     }
@@ -169,8 +158,7 @@ class _MapScreenState extends State<MapScreen> {
     setState(() {
       _findingRoute = true;
       _destination = destination;
-      _routes.clear();
-      _selectedRouteId = null;
+      _route = null;
     });
     try {
       final position = await _locationService.getCurrentPosition();
@@ -189,10 +177,7 @@ class _MapScreenState extends State<MapScreen> {
       setState(() {
         _userLocation = origin;
         _destination = destination;
-        _routes
-          ..clear()
-          ..addAll(routes);
-        _selectedRouteId = route.id;
+        _route = route;
         _center = origin;
         _locationError = null;
       });
@@ -205,14 +190,12 @@ class _MapScreenState extends State<MapScreen> {
             ),
           );
         }
-
       });
     } catch (error) {
       if (!mounted) return;
       setState(() {
         _destination = null;
-        _routes.clear();
-        _selectedRouteId = null;
+        _route = null;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -313,61 +296,19 @@ class _MapScreenState extends State<MapScreen> {
                           'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                       userAgentPackageName: 'com.example.mova',
                     ),
-                    if (_routes.isNotEmpty)
+                    if (_route != null)
                       PolylineLayer(
-                        polylines: _routes.map((route) {
-                          final colors = [
-                            Colors.deepPurple,
-                            Colors.orange,
-                            Colors.teal,
-                            Colors.blue,
-                            Colors.red,
-                          ];
-                          final index = _routes.indexOf(route);
-                          final selected = route.id == _selectedRouteId;
-                          return Polyline(
-                            points: route.points,
-                            color: selected
-                                ? colors[index % colors.length]
-                                : colors[index % colors.length].withValues(
-                                    alpha: 0.35,
-                                  ),
-                            strokeWidth: selected ? 7 : 4,
-                          );
-                        }).toList(),
+                        polylines: [
+                          Polyline(
+                            points: _route!.points,
+                            color: Colors.deepPurple,
+                            strokeWidth: 6,
+                          ),
+                        ],
                       ),
                     if (_userLocation != null || _destination != null)
                       MarkerLayer(
                         markers: [
-                          for (var index = 0; index < _routes.length; index++)
-                            if (_routeLabelPoint(_routes[index]) != null)
-                              Marker(
-                              point: _routeLabelPoint(_routes[index])!,
-                              width: 42,
-                              height: 42,
-                              child: Container(
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  color: _routes[index].id == _selectedRouteId
-                                      ? Colors.deepPurple
-                                      : Colors.white,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: Colors.deepPurple,
-                                    width: 2,
-                                  ),
-                                ),
-                                child: Text(
-                                  '${index + 1}',
-                                  style: TextStyle(
-                                    color: _routes[index].id == _selectedRouteId
-                                        ? Colors.white
-                                        : Colors.deepPurple,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ),
                           if (_userLocation != null)
                             Marker(
                               point: _userLocation!,
@@ -408,46 +349,30 @@ class _MapScreenState extends State<MapScreen> {
                   right: 12,
                   child: Card(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
                         children: [
-                          Row(
-                            children: [
-                              if (_findingRoute)
-                                const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                )
-                              else
-                                const Icon(
-                                  Icons.touch_app_outlined,
-                                  color: Colors.deepPurple,
-                                ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  _findingRoute
-                                      ? 'Finding route...'
-                                      : _selectedRoute == null
-                                      ? 'Drag to move · pinch or scroll to zoom · tap to plan a route'
-                                      : '${_routes.length} route${_routes.length == 1 ? '' : 's'} available',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                          if (_findingRoute)
+                            const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          else
+                            const Icon(
+                              Icons.touch_app_outlined,
+                              color: Colors.deepPurple,
                             ),
-                              if (_routes.isNotEmpty)
-                                IconButton(
-                                  tooltip: 'Clear route',
-                                  onPressed: () => setState(() {
-                                    _routes.clear();
-                                    _selectedRouteId = null;
-                                    _destination = null;
-                                  }),
-                                  icon: const Icon(Icons.close),
-                                ),
-                            ],
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              _findingRoute
+                                  ? 'Finding route...'
+                                  : _route == null
+                                  ? 'Drag to move · pinch or scroll to zoom · tap to plan a route'
+                                  : '${_route!.distanceLabel} · ${_route!.durationLabel}\n'
+                                    'Roads: ${_route!.roadNamesLabel}',
+                            ),
                           ),
                           if (_routes.isNotEmpty) ...[
                             const SizedBox(height: 8),
@@ -496,7 +421,6 @@ class _MapScreenState extends State<MapScreen> {
                                 },
                               ),
                             ),
-                          ],
                         ],
                       ),
                     ),
