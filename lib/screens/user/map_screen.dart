@@ -421,10 +421,9 @@ class _MapScreenState extends State<MapScreen> {
                                       ? 'Finding route...'
                                       : _selectedRoute == null
                                       ? 'Drag to move · pinch or scroll to zoom · tap to plan a route'
-                                      : 'Route ${_routes.indexOf(_selectedRoute!) + 1} of ${_routes.length} · '
-                                        '${_selectedRoute!.distanceLabel} · '
-                                        '${_selectedRoute!.durationLabel}\n'
-                                        '${_configuredRouteLabels[_selectedRoute!.id] ?? _selectedRoute!.roadNamesLabel}',
+                                      : '${_routes.length} route${_routes.length == 1 ? '' : 's'} available',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                             ),
                               if (_routes.isNotEmpty)
@@ -442,12 +441,11 @@ class _MapScreenState extends State<MapScreen> {
                           if (_routes.length > 1) ...[
                             const SizedBox(height: 8),
                             SizedBox(
-                              height: 108,
+                              height: 28 * _routes.length.toDouble(),
                               child: ListView.separated(
-                                scrollDirection: Axis.horizontal,
                                 itemCount: _routes.length,
                                 separatorBuilder: (_, _) =>
-                                    const SizedBox(width: 8),
+                                    const SizedBox(height: 2),
                                 itemBuilder: (context, index) {
                                   final route = _routes[index];
                                   final selected = route.id == _selectedRouteId;
@@ -463,47 +461,24 @@ class _MapScreenState extends State<MapScreen> {
                                         ),
                                       );
                                     },
-                                    child: Container(
-                                      width: 400,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 5,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: selected
-                                            ? Colors.deepPurple.shade50
-                                            : Colors.white,
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        'Route ${index + 1} · '
+                                        '${route.distanceLabel} · '
+                                        '${route.durationLabel} · '
+                                        '${_configuredRouteLabels[route.id] ?? route.routeName}',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontWeight: selected
+                                              ? FontWeight.bold
+                                              : FontWeight.normal,
                                           color: selected
                                               ? Colors.deepPurple
-                                              : Colors.grey.shade300,
+                                              : Colors.black87,
+                                          fontSize: 12,
                                         ),
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            _configuredRouteLabels[route.id] ??
-                                                'Route ${index + 1}',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.deepPurple,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                          Text(
-                                            '${route.distanceLabel} · ${route.durationLabel}',
-                                            style: const TextStyle(fontSize: 12),
-                                          ),
-                                          Expanded(
-                                            child: Text(
-                                              route.roadNamesLabel,
-                                              style: const TextStyle(fontSize: 12),
-                                            ),
-                                          ),
-                                        ],
                                       ),
                                     ),
                                   );
