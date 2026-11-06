@@ -14,6 +14,12 @@ class SchedulesScreen extends StatefulWidget {
 class _SchedulesScreenState extends State<SchedulesScreen> {
   final _store = TripStore.instance;
 
+  final List<String> _buses = [
+    'MOVA 1',
+    'MOVA 2',
+    'MOVA 3',
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -21,114 +27,209 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
   }
 
   Future<void> _editTrip([Trip? existing]) async {
-    final origin = TextEditingController(text: existing?.origin ?? '');
+    final origin = TextEditingController(
+      text: existing?.origin ?? '',
+    );
+
     final destination = TextEditingController(
       text: existing?.destination ?? '',
     );
+
     final departure = TextEditingController(
-      text: existing == null ? '' : _dateTimeString(existing.departureTime),
+      text: existing == null
+          ? ''
+          : _dateTimeString(existing.departureTime),
     );
+
     final arrival = TextEditingController(
-      text: existing == null ? '' : _dateTimeString(existing.arrivalTime),
+      text: existing == null
+          ? ''
+          : _dateTimeString(existing.arrivalTime),
     );
+
     final fare = TextEditingController(
       text: existing?.fare.toStringAsFixed(0) ?? '',
     );
-    final seats = TextEditingController(
-      text: existing?.totalSeats.toString() ?? '',
-    );
-    final operator = TextEditingController(
-      text: existing?.operatorName ?? 'MOVA Express',
-    );
+
     final routeName = TextEditingController(
       text: existing?.routeName ?? '',
     );
+
     final formKey = GlobalKey<FormState>();
+
+    String selectedBus = _buses.contains(existing?.operatorName)
+        ? existing!.operatorName
+        : _buses.first;
 
     final result = await showDialog<Trip>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(existing == null ? 'Add schedule' : 'Edit schedule'),
-        content: Form(
-          key: formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _field(origin, 'Origin'),
-                _field(destination, 'Destination'),
-                _field(departure, 'Departure (YYYY-MM-DD HH:mm)'),
-                _field(arrival, 'Arrival (YYYY-MM-DD HH:mm)'),
-                _field(fare, 'Fare per seat (MWK)', number: true),
-                _field(seats, 'Total seats', number: true),
-                _field(operator, 'Operator'),
-                _field(routeName, 'Route name / road (for example M1 Road)'),
-              ],
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(
+            existing == null ? 'Add schedule' : 'Edit schedule',
+          ),
+          content: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Origin
+                  _field(origin, 'Origin'),
+
+                  // Destination
+                  _field(destination, 'Destination'),
+
+                  // Bus dropdown
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: DropdownButtonFormField<String>(
+                      value: selectedBus,
+                      decoration: const InputDecoration(
+                        labelText: 'Select bus',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: _buses.map((bus) {
+                        return DropdownMenuItem<String>(
+                          value: bus,
+                          child: Text(bus),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setDialogState(() {
+                            selectedBus = value;
+                          });
+                        }
+                      },
+                    ),
+                  ),
+
+                  // Bus capacity - fixed at 40
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: TextFormField(
+                      initialValue: '40',
+                      readOnly: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Bus capacity',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.event_seat),
+                      ),
+                    ),
+                  ),
+
+                  // Departure
+                  _field(
+                    departure,
+                    'Departure (YYYY-MM-DD HH:mm)',
+                  ),
+
+                  // Arrival
+                  _field(
+                    arrival,
+                    'Arrival (YYYY-MM-DD HH:mm)',
+                  ),
+
+                  // Fare
+                  _field(
+                    fare,
+                    'Fare per seat (MWK)',
+                    number: true,
+                  ),
+
+                  // Route name
+                  _field(
+                    routeName,
+                    'Route name / road (for example M1 Road)',
+                  ),
+                ],
+              ),
             ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+
+            FilledButton(
+              onPressed: () {
+                if (!formKey.currentState!.validate()) return;
+
+                final departureTime =
+                    _parseDateTime(departure.text);
+
+                final arrivalTime =
+                    _parseDateTime(arrival.text);
+
+                final amount =
+                    double.tryParse(fare.text.trim());
+
+                if (departureTime == null || arrivalTime == null) {
+                  _message(
+                    'Enter schedule times as YYYY-MM-DD HH:mm.',
+                  );
+                  return;
+                }
+
+                if (!arrivalTime.isAfter(departureTime)) {
+                  _message('Arrival must be after departure.');
+                  return;
+                }
+
+                if (departureTime.isBefore(DateTime.now())) {
+                  _message('Departure must be in the future.');
+                  return;
+                }
+
+                if ((existing?.bookedSeats.length ?? 0) > 40) {
+                  _message(
+                    'Booked seats cannot exceed 40.',
+                  );
+                  return;
+                }
+
+                if (amount == null || amount <= 0) {
+                  _message('Enter a fare greater than zero.');
+                  return;
+                }
+
+                Navigator.pop(
+                  dialogContext,
+                  Trip(
+                    id: existing?.id ??
+                        'TRIP-${DateTime.now().microsecondsSinceEpoch}',
+
+                    origin: origin.text.trim(),
+
+                    destination: destination.text.trim(),
+
+                    departureTime: departureTime,
+
+                    arrivalTime: arrivalTime,
+
+                    fare: amount,
+
+                    // Every bus has a capacity of 40.
+                    totalSeats: 40,
+
+                    // Preserve existing bookings.
+                    bookedSeats: existing?.bookedSeats ?? const [],
+
+                    // Store selected bus.
+                    operatorName: selectedBus,
+
+                    routeName: routeName.text.trim(),
+
+                    transportMode: 'Bus',
+                  ),
+                );
+              },
+              child: const Text('Save'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (!formKey.currentState!.validate()) return;
-
-              final departureTime = _parseDateTime(departure.text);
-              final arrivalTime = _parseDateTime(arrival.text);
-              final seatCount = int.tryParse(seats.text.trim());
-              final amount = double.tryParse(fare.text.trim());
-
-              if (departureTime == null || arrivalTime == null) {
-                _message('Enter schedule times as YYYY-MM-DD HH:mm.');
-                return;
-              }
-
-              if (!arrivalTime.isAfter(departureTime)) {
-                _message('Arrival must be after departure.');
-                return;
-              }
-
-              if (departureTime.isBefore(DateTime.now())) {
-                _message('Departure must be in the future.');
-                return;
-              }
-
-              if (seatCount == null ||
-                  seatCount <= 0 ||
-                  seatCount < (existing?.bookedSeats.length ?? 0)) {
-                _message('Total seats cannot be below seats already booked.');
-                return;
-              }
-
-              if (amount == null || amount <= 0) {
-                _message('Enter a fare greater than zero.');
-                return;
-              }
-
-              Navigator.pop(
-                dialogContext,
-                Trip(
-                  id: existing?.id ??
-                      'TRIP-${DateTime.now().microsecondsSinceEpoch}',
-                  origin: origin.text.trim(),
-                  destination: destination.text.trim(),
-                  departureTime: departureTime,
-                  arrivalTime: arrivalTime,
-                  fare: amount,
-                  totalSeats: seatCount,
-                  bookedSeats: existing?.bookedSeats ?? const [],
-                  operatorName: operator.text.trim(),
-                  routeName: routeName.text.trim(),
-                  transportMode: existing?.transportMode ?? 'Bus',
-                ),
-              );
-            },
-            child: const Text('Save'),
-          ),
-        ],
       ),
     );
 
@@ -139,8 +240,6 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
     departure.dispose();
     arrival.dispose();
     fare.dispose();
-    seats.dispose();
-    operator.dispose();
     routeName.dispose();
 
     if (result == null) return;
@@ -154,7 +253,9 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
 
   Future<void> _deleteTrip(Trip trip) async {
     if (trip.bookedSeats.isNotEmpty) {
-      _message('Schedules with booked seats cannot be deleted.');
+      _message(
+        'Schedules with booked seats cannot be deleted.',
+      );
       return;
     }
 
@@ -162,14 +263,18 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Delete schedule?'),
-        content: Text('${trip.origin} → ${trip.destination}'),
+        content: Text(
+          '${trip.origin} → ${trip.destination}',
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
+            onPressed: () =>
+                Navigator.pop(dialogContext, false),
             child: const Text('Cancel'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
+            onPressed: () =>
+                Navigator.pop(dialogContext, true),
             child: const Text('Delete'),
           ),
         ],
@@ -177,6 +282,7 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
     );
 
     if (confirmed != true) return;
+
     await _store.removeTrip(trip.id);
   }
 
@@ -188,10 +294,16 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
       '${value.minute.toString().padLeft(2, '0')}';
 
   String _durationLabel(Trip trip) {
-    final duration = trip.arrivalTime.difference(trip.departureTime);
+    final duration =
+        trip.arrivalTime.difference(trip.departureTime);
+
     final hours = duration.inHours;
+
     final minutes = duration.inMinutes.remainder(60);
-    return hours == 0 ? '$minutes min' : '${hours}h ${minutes}m';
+
+    return hours == 0
+        ? '$minutes min'
+        : '${hours}h ${minutes}m';
   }
 
   DateTime? _parseDateTime(String value) {
@@ -215,7 +327,13 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
       return null;
     }
 
-    final result = DateTime(year, month, day, hour, minute);
+    final result = DateTime(
+      year,
+      month,
+      day,
+      hour,
+      minute,
+    );
 
     return result.year == year &&
             result.month == month &&
@@ -225,8 +343,9 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
   }
 
   void _message(String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   Widget _field(
@@ -238,13 +357,17 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
       padding: const EdgeInsets.only(bottom: 12),
       child: TextFormField(
         controller: controller,
-        keyboardType: number ? TextInputType.number : TextInputType.text,
+        keyboardType: number
+            ? TextInputType.number
+            : TextInputType.text,
         decoration: InputDecoration(
           labelText: label,
           border: const OutlineInputBorder(),
         ),
         validator: (value) =>
-            value == null || value.trim().isEmpty ? 'Required' : null,
+            value == null || value.trim().isEmpty
+                ? 'Required'
+                : null,
       ),
     );
   }
@@ -271,14 +394,24 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
+
                   const SizedBox(height: 5),
-                  const Text('Manage departure, fare, and seat capacity.'),
+
+                  const Text(
+                    'Manage buses, departures, fares, and seat capacity.',
+                  ),
+
                   const SizedBox(height: 18),
+
                   Expanded(
                     child: !_store.isLoaded
-                        ? const Center(child: CircularProgressIndicator())
+                        ? const Center(
+                            child: CircularProgressIndicator(),
+                          )
                         : trips.isEmpty
-                            ? const Center(child: Text('No schedules yet.'))
+                            ? const Center(
+                                child: Text('No schedules yet.'),
+                              )
                             : ListView.builder(
                                 itemCount: trips.length,
                                 itemBuilder: (context, index) {
@@ -289,18 +422,20 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
                                       title: Text(
                                         '${trip.origin} → ${trip.destination}',
                                       ),
+
                                       subtitle: Text(
+                                        '${trip.operatorName} · '
                                         '${_dateTimeString(trip.departureTime)} → '
                                         '${_dateTimeString(trip.arrivalTime)} · '
                                         '${_durationLabel(trip)} · '
-                                        '${trip.availableSeats}/${trip.totalSeats} '
-                                        'seats · MWK '
-                                        '${trip.fare.toStringAsFixed(0)}',
+                                        '${trip.availableSeats}/40 seats available · '
+                                        'MWK ${trip.fare.toStringAsFixed(0)}',
                                       ),
+
                                       isThreeLine: true,
+
                                       onTap: () => _editTrip(trip),
 
-                                      // Edit and delete icons are both black.
                                       trailing: Wrap(
                                         spacing: 4,
                                         crossAxisAlignment:
@@ -314,6 +449,7 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
                                               Icons.edit_outlined,
                                             ),
                                           ),
+
                                           IconButton(
                                             tooltip: 'Delete schedule',
                                             onPressed: () =>
@@ -329,6 +465,7 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
                                 },
                               ),
                   ),
+
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton.icon(
