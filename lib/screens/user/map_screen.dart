@@ -70,13 +70,10 @@ class _MapScreenState extends State<MapScreen> {
     } catch (error) {
       if (!mounted) return;
       setState(
-        () => _locationError = error.toString().replaceFirst('Exception: ', ''),
+        () => _locationError =
+            'Turn on location services and allow MOVA to access your location.',
       );
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(error.toString().replaceFirst('Exception: ', '')),
-        ),
-      );
+      _center ??= malawiCenter;
     } finally {
       if (mounted) setState(() => _locating = false);
     }
