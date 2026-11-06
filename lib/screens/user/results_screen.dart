@@ -214,7 +214,10 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
   String _mapRouteLabel(OsmRouteModel route) {
     final selectedRoute = _selectedRoute;
-    if (selectedRoute == null) return route.routeName;
+    if (selectedRoute == null) {
+      final routeNumber = _mapRoutes.indexOf(route) + 1;
+      return 'Route $routeNumber · ${route.routeName} · ${route.distanceLabel}';
+    }
     final knownName = knownMalawiRouteName(
       selectedRoute.origin,
       selectedRoute.destination,
@@ -224,7 +227,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
         : route.roadNames.isEmpty
         ? route.routeName
         : route.roadNamesLabel;
-    return '$roadLabel · ${route.distanceLabel}';
+    final routeNumber = _mapRoutes.indexOf(route) + 1;
+    return 'Route $routeNumber · $roadLabel · ${route.distanceLabel}';
   }
 
   void _compareRoutes() {
@@ -340,8 +344,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
                               if (_routeLabelPoint(route) != null)
                               Marker(
                                 point: _routeLabelPoint(route)!,
-                                width: 180,
-                                height: 52,
+                                width: 400,
+                                height: 64,
                                 alignment: Alignment.center,
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
@@ -367,7 +371,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                                   ),
                                   child: Text(
                                     _mapRouteLabel(route),
-                                    maxLines: 2,
+                                    maxLines: 3,
                                     overflow: TextOverflow.ellipsis,
                                     textAlign: TextAlign.center,
                                     style: TextStyle(

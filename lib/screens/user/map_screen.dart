@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../data/route_store.dart';
 import '../../models/osm_route_model.dart';
+import '../../models/route_model.dart';
 import '../../services/openstreetmap_service.dart';
 import '../../services/location_service.dart';
 import '../../utils/malawi_map.dart';
@@ -10,7 +12,10 @@ import 'profile_screen.dart';
 import 'search_screen.dart';
 
 class MapScreen extends StatefulWidget {
-  const MapScreen({super.key});
+  final String origin;
+  final String destination;
+
+  const MapScreen({super.key, this.origin = '', this.destination = ''});
 
   @override
   State<MapScreen> createState() => _MapScreenState();
@@ -24,6 +29,8 @@ class _MapScreenState extends State<MapScreen> {
   LatLng? _userLocation;
   LatLng? _destination;
   final List<OsmRouteModel> _routes = [];
+  final List<RouteModel> _configuredRoutes = [];
+  final Map<String, String> _configuredRouteLabels = {};
   String? _selectedRouteId;
   String? _locationError;
   bool _locating = false;
@@ -54,6 +61,12 @@ class _MapScreenState extends State<MapScreen> {
         _locationError = null;
       });
       if (_mapReady) _mapController.move(point, 14);
+      await _loadConfiguredRoutes(
+        widget.origin.isNotEmpty
+            ? widget.origin
+            : await _locationService.getCurrentLocationName(),
+        widget.destination,
+      );
     } catch (error) {
       if (!mounted) return;
       setState(
@@ -67,6 +80,64 @@ class _MapScreenState extends State<MapScreen> {
     } finally {
       if (mounted) setState(() => _locating = false);
     }
+  }
+
+  Future<void> _loadConfiguredRoutes(String origin, String destination) async {
+    await RouteStore.instance.load();
+    final routes = destination.isEmpty
+        ? RouteStore.instance.searchRoutes(origin: origin)
+        : RouteStore.instance.searchRoutes(
+            origin: origin,
+            destination: destination,
+          );
+    if (!mounted) return;
+    _configuredRoutes
+      ..clear()
+      ..addAll(routes.take(6));
+    setState(() {});
+    await _loadConfiguredRoutePaths();
+  }
+
+  Future<void> _loadConfiguredRoutePaths() async {
+    final paths = <OsmRouteModel>[];
+    final labels = <String, String>{};
+    for (final route in _configuredRoutes) {
+      try {
+        final origin = await _openStreetMap.findPlace(route.origin);
+        await Future<void>.delayed(const Duration(milliseconds: 700));
+        final destination = await _openStreetMap.findPlace(route.destination);
+        final alternatives = await _openStreetMap.findRoutes(
+          origin: origin,
+          destination: destination,
+        );
+        if (alternatives.isNotEmpty) {
+          final mapRoute = alternatives.first;
+          final configuredRoute = OsmRouteModel(
+            id: 'configured-${route.id}',
+            geoJson: mapRoute.geoJson,
+            distanceMeters: mapRoute.distanceMeters,
+            durationSeconds: mapRoute.durationSeconds,
+            steps: mapRoute.steps,
+            roadNames: mapRoute.roadNames,
+          );
+          paths.add(configuredRoute);
+          labels[configuredRoute.id] =
+              '${route.name} · ${route.origin} to ${route.destination}';
+        }
+      } catch (_) {}
+    }
+    if (!mounted) return;
+    setState(() {
+      _routes
+        ..clear()
+        ..addAll(paths);
+      _configuredRouteLabels
+        ..clear()
+        ..addAll(labels);
+      if (_routes.isNotEmpty) {
+        _selectedRouteId = _routes.first.id;
+      }
+    });
   }
 
   OsmRouteModel? get _selectedRoute {
@@ -353,7 +424,7 @@ class _MapScreenState extends State<MapScreen> {
                                       : 'Route ${_routes.indexOf(_selectedRoute!) + 1} of ${_routes.length} · '
                                         '${_selectedRoute!.distanceLabel} · '
                                         '${_selectedRoute!.durationLabel}\n'
-                                        '${_selectedRoute!.roadNamesLabel}',
+                                        '${_configuredRouteLabels[_selectedRoute!.id] ?? _selectedRoute!.roadNamesLabel}',
                                 ),
                             ),
                               if (_routes.isNotEmpty)
@@ -414,7 +485,8 @@ class _MapScreenState extends State<MapScreen> {
                                             CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            'Route ${index + 1}',
+                                            _configuredRouteLabels[route.id] ??
+                                                'Route ${index + 1}',
                                             style: const TextStyle(
                                               fontWeight: FontWeight.bold,
                                               color: Colors.deepPurple,

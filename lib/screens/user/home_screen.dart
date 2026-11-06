@@ -150,7 +150,12 @@ class _HomeTabState extends State<_HomeTab> with WidgetsBindingObserver {
   void _openRoute(RouteModel route) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => RouteDetailsScreen(route: route)),
+      MaterialPageRoute(
+        builder: (_) => ResultsScreen(
+          origin: route.origin,
+          destination: route.destination,
+        ),
+      ),
     );
   }
 

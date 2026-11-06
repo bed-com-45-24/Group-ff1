@@ -129,8 +129,16 @@ class RouteStore {
     return locations.any((location) => _matchesEndpoint(location, query));
   }
 
-  String _normalize(String value) =>
-      value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+  String _normalize(String value) {
+    final normalized =
+        value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+    const aliases = {
+      'brantyre': 'blantyre',
+      'blantyrecity': 'blantyre',
+      'lilongwecitycentre': 'lilongwe',
+    };
+    return aliases[normalized] ?? normalized;
+  }
 
   bool _matchesEndpoint(String endpoint, String query) {
     if (query.isEmpty) return true;
