@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 
 import '../../data/trip_store.dart';
@@ -74,37 +75,43 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
           FilledButton(
             onPressed: () {
               if (!formKey.currentState!.validate()) return;
+
               final departureTime = _parseDateTime(departure.text);
               final arrivalTime = _parseDateTime(arrival.text);
               final seatCount = int.tryParse(seats.text.trim());
               final amount = double.tryParse(fare.text.trim());
+
               if (departureTime == null || arrivalTime == null) {
                 _message('Enter schedule times as YYYY-MM-DD HH:mm.');
                 return;
               }
+
               if (!arrivalTime.isAfter(departureTime)) {
                 _message('Arrival must be after departure.');
                 return;
               }
+
               if (departureTime.isBefore(DateTime.now())) {
                 _message('Departure must be in the future.');
                 return;
               }
+
               if (seatCount == null ||
                   seatCount <= 0 ||
                   seatCount < (existing?.bookedSeats.length ?? 0)) {
-                _message('Total seats cannot be below saeats already booked.');
+                _message('Total seats cannot be below seats already booked.');
                 return;
               }
+
               if (amount == null || amount <= 0) {
                 _message('Enter a fare greater than zero.');
                 return;
               }
+
               Navigator.pop(
                 dialogContext,
                 Trip(
-                  id:
-                      existing?.id ??
+                  id: existing?.id ??
                       'TRIP-${DateTime.now().microsecondsSinceEpoch}',
                   origin: origin.text.trim(),
                   destination: destination.text.trim(),
@@ -124,16 +131,7 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
         ],
       ),
     );
-    // origin.dispose();
-    // destination.dispose();
-    // departure.dispose();
-    // arrival.dispose();
-    // fare.dispose();
-    // seats.dispose();
-    // operator.dispose();
-    // if (result == null) return;
-    // await _store.saveTrip(result);
-    // if (mounted) _message('Schedule saved.');
+
     await WidgetsBinding.instance.endOfFrame;
 
     origin.dispose();
@@ -159,6 +157,7 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
       _message('Schedules with booked seats cannot be deleted.');
       return;
     }
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -176,6 +175,7 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
         ],
       ),
     );
+
     if (confirmed != true) return;
     await _store.removeTrip(trip.id);
   }
@@ -195,19 +195,31 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
   }
 
   DateTime? _parseDateTime(String value) {
-    final match = RegExp(r'^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$')
-        .firstMatch(value.trim());
+    final match = RegExp(
+      r'^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$',
+    ).firstMatch(value.trim());
+
     if (match == null) return null;
+
     final year = int.parse(match.group(1)!);
     final month = int.parse(match.group(2)!);
     final day = int.parse(match.group(3)!);
     final hour = int.parse(match.group(4)!);
     final minute = int.parse(match.group(5)!);
-    if (month < 1 || month > 12 || day < 1 || hour > 23 || minute > 59) {
+
+    if (month < 1 ||
+        month > 12 ||
+        day < 1 ||
+        hour > 23 ||
+        minute > 59) {
       return null;
     }
+
     final result = DateTime(year, month, day, hour, minute);
-    return result.year == year && result.month == month && result.day == day
+
+    return result.year == year &&
+            result.month == month &&
+            result.day == day
         ? result
         : null;
   }
@@ -246,6 +258,7 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
           valueListenable: _store.changes,
           builder: (context, _, _) {
             final trips = _store.trips;
+
             return Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -253,7 +266,10 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
                 children: [
                   const Text(
                     'Schedules & seats',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 5),
                   const Text('Manage departure, fare, and seat capacity.'),
@@ -262,35 +278,56 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
                     child: !_store.isLoaded
                         ? const Center(child: CircularProgressIndicator())
                         : trips.isEmpty
-                        ? const Center(child: Text('No schedules yet.'))
-                        : ListView.builder(
-                            itemCount: trips.length,
-                            itemBuilder: (context, index) {
-                              final trip = trips[index];
-                              return Card(
-                                child: ListTile(
-                                  title: Text(
-                                    '${trip.origin} → ${trip.destination}',
-                                  ),
-                                  subtitle: Text(
-                                    '${_dateTimeString(trip.departureTime)} → '
-                                    '${_dateTimeString(trip.arrivalTime)} · '
-                                    '${_durationLabel(trip)} · '
-                                    '${trip.availableSeats}/${trip.totalSeats} '
-                                    'seats · MWK '
-                                    '${trip.fare.toStringAsFixed(0)}',
-                                  ),
-                                  isThreeLine: true,
-                                  onTap: () => _editTrip(trip),
-                                  trailing: IconButton(
-                                    tooltip: 'Delete schedule',
-                                    onPressed: () => _deleteTrip(trip),
-                                    icon: const Icon(Icons.delete_outline),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
+                            ? const Center(child: Text('No schedules yet.'))
+                            : ListView.builder(
+                                itemCount: trips.length,
+                                itemBuilder: (context, index) {
+                                  final trip = trips[index];
+
+                                  return Card(
+                                    child: ListTile(
+                                      title: Text(
+                                        '${trip.origin} → ${trip.destination}',
+                                      ),
+                                      subtitle: Text(
+                                        '${_dateTimeString(trip.departureTime)} → '
+                                        '${_dateTimeString(trip.arrivalTime)} · '
+                                        '${_durationLabel(trip)} · '
+                                        '${trip.availableSeats}/${trip.totalSeats} '
+                                        'seats · MWK '
+                                        '${trip.fare.toStringAsFixed(0)}',
+                                      ),
+                                      isThreeLine: true,
+                                      onTap: () => _editTrip(trip),
+
+                                      // Edit and delete icons are both black.
+                                      trailing: Wrap(
+                                        spacing: 4,
+                                        crossAxisAlignment:
+                                            WrapCrossAlignment.center,
+                                        children: [
+                                          IconButton(
+                                            tooltip: 'Edit schedule',
+                                            onPressed: () =>
+                                                _editTrip(trip),
+                                            icon: const Icon(
+                                              Icons.edit_outlined,
+                                            ),
+                                          ),
+                                          IconButton(
+                                            tooltip: 'Delete schedule',
+                                            onPressed: () =>
+                                                _deleteTrip(trip),
+                                            icon: const Icon(
+                                              Icons.delete_outline,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
                   ),
                   SizedBox(
                     width: double.infinity,
