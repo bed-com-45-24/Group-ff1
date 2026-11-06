@@ -100,9 +100,9 @@ class _MapScreenState extends State<MapScreen> {
     final labels = <String, String>{};
     for (final route in _configuredRoutes) {
       try {
-        final origin = await _openStreetMap.findPlace(route.origin);
+        final origin = await _openStreetMap.findPlace(route.pickupPoint);
         await Future<void>.delayed(const Duration(milliseconds: 700));
-        final destination = await _openStreetMap.findPlace(route.destination);
+        final destination = await _openStreetMap.findPlace(route.dropOffPoint);
         final alternatives = await _openStreetMap.findRoutes(
           origin: origin,
           destination: destination,
@@ -119,7 +119,7 @@ class _MapScreenState extends State<MapScreen> {
           );
           paths.add(configuredRoute);
           labels[configuredRoute.id] =
-              '${route.name} · ${route.origin} to ${route.destination}';
+              '${route.name} · ${route.pickupPoint} to ${route.dropOffPoint}';
         }
       } catch (_) {}
     }
@@ -133,6 +133,8 @@ class _MapScreenState extends State<MapScreen> {
         ..addAll(labels);
       if (_routes.isNotEmpty) {
         _selectedRouteId = _routes.first.id;
+        _userLocation = _routes.first.points.firstOrNull;
+        _destination = _routes.first.points.lastOrNull;
       }
     });
   }
@@ -142,6 +144,18 @@ class _MapScreenState extends State<MapScreen> {
       if (route.id == _selectedRouteId) return route;
     }
     return _routes.isEmpty ? null : _routes.first;
+  }
+
+  String _displayRouteName(OsmRouteModel route, int index) {
+    final configuredName = _configuredRouteLabels[route.id]?.trim();
+    if (configuredName != null && configuredName.isNotEmpty) {
+      return configuredName;
+    }
+    final roads = route.roadNamesLabel.trim();
+    if (roads.isNotEmpty && roads != 'Road name unavailable') {
+      return roads;
+    }
+    return 'Route ${index + 1}';
   }
 
   LatLng? _routeLabelPoint(OsmRouteModel route) {
@@ -435,7 +449,7 @@ class _MapScreenState extends State<MapScreen> {
                                 ),
                             ],
                           ),
-                          if (_routes.length > 1) ...[
+                          if (_routes.isNotEmpty) ...[
                             const SizedBox(height: 8),
                             SizedBox(
                               height: 28 * _routes.length.toDouble(),
@@ -464,7 +478,7 @@ class _MapScreenState extends State<MapScreen> {
                                         'Route ${index + 1} · '
                                         '${route.distanceLabel} · '
                                         '${route.durationLabel} · '
-                                        '${_configuredRouteLabels[route.id] ?? route.routeName}',
+                                        '${_displayRouteName(route, index)}',
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(

@@ -97,8 +97,8 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
   Future<void> _loadMapRoute() async {
     try {
       final routes = await _openStreetMap.findRoutesBetweenPlaces(
-        origin: route.origin,
-        destination: route.destination,
+        origin: route.pickupPoint,
+        destination: route.dropOffPoint,
       );
       if (!mounted) return;
       setState(() {
@@ -427,7 +427,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                   width: 110,
                   height: 54,
                   child: _RouteMapMarker(
-                    label: route.origin,
+                    label: route.pickupPoint,
                     color: Colors.green.shade700,
                     icon: Icons.trip_origin,
                   ),
@@ -437,7 +437,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                   width: 130,
                   height: 54,
                   child: _RouteMapMarker(
-                    label: route.destination,
+                    label: route.dropOffPoint,
                     color: Colors.red.shade700,
                     icon: Icons.location_on,
                   ),
