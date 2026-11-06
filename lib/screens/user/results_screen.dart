@@ -53,6 +53,16 @@ class _ResultsScreenState extends State<ResultsScreen> {
                     '')
           .trim();
 
+  String get _pickupAddress =>
+      (_searchArguments?['pickupAddress']?.toString() ??
+              _effectiveOrigin)
+          .trim();
+
+  String get _destinationAddress =>
+      (_searchArguments?['address']?.toString() ??
+              _effectiveDestination)
+          .trim();
+
   RouteModel? get _selectedRoute {
     for (final route in _routes) {
       if (route.id == _selectedRouteId) return route;
@@ -147,9 +157,15 @@ class _ResultsScreenState extends State<ResultsScreen> {
     });
 
     try {
-      final origin = await _openStreetMap.findPlace(route.origin);
+      final origin = await _openStreetMap.findPlace(
+        _pickupAddress.isNotEmpty ? _pickupAddress : route.origin,
+      );
       await Future<void>.delayed(const Duration(seconds: 1));
-      final destination = await _openStreetMap.findPlace(route.destination);
+      final destination = await _openStreetMap.findPlace(
+        _destinationAddress.isNotEmpty
+            ? _destinationAddress
+            : route.destination,
+      );
       final mapRoutes = await _openStreetMap.findRoutes(
         origin: origin,
         destination: destination,
@@ -198,13 +214,21 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
   String _mapRouteLabel(OsmRouteModel route) {
     final selectedRoute = _selectedRoute;
-    if (selectedRoute == null) return route.routeName;
+    if (selectedRoute == null) {
+      final routeNumber = _mapRoutes.indexOf(route) + 1;
+      return 'Route $routeNumber · ${route.routeName} · ${route.distanceLabel}';
+    }
     final knownName = knownMalawiRouteName(
       selectedRoute.origin,
       selectedRoute.destination,
     );
-    if (knownName.isNotEmpty) return '$knownName Road';
-    return route.roadNames.isEmpty ? route.routeName : route.roadNamesLabel;
+    final roadLabel = knownName.isNotEmpty
+        ? '$knownName Road'
+        : route.roadNames.isEmpty
+        ? route.routeName
+        : route.roadNamesLabel;
+    final routeNumber = _mapRoutes.indexOf(route) + 1;
+    return 'Route $routeNumber · $roadLabel · ${route.distanceLabel}';
   }
 
   void _compareRoutes() {
@@ -316,12 +340,12 @@ class _ResultsScreenState extends State<ResultsScreen> {
                         ),
                         MarkerLayer(
                           markers: [
-                            if (activeMapRoute != null &&
-                                _routeLabelPoint(activeMapRoute) != null)
+                            for (final route in _mapRoutes)
+                              if (_routeLabelPoint(route) != null)
                               Marker(
-                                point: _routeLabelPoint(activeMapRoute)!,
-                                width: 110,
-                                height: 36,
+                                point: _routeLabelPoint(route)!,
+                                width: 400,
+                                height: 64,
                                 alignment: Alignment.center,
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
@@ -332,7 +356,9 @@ class _ResultsScreenState extends State<ResultsScreen> {
                                     color: Colors.white,
                                     borderRadius: BorderRadius.circular(18),
                                     border: Border.all(
-                                      color: Colors.deepPurple,
+                                      color: route.id == _activeMapRouteId
+                                          ? Colors.deepPurple
+                                          : Colors.grey.shade500,
                                       width: 2,
                                     ),
                                     boxShadow: const [
@@ -344,12 +370,14 @@ class _ResultsScreenState extends State<ResultsScreen> {
                                     ],
                                   ),
                                   child: Text(
-                                    _mapRouteLabel(activeMapRoute),
-                                    maxLines: 2,
+                                    _mapRouteLabel(route),
+                                    maxLines: 3,
                                     overflow: TextOverflow.ellipsis,
                                     textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      color: Colors.deepPurple,
+                                    style: TextStyle(
+                                      color: route.id == _activeMapRouteId
+                                          ? Colors.deepPurple
+                                          : Colors.black87,
                                       fontSize: 12,
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -405,7 +433,11 @@ class _ResultsScreenState extends State<ResultsScreen> {
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 4),
                             child: ChoiceChip(
-                              label: Text('Map option ${index + 1}'),
+                              label: Text(
+                                '${_mapRouteLabel(_mapRoutes[index])}\n'
+                                '${_mapRoutes[index].durationLabel}',
+                                textAlign: TextAlign.center,
+                              ),
                               selected:
                                   _mapRoutes[index].id == _activeMapRouteId,
                               onSelected: (_) =>

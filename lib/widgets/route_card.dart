@@ -113,7 +113,7 @@ class _RouteCardState extends State<RouteCard> {
                       side: const BorderSide(color: Colors.deepPurple),
                     ),
                     onPressed: widget.onTap,
-                    child: const Text('View details'),
+                    child: const Text('Compare routes'),
                   ),
                 ),
 

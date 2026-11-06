@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../data/route_store.dart';
 import '../../models/osm_route_model.dart';
+import '../../models/route_model.dart';
 import '../../services/openstreetmap_service.dart';
 import '../../services/location_service.dart';
 import '../../utils/malawi_map.dart';
@@ -10,7 +12,10 @@ import 'profile_screen.dart';
 import 'search_screen.dart';
 
 class MapScreen extends StatefulWidget {
-  const MapScreen({super.key});
+  final String origin;
+  final String destination;
+
+  const MapScreen({super.key, this.origin = '', this.destination = ''});
 
   @override
   State<MapScreen> createState() => _MapScreenState();
@@ -23,7 +28,10 @@ class _MapScreenState extends State<MapScreen> {
   LatLng? _center;
   LatLng? _userLocation;
   LatLng? _destination;
-  OsmRouteModel? _route;
+  final List<OsmRouteModel> _routes = [];
+  final List<RouteModel> _configuredRoutes = [];
+  final Map<String, String> _configuredRouteLabels = {};
+  String? _selectedRouteId;
   String? _locationError;
   bool _locating = false;
   bool _findingRoute = false;
@@ -53,19 +61,93 @@ class _MapScreenState extends State<MapScreen> {
         _locationError = null;
       });
       if (_mapReady) _mapController.move(point, 14);
+      await _loadConfiguredRoutes(
+        widget.origin.isNotEmpty
+            ? widget.origin
+            : await _locationService.getCurrentLocationName(),
+        widget.destination,
+      );
     } catch (error) {
       if (!mounted) return;
       setState(
-        () => _locationError = error.toString().replaceFirst('Exception: ', ''),
+        () => _locationError =
+            'Turn on location services and allow MOVA to access your location.',
       );
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(error.toString().replaceFirst('Exception: ', '')),
-        ),
-      );
+      _center ??= malawiCenter;
     } finally {
       if (mounted) setState(() => _locating = false);
     }
+  }
+
+  Future<void> _loadConfiguredRoutes(String origin, String destination) async {
+    await RouteStore.instance.load();
+    final routes = destination.isEmpty
+        ? RouteStore.instance.searchRoutes(origin: origin)
+        : RouteStore.instance.searchRoutes(
+            origin: origin,
+            destination: destination,
+          );
+    if (!mounted) return;
+    _configuredRoutes
+      ..clear()
+      ..addAll(routes.take(6));
+    setState(() {});
+    await _loadConfiguredRoutePaths();
+  }
+
+  Future<void> _loadConfiguredRoutePaths() async {
+    final paths = <OsmRouteModel>[];
+    final labels = <String, String>{};
+    for (final route in _configuredRoutes) {
+      try {
+        final origin = await _openStreetMap.findPlace(route.origin);
+        await Future<void>.delayed(const Duration(milliseconds: 700));
+        final destination = await _openStreetMap.findPlace(route.destination);
+        final alternatives = await _openStreetMap.findRoutes(
+          origin: origin,
+          destination: destination,
+        );
+        if (alternatives.isNotEmpty) {
+          final mapRoute = alternatives.first;
+          final configuredRoute = OsmRouteModel(
+            id: 'configured-${route.id}',
+            geoJson: mapRoute.geoJson,
+            distanceMeters: mapRoute.distanceMeters,
+            durationSeconds: mapRoute.durationSeconds,
+            steps: mapRoute.steps,
+            roadNames: mapRoute.roadNames,
+          );
+          paths.add(configuredRoute);
+          labels[configuredRoute.id] =
+              '${route.name} · ${route.origin} to ${route.destination}';
+        }
+      } catch (_) {}
+    }
+    if (!mounted) return;
+    setState(() {
+      _routes
+        ..clear()
+        ..addAll(paths);
+      _configuredRouteLabels
+        ..clear()
+        ..addAll(labels);
+      if (_routes.isNotEmpty) {
+        _selectedRouteId = _routes.first.id;
+      }
+    });
+  }
+
+  OsmRouteModel? get _selectedRoute {
+    for (final route in _routes) {
+      if (route.id == _selectedRouteId) return route;
+    }
+    return _routes.isEmpty ? null : _routes.first;
+  }
+
+  LatLng? _routeLabelPoint(OsmRouteModel route) {
+    final points = route.points;
+    if (points.isEmpty) return null;
+    return points[points.length ~/ 2];
   }
 
   Future<void> _routeTo(LatLng destination) async {
@@ -73,7 +155,8 @@ class _MapScreenState extends State<MapScreen> {
     setState(() {
       _findingRoute = true;
       _destination = destination;
-      _route = null;
+      _routes.clear();
+      _selectedRouteId = null;
     });
     try {
       final position = await _locationService.getCurrentPosition();
@@ -92,7 +175,10 @@ class _MapScreenState extends State<MapScreen> {
       setState(() {
         _userLocation = origin;
         _destination = destination;
-        _route = route;
+        _routes
+          ..clear()
+          ..addAll(routes);
+        _selectedRouteId = route.id;
         _center = origin;
         _locationError = null;
       });
@@ -105,12 +191,14 @@ class _MapScreenState extends State<MapScreen> {
             ),
           );
         }
+
       });
     } catch (error) {
       if (!mounted) return;
       setState(() {
         _destination = null;
-        _route = null;
+        _routes.clear();
+        _selectedRouteId = null;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -211,19 +299,61 @@ class _MapScreenState extends State<MapScreen> {
                           'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                       userAgentPackageName: 'com.example.mova',
                     ),
-                    if (_route != null)
+                    if (_routes.isNotEmpty)
                       PolylineLayer(
-                        polylines: [
-                          Polyline(
-                            points: _route!.points,
-                            color: Colors.deepPurple,
-                            strokeWidth: 6,
-                          ),
-                        ],
+                        polylines: _routes.map((route) {
+                          final colors = [
+                            Colors.deepPurple,
+                            Colors.orange,
+                            Colors.teal,
+                            Colors.blue,
+                            Colors.red,
+                          ];
+                          final index = _routes.indexOf(route);
+                          final selected = route.id == _selectedRouteId;
+                          return Polyline(
+                            points: route.points,
+                            color: selected
+                                ? colors[index % colors.length]
+                                : colors[index % colors.length].withValues(
+                                    alpha: 0.35,
+                                  ),
+                            strokeWidth: selected ? 7 : 4,
+                          );
+                        }).toList(),
                       ),
                     if (_userLocation != null || _destination != null)
                       MarkerLayer(
                         markers: [
+                          for (var index = 0; index < _routes.length; index++)
+                            if (_routeLabelPoint(_routes[index]) != null)
+                              Marker(
+                              point: _routeLabelPoint(_routes[index])!,
+                              width: 42,
+                              height: 42,
+                              child: Container(
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: _routes[index].id == _selectedRouteId
+                                      ? Colors.deepPurple
+                                      : Colors.white,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.deepPurple,
+                                    width: 2,
+                                  ),
+                                ),
+                                child: Text(
+                                  '${index + 1}',
+                                  style: TextStyle(
+                                    color: _routes[index].id == _selectedRouteId
+                                        ? Colors.white
+                                        : Colors.deepPurple,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
                           if (_userLocation != null)
                             Marker(
                               point: _userLocation!,
@@ -264,40 +394,95 @@ class _MapScreenState extends State<MapScreen> {
                   right: 12,
                   child: Card(
                     child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Row(
+                      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (_findingRoute)
-                            const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          else
-                            const Icon(
-                              Icons.touch_app_outlined,
-                              color: Colors.deepPurple,
+                          Row(
+                            children: [
+                              if (_findingRoute)
+                                const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              else
+                                const Icon(
+                                  Icons.touch_app_outlined,
+                                  color: Colors.deepPurple,
+                                ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  _findingRoute
+                                      ? 'Finding route...'
+                                      : _selectedRoute == null
+                                      ? 'Drag to move · pinch or scroll to zoom · tap to plan a route'
+                                      : '${_routes.length} route${_routes.length == 1 ? '' : 's'} available',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                             ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              _findingRoute
-                                  ? 'Finding route...'
-                                  : _route == null
-                                  ? 'Drag to move · pinch or scroll to zoom · tap to plan a route'
-                                  : '${_route!.distanceLabel} · ${_route!.durationLabel}\n'
-                                    'Roads: ${_route!.roadNamesLabel}',
-                            ),
+                              if (_routes.isNotEmpty)
+                                IconButton(
+                                  tooltip: 'Clear route',
+                                  onPressed: () => setState(() {
+                                    _routes.clear();
+                                    _selectedRouteId = null;
+                                    _destination = null;
+                                  }),
+                                  icon: const Icon(Icons.close),
+                                ),
+                            ],
                           ),
-                          if (_route != null)
-                            IconButton(
-                              tooltip: 'Clear route',
-                              onPressed: () => setState(() {
-                                _route = null;
-                                _destination = null;
-                              }),
-                              icon: const Icon(Icons.close),
+                          if (_routes.length > 1) ...[
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              height: 28 * _routes.length.toDouble(),
+                              child: ListView.separated(
+                                itemCount: _routes.length,
+                                separatorBuilder: (_, _) =>
+                                    const SizedBox(height: 2),
+                                itemBuilder: (context, index) {
+                                  final route = _routes[index];
+                                  final selected = route.id == _selectedRouteId;
+                                  return InkWell(
+                                    onTap: () {
+                                      setState(() {
+                                        _selectedRouteId = route.id;
+                                      });
+                                      _mapController.fitCamera(
+                                        CameraFit.bounds(
+                                          bounds: LatLngBounds.fromPoints(route.points),
+                                          padding: const EdgeInsets.all(56),
+                                        ),
+                                      );
+                                    },
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        'Route ${index + 1} · '
+                                        '${route.distanceLabel} · '
+                                        '${route.durationLabel} · '
+                                        '${_configuredRouteLabels[route.id] ?? route.routeName}',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontWeight: selected
+                                              ? FontWeight.bold
+                                              : FontWeight.normal,
+                                          color: selected
+                                              ? Colors.deepPurple
+                                              : Colors.black87,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
                             ),
+                          ],
                         ],
                       ),
                     ),

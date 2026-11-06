@@ -8,6 +8,7 @@ import 'map_screen.dart';
 import 'notifications_screen.dart';
 import 'profile_screen.dart';
 import 'route_details_screen.dart';
+import 'results_screen.dart';
 import 'search_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -149,7 +150,12 @@ class _HomeTabState extends State<_HomeTab> with WidgetsBindingObserver {
   void _openRoute(RouteModel route) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => RouteDetailsScreen(route: route)),
+      MaterialPageRoute(
+        builder: (_) => ResultsScreen(
+          origin: route.origin,
+          destination: route.destination,
+        ),
+      ),
     );
   }
 
@@ -378,7 +384,10 @@ class _AllPopularRoutesScreenState extends State<AllPopularRoutesScreen> {
       await Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => RouteDetailsScreen(route: routes.first),
+          builder: (_) => ResultsScreen(
+            origin: origin,
+            destination: destination,
+          ),
         ),
       );
     } catch (error) {
@@ -395,7 +404,7 @@ class _AllPopularRoutesScreenState extends State<AllPopularRoutesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('All routes'),
+        title: const Text('Routes & Booking'),
         backgroundColor: Colors.deepPurple,
         foregroundColor: Colors.white,
         actions: [

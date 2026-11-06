@@ -2,29 +2,26 @@ String knownMalawiRouteName(String origin, String destination) {
   String normalize(String value) =>
       value.toLowerCase().replaceAll(RegExp(r'[^a-z]'), '');
 
-  final corridor = {normalize(origin), normalize(destination)};
+  String normalizePlace(String value) {
+    final normalized = normalize(value);
+    const aliases = {
+      'brantyre': 'blantyre',
+      'blantyrecity': 'blantyre',
+    };
+    return aliases[normalized] ?? normalized;
+  }
+
+  final corridor = {normalizePlace(origin), normalizePlace(destination)};
 
   if (corridor.length == 2 &&
-      corridor.contains(normalize('Lilongwe')) &&
-      corridor.contains(normalize('Mchinji'))) {
+      corridor.contains(normalizePlace('Lilongwe')) &&
+      corridor.contains(normalizePlace('Mchinji'))) {
     return 'M12';
   }
-  final normalizedBlantyre = normalize(destination) == normalize('Brantyre')
-      ? normalize('Blantyre')
-      : normalize(destination);
-  final normalizedOrigin = normalize(origin);
-  final normalizedPlaces = normalizedOrigin == normalize('Brantyre')
-      ? normalize('Blantyre')
-      : normalizedOrigin;
 
   if (corridor.length == 2 &&
-      corridor.contains(normalize('Lilongwe')) &&
-      corridor.contains(normalize('Blantyre'))) {
-    return 'M1';
-  }
-  if ({normalizedPlaces, normalizedBlantyre}.length == 2 &&
-      {normalizedPlaces, normalizedBlantyre}.contains(normalize('Lilongwe')) &&
-      {normalizedPlaces, normalizedBlantyre}.contains(normalize('Blantyre'))) {
+      corridor.contains(normalizePlace('Lilongwe')) &&
+      corridor.contains(normalizePlace('Blantyre'))) {
     return 'M1';
   }
   return '';

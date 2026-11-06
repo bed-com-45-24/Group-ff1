@@ -91,13 +91,54 @@ class RouteStore {
 
     return _routes.where((route) {
       if (!route.active) return false;
-      return _matchesEndpoint(route.origin, normalizedOrigin) &&
-          _matchesEndpoint(route.destination, normalizedDestination);
+      final pickupPoints = [route.origin, route.pickupPoint, ...route.stops];
+      final dropOffPoints = [route.destination, ...route.stops];
+      if (!_matchesAny(pickupPoints, normalizedOrigin) ||
+          !_matchesAny(dropOffPoints, normalizedDestination)) {
+        return false;
+      }
+
+      if (normalizedOrigin.isEmpty || normalizedDestination.isEmpty) {
+        return true;
+      }
+      final journeyPoints = [route.origin, ...route.stops, route.destination]
+          .where((point) => point.trim().isNotEmpty)
+          .toList();
+      final departureIndex = _matchingLocationIndex(
+        journeyPoints,
+        normalizedOrigin,
+      );
+      final destinationIndex = _matchingLocationIndex(
+        journeyPoints,
+        normalizedDestination,
+      );
+      if (departureIndex == -1 || destinationIndex == -1) return true;
+      return departureIndex <= destinationIndex;
     }).toList();
   }
 
-  String _normalize(String value) =>
-      value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+  int _matchingLocationIndex(List<String> locations, String query) {
+    for (var index = 0; index < locations.length; index++) {
+      if (_matchesEndpoint(locations[index], query)) return index;
+    }
+    return -1;
+  }
+
+  bool _matchesAny(List<String> locations, String query) {
+    if (query.isEmpty) return true;
+    return locations.any((location) => _matchesEndpoint(location, query));
+  }
+
+  String _normalize(String value) {
+    final normalized =
+        value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+    const aliases = {
+      'brantyre': 'blantyre',
+      'blantyrecity': 'blantyre',
+      'lilongwecitycentre': 'lilongwe',
+    };
+    return aliases[normalized] ?? normalized;
+  }
 
   bool _matchesEndpoint(String endpoint, String query) {
     if (query.isEmpty) return true;
