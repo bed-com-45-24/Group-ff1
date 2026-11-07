@@ -74,10 +74,8 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Origin
                   _field(origin, 'Origin'),
 
-                  // Destination
                   _field(destination, 'Destination'),
 
                   // Bus dropdown
@@ -105,7 +103,7 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
                     ),
                   ),
 
-                  // Bus capacity - fixed at 40
+                  // Bus capacity fixed at 40
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: TextFormField(
@@ -119,26 +117,22 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
                     ),
                   ),
 
-                  // Departure
                   _field(
                     departure,
                     'Departure (YYYY-MM-DD HH:mm)',
                   ),
 
-                  // Arrival
                   _field(
                     arrival,
                     'Arrival (YYYY-MM-DD HH:mm)',
                   ),
 
-                  // Fare
                   _field(
                     fare,
                     'Fare per seat (MWK)',
                     number: true,
                   ),
 
-                  // Route name
                   _field(
                     routeName,
                     'Route name / road (for example M1 Road)',
@@ -214,10 +208,9 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
                     // Every bus has a capacity of 40.
                     totalSeats: 40,
 
-                    // Preserve existing bookings.
+                    // Preserve existing bookings when editing.
                     bookedSeats: existing?.bookedSeats ?? const [],
 
-                    // Store selected bus.
                     operatorName: selectedBus,
 
                     routeName: routeName.text.trim(),
@@ -251,38 +244,9 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
     }
   }
 
+  // Delete immediately without confirmation or success message.
+  // This also deletes schedules that have booked seats.
   Future<void> _deleteTrip(Trip trip) async {
-    if (trip.bookedSeats.isNotEmpty) {
-      _message(
-        'Schedules with booked seats cannot be deleted.',
-      );
-      return;
-    }
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete schedule?'),
-        content: Text(
-          '${trip.origin} → ${trip.destination}',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () =>
-                Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () =>
-                Navigator.pop(dialogContext, true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
     await _store.removeTrip(trip.id);
   }
 
@@ -450,12 +414,15 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
                                             ),
                                           ),
 
+                                          // Black delete icon.
+                                          // Deletes immediately when clicked.
                                           IconButton(
                                             tooltip: 'Delete schedule',
                                             onPressed: () =>
                                                 _deleteTrip(trip),
                                             icon: const Icon(
                                               Icons.delete_outline,
+                                              color: Colors.black,
                                             ),
                                           ),
                                         ],
