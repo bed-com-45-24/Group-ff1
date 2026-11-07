@@ -13,6 +13,7 @@ import 'package:mova/screens/user/booking/passenger_details_screen.dart';
 import 'package:mova/screens/user/booking/booking_summary_screen.dart';
 import 'package:mova/screens/user/booking/select_trip_screen.dart';
 import 'package:mova/screens/admin/fares_screen.dart';
+import 'package:mova/screens/user/home_screen.dart';
 import 'package:mova/screens/user/route_details_screen.dart';
 import 'package:mova/screens/user/route_directions_details_screen.dart';
 import 'package:mova/screens/user/results_screen.dart';
@@ -175,6 +176,47 @@ void main() {
     expect(prefs.getString('admin_routes_v1'), contains('Test Destination'));
     expect(prefs.getString('admin_routes_v1'), contains('23456.0'));
     await store.removeRoute(route.id);
+  });
+
+  testWidgets('Popular routes reflect admin edits and active status', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final store = RouteStore.instance;
+    const route = RouteModel(
+      id: 'POPULAR-ROUTE-SYNC-TEST',
+      companyName: 'Test Transit',
+      name: 'Admin Route Origin - Admin Route Destination',
+      origin: 'Admin Route Origin',
+      destination: 'Admin Route Destination',
+      stops: ['Admin Route Origin', 'Admin Route Destination'],
+      fare: 10000,
+    );
+    await store.saveRoute(route);
+    addTearDown(() => store.removeRoute(route.id));
+
+    await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
+    await tester.pump();
+    await tester.scrollUntilVisible(
+      find.text(route.name),
+      500,
+      scrollable: find.byType(Scrollable).first,
+    );
+
+    expect(find.text(route.name), findsOneWidget);
+
+    await store.saveRoute(
+      route.copyWith(name: 'Updated Admin Route', fare: 15000),
+    );
+    await tester.pump();
+
+    expect(find.text('Updated Admin Route'), findsOneWidget);
+    expect(find.text('Official fare: MWK 15000'), findsOneWidget);
+
+    await store.saveRoute(route.copyWith(active: false));
+    await tester.pump();
+
+    expect(find.text('Updated Admin Route'), findsNothing);
   });
 
   testWidgets('Passenger route results show configured route fares only', (
