@@ -311,9 +311,8 @@ class _HomeTabState extends State<_HomeTab> with WidgetsBindingObserver {
   }
 
   List<RouteModel> get _featuredRoutes {
-    const featuredIds = {'R002', 'R007', 'R010', 'R017', 'R025', 'R029'};
     return RouteStore.instance.routes
-        .where((route) => route.active && featuredIds.contains(route.id))
+        .where((route) => route.active)
         .toList();
   }
 }
