@@ -1,4 +1,6 @@
 class Trip {
+  static const int busSeatCapacity = 42;
+
   final String id;
   final String origin;
   final String destination;

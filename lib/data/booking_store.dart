@@ -82,15 +82,7 @@ class BookingStore {
     if (_bookings.any((item) => item.reference == booking.reference)) {
       throw StateError('A booking with this reference already exists.');
     }
-    final occupiedSeats = _bookings
-        .where(
-          (item) =>
-              item.trip.id == booking.trip.id &&
-              (item.status == BookingStatus.paid ||
-                  item.status == BookingStatus.confirmed),
-        )
-        .expand((item) => item.selectedSeats)
-        .toSet();
+    final occupiedSeats = activeBookingSeatsForTrip(booking.trip);
     if (booking.selectedSeats.any(occupiedSeats.contains)) {
       throw StateError('One or more selected seats are no longer available.');
     }
@@ -142,16 +134,10 @@ class BookingStore {
     if (paymentMethod.trim().isEmpty || paymentReference.trim().isEmpty) {
       throw ArgumentError('Payment method and reference are required.');
     }
-    final occupiedSeats = _bookings
-        .where(
-          (booking) =>
-              booking.trip.id == current.trip.id &&
-              booking.reference != current.reference &&
-              (booking.status == BookingStatus.paid ||
-                  booking.status == BookingStatus.confirmed),
-        )
-        .expand((booking) => booking.selectedSeats)
-        .toSet();
+    final occupiedSeats = activeBookingSeatsForTrip(
+      current.trip,
+      excludingReference: current.reference,
+    );
     if (current.selectedSeats.any(occupiedSeats.contains)) {
       throw StateError('One or more selected seats are no longer available.');
     }
@@ -190,16 +176,10 @@ class BookingStore {
       if (paymentMethod.trim().isEmpty || paymentReference.trim().isEmpty) {
         throw ArgumentError('Payment method and reference are required.');
       }
-      final occupiedSeats = _bookings
-          .where(
-            (booking) =>
-                booking.trip.id == current.trip.id &&
-                booking.reference != current.reference &&
-                (booking.status == BookingStatus.paid ||
-                    booking.status == BookingStatus.confirmed),
-          )
-          .expand((booking) => booking.selectedSeats)
-          .toSet();
+      final occupiedSeats = activeBookingSeatsForTrip(
+        current.trip,
+        excludingReference: current.reference,
+      );
       if (current.selectedSeats.any(occupiedSeats.contains)) {
         throw StateError('One or more selected seats are no longer available.');
       }
@@ -240,12 +220,17 @@ class BookingStore {
 
   Set<int> occupiedSeatsForTrip(Trip trip) => {
     ...trip.bookedSeats,
-    for (final booking in _bookings)
-      if (booking.trip.id == trip.id &&
-          (booking.status == BookingStatus.paid ||
-              booking.status == BookingStatus.confirmed))
-        ...booking.selectedSeats,
+    ...activeBookingSeatsForTrip(trip),
   };
+
+  Set<int> activeBookingSeatsForTrip(Trip trip, {String? excludingReference}) =>
+      {
+        for (final booking in _bookings)
+          if (booking.trip.id == trip.id &&
+              booking.reference != excludingReference &&
+              booking.status != BookingStatus.cancelled)
+            ...booking.selectedSeats,
+      };
 
   Future<void> _replace(BookingDraft booking) async {
     final next = [

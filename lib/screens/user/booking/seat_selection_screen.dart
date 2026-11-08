@@ -15,6 +15,9 @@ class SeatSelectionScreen extends StatefulWidget {
 }
 
 class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
+  static const int _busSeatCount = Trip.busSeatCapacity;
+  static const int _adminSeat = 2;
+
   final Set<int> selectedSeats = {};
   bool _isLoadingBookings = true;
   bool _isCreatingBooking = false;
@@ -48,8 +51,12 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
   Future<void> _continueToPassengerDetails() async {
     setState(() => _isCreatingBooking = true);
     try {
+      final occupiedSeats = _occupiedPassengerSeats(widget.trip);
       final booking = await BookingService.instance.createDraft(
-        trip: widget.trip,
+        trip: widget.trip.copyWith(
+          totalSeats: _busSeatCount,
+          bookedSeats: {...occupiedSeats, _adminSeat}.toList()..sort(),
+        ),
         reference: 'MOVA-${DateTime.now().millisecondsSinceEpoch}',
         selectedSeats: selectedSeats.toList()..sort(),
       );
@@ -69,6 +76,10 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
       if (mounted) setState(() => _isCreatingBooking = false);
     }
   }
+
+  Set<int> _occupiedPassengerSeats(Trip trip) => {
+    ...BookingStore.instance.activeBookingSeatsForTrip(trip),
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -101,207 +112,294 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                 : ValueListenableBuilder<int>(
                     valueListenable: bookingStore.changes,
                     builder: (context, _, _) {
-                      final occupiedSeats = bookingStore.occupiedSeatsForTrip(
-                        trip,
-                      );
-                      final hasRearAisleSeat =
-                          trip.totalSeats >= 5 && trip.totalSeats % 4 == 1;
-                      final standardSeatCount = hasRearAisleSeat
-                          ? trip.totalSeats - 1
-                          : trip.totalSeats;
-                      final rowCount = (standardSeatCount + 3) ~/ 4;
+                      final occupiedSeats = _occupiedPassengerSeats(trip)
+                        ..add(_adminSeat);
+                      const rearRowSeatCount = 6;
+                      const standardSeatCount =
+                          _busSeatCount - 1 - rearRowSeatCount;
+                      final standardRowCount = (standardSeatCount + 4) ~/ 5;
+                      final rowCount = standardRowCount + 1;
                       return Column(
                         children: [
                           const SizedBox(height: 12),
                           const Text(
-                            'Choose up to 5 seats',
+                            '42 seats · Seat 2 reserved for admin',
                             style: TextStyle(fontWeight: FontWeight.w600),
                           ),
+                          const Text('Choose up to 5 seats'),
                           const SizedBox(height: 8),
                           Wrap(
                             alignment: WrapAlignment.center,
                             spacing: 16,
                             children: [
-                              _legend(Colors.deepPurple.shade300, 'Booked'),
-                              _legend(Colors.deepPurple, 'Selected'),
-                              _legend(Colors.deepPurple.shade400, 'Available'),
+                              _legend(Colors.amber.shade700, 'Admin'),
+                              _legend(Colors.blueGrey.shade400, 'Booked'),
+                              _legend(Colors.green.shade700, 'Selected'),
+                              _legend(Colors.deepPurple.shade100, 'Available'),
                             ],
                           ),
                           const SizedBox(height: 12),
                           Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                              ),
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.deepPurple.shade50,
-                                  border: Border.all(
-                                    color: Colors.deepPurple.shade100,
-                                  ),
-                                  borderRadius: BorderRadius.circular(24),
+                            child: Align(
+                              alignment: Alignment.topCenter,
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                  maxWidth: 420,
                                 ),
-                                child: Column(
-                                  children: [
-                                    Container(
-                                      margin: const EdgeInsets.fromLTRB(
-                                        12,
-                                        12,
-                                        12,
-                                        4,
-                                      ),
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 10,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.deepPurple.shade100,
-                                        borderRadius: BorderRadius.circular(14),
-                                      ),
-                                      child: const Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Icon(Icons.directions_bus, size: 18),
-                                          SizedBox(width: 8),
-                                          Text(
-                                            'FRONT  ·  DRIVER',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w600,
-                                              letterSpacing: 1,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
+                                child: Container(
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.deepPurple.shade50,
+                                    border: Border.all(
+                                      color: Colors.deepPurple.shade100,
                                     ),
-                                    Expanded(
-                                      child: ListView.separated(
-                                        padding: const EdgeInsets.all(12),
-                                        itemCount: rowCount,
-                                        separatorBuilder: (_, _) => SizedBox(
-                                          height: 6,
-                                          child: Row(
-                                            children: [
-                                              const Expanded(
-                                                child: SizedBox.shrink(),
-                                              ),
-                                              Container(
-                                                width: 30,
-                                                color:
-                                                    Colors.deepPurple.shade100,
-                                              ),
-                                              const Expanded(
-                                                child: SizedBox.shrink(),
-                                              ),
-                                            ],
+                                    borderRadius: BorderRadius.circular(24),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Container(
+                                        margin: const EdgeInsets.fromLTRB(
+                                          12,
+                                          12,
+                                          12,
+                                          16,
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 8,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.deepPurple.shade100,
+                                          borderRadius: BorderRadius.circular(
+                                            14,
                                           ),
                                         ),
-                                        itemBuilder: (context, rowIndex) {
-                                          final firstSeat = rowIndex * 4 + 1;
-                                          final isRearRow =
-                                              rowIndex == rowCount - 1;
-                                          if (hasRearAisleSeat && isRearRow) {
-                                            return Row(
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.end,
+                                          children: [
+                                            Row(
+                                              mainAxisSize: MainAxisSize.min,
                                               children: [
-                                                Expanded(
-                                                  child: _seatButton(
-                                                    firstSeat,
-                                                    trip.totalSeats,
-                                                    occupiedSeats,
+                                                Container(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 14,
+                                                        vertical: 10,
+                                                      ),
+                                                  decoration: BoxDecoration(
+                                                    color:
+                                                        Colors.amber.shade600,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          10,
+                                                        ),
+                                                  ),
+                                                  child: const Text(
+                                                    'DOOR',
+                                                    style: TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      letterSpacing: 2,
+                                                    ),
                                                   ),
                                                 ),
-                                                Expanded(
+                                                const SizedBox(width: 14),
+                                                SizedBox(
+                                                  width: 58,
                                                   child: _seatButton(
-                                                    firstSeat + 1,
-                                                    trip.totalSeats,
-                                                    occupiedSeats,
-                                                  ),
-                                                ),
-                                                Expanded(
-                                                  child: _seatButton(
-                                                    trip.totalSeats,
-                                                    trip.totalSeats,
-                                                    occupiedSeats,
-                                                  ),
-                                                ),
-                                                Expanded(
-                                                  child: _seatButton(
-                                                    firstSeat + 2,
-                                                    trip.totalSeats,
-                                                    occupiedSeats,
-                                                  ),
-                                                ),
-                                                Expanded(
-                                                  child: _seatButton(
-                                                    firstSeat + 3,
-                                                    trip.totalSeats,
+                                                    1,
+                                                    _busSeatCount,
                                                     occupiedSeats,
                                                   ),
                                                 ),
                                               ],
-                                            );
-                                          }
-
-                                          final seatsInRow =
-                                              (standardSeatCount -
-                                                      firstSeat +
-                                                      1)
-                                                  .clamp(0, 4);
-                                          return Row(
-                                            children: [
-                                              for (
-                                                var offset = 0;
-                                                offset < 2;
-                                                offset++
-                                              )
-                                                _seatSlot(
-                                                  firstSeat + offset,
-                                                  offset < seatsInRow,
-                                                  trip.totalSeats,
-                                                  occupiedSeats,
-                                                ),
-                                              SizedBox(
-                                                width: 30,
-                                                child: Container(
-                                                  color: Colors
-                                                      .deepPurple
-                                                      .shade100,
-                                                  alignment: Alignment.center,
-                                                  child: RotatedBox(
-                                                    quarterTurns: 3,
-                                                    child: Text(
-                                                      rowIndex == 0
-                                                          ? 'AISLE'
-                                                          : '',
-                                                      style: TextStyle(
+                                            ),
+                                            Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.end,
+                                              children: [
+                                                Column(
+                                                  children: [
+                                                    Container(
+                                                      width: 54,
+                                                      height: 54,
+                                                      decoration: BoxDecoration(
                                                         color: Colors
-                                                            .deepPurple
-                                                            .shade300,
-                                                        fontSize: 9,
-                                                        fontWeight:
-                                                            FontWeight.w600,
+                                                            .blueGrey
+                                                            .shade900,
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              14,
+                                                            ),
+                                                      ),
+                                                      child: const Column(
+                                                        mainAxisAlignment:
+                                                            MainAxisAlignment
+                                                                .center,
+                                                        children: [
+                                                          Icon(
+                                                            Icons.event_seat,
+                                                            color: Colors.white,
+                                                            size: 28,
+                                                          ),
+                                                          Text(
+                                                            'DRV',
+                                                            style: TextStyle(
+                                                              color:
+                                                                  Colors.amber,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 3),
+                                                    const Text(
+                                                      'DRIVER',
+                                                      style: TextStyle(
+                                                        fontSize: 11,
                                                         letterSpacing: 1,
                                                       ),
                                                     ),
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: ListView.separated(
+                                          padding: const EdgeInsets.all(12),
+                                          itemCount: rowCount,
+                                          separatorBuilder: (_, _) => SizedBox(
+                                            height: 8,
+                                            child: Row(
+                                              children: [
+                                                const Expanded(
+                                                  child: SizedBox.shrink(),
+                                                ),
+                                                Container(
+                                                  width: 32,
+                                                  color: Colors
+                                                      .deepPurple
+                                                      .shade100,
+                                                ),
+                                                const Expanded(
+                                                  child: SizedBox.shrink(),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          itemBuilder: (context, rowIndex) {
+                                            final isRearRow =
+                                                rowIndex == standardRowCount;
+                                            final firstSeat = isRearRow
+                                                ? standardSeatCount + 2
+                                                : rowIndex * 5 + 2;
+                                            final seatsInRow = isRearRow
+                                                ? rearRowSeatCount
+                                                : (standardSeatCount -
+                                                          rowIndex * 5)
+                                                      .clamp(0, 5);
+
+                                            if (isRearRow &&
+                                                rearRowSeatCount == 6) {
+                                              return Row(
+                                                children: [
+                                                  for (
+                                                    var offset = 0;
+                                                    offset < 2;
+                                                    offset++
+                                                  )
+                                                    _seatSlot(
+                                                      firstSeat + offset,
+                                                      true,
+                                                      _busSeatCount,
+                                                      occupiedSeats,
+                                                      isAdminSeat:
+                                                          firstSeat + offset ==
+                                                          _adminSeat,
+                                                    ),
+                                                  SizedBox(
+                                                    width: 42,
+                                                    child: _seatButton(
+                                                      firstSeat + 2,
+                                                      _busSeatCount,
+                                                      occupiedSeats,
+                                                      isAdminSeat:
+                                                          firstSeat + 2 ==
+                                                          _adminSeat,
+                                                    ),
+                                                  ),
+                                                  for (
+                                                    var offset = 3;
+                                                    offset < 6;
+                                                    offset++
+                                                  )
+                                                    _seatSlot(
+                                                      firstSeat + offset,
+                                                      true,
+                                                      _busSeatCount,
+                                                      occupiedSeats,
+                                                    ),
+                                                ],
+                                              );
+                                            }
+
+                                            return Row(
+                                              children: [
+                                                for (
+                                                  var offset = 0;
+                                                  offset < 2;
+                                                  offset++
+                                                )
+                                                  _seatSlot(
+                                                    firstSeat + offset,
+                                                    offset < seatsInRow,
+                                                    _busSeatCount,
+                                                    occupiedSeats,
+                                                    isAdminSeat:
+                                                        firstSeat + offset ==
+                                                        _adminSeat,
+                                                  ),
+                                                SizedBox(
+                                                  width: 32,
+                                                  child: Container(
+                                                    color: Colors
+                                                        .deepPurple
+                                                        .shade100,
                                                   ),
                                                 ),
-                                              ),
-                                              for (
-                                                var offset = 2;
-                                                offset < 4;
-                                                offset++
-                                              )
-                                                _seatSlot(
-                                                  firstSeat + offset,
-                                                  offset < seatsInRow,
-                                                  trip.totalSeats,
-                                                  occupiedSeats,
-                                                ),
-                                            ],
-                                          );
-                                        },
+                                                for (
+                                                  var offset = 2;
+                                                  offset < 5;
+                                                  offset++
+                                                )
+                                                  _seatSlot(
+                                                    firstSeat + offset,
+                                                    offset < seatsInRow,
+                                                    _busSeatCount,
+                                                    occupiedSeats,
+                                                    isAdminSeat:
+                                                        firstSeat + offset ==
+                                                        _adminSeat,
+                                                  ),
+                                              ],
+                                            );
+                                          },
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
@@ -390,38 +488,63 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
     int seat,
     bool hasSeat,
     int totalSeats,
-    Set<int> occupiedSeats,
-  ) {
+    Set<int> occupiedSeats, {
+    bool isAdminSeat = false,
+  }) {
     if (!hasSeat || seat > totalSeats) {
       return const Expanded(child: SizedBox(height: 60));
     }
-    return Expanded(child: _seatButton(seat, totalSeats, occupiedSeats));
+    return Expanded(
+      child: _seatButton(
+        seat,
+        totalSeats,
+        occupiedSeats,
+        isAdminSeat: isAdminSeat,
+      ),
+    );
   }
 
-  Widget _seatButton(int seat, int totalSeats, Set<int> occupiedSeats) {
+  Widget _seatButton(
+    int seat,
+    int totalSeats,
+    Set<int> occupiedSeats, {
+    bool isAdminSeat = false,
+  }) {
     if (seat > totalSeats) return const SizedBox(height: 60);
 
     final booked = occupiedSeats.contains(seat);
+    final reserved = isAdminSeat;
     final selected = selectedSeats.contains(seat);
-    final color = booked
-        ? Colors.deepPurple.shade400
+    final backgroundColor = reserved
+        ? Colors.amber.shade100
+        : booked
+        ? Colors.blueGrey.shade100
         : selected
-        ? Colors.deepPurple.shade900
-        : Colors.deepPurple.shade500;
+        ? Colors.green.shade700
+        : Colors.white;
+    final foregroundColor = reserved
+        ? Colors.brown.shade800
+        : booked
+        ? Colors.blueGrey.shade600
+        : selected
+        ? Colors.white
+        : Colors.deepPurple.shade600;
+    final statusLabel = reserved
+        ? 'reserved for admin'
+        : booked
+        ? 'booked'
+        : selected
+        ? 'selected'
+        : 'available';
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 3),
       child: Semantics(
         button: true,
-        enabled: !booked,
-        label:
-            'Seat $seat, ${booked
-                ? 'booked'
-                : selected
-                ? 'selected'
-                : 'available'}',
+        enabled: !booked && !reserved,
+        label: 'Seat $seat, $statusLabel',
         child: InkWell(
-          onTap: booked
+          onTap: booked || reserved
               ? null
               : () {
                   setState(() {
@@ -438,16 +561,49 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                     }
                   });
                 },
-          child: SizedBox(
-            height: 60,
+          child: Container(
+            key: ValueKey('seat-$seat'),
+            height: 54,
+            decoration: BoxDecoration(
+              color: backgroundColor,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: reserved
+                    ? Colors.amber.shade700
+                    : booked
+                    ? Colors.blueGrey.shade200
+                    : selected
+                    ? Colors.green.shade800
+                    : Colors.deepPurple.shade100,
+                width: selected || reserved ? 2 : 1,
+              ),
+            ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.event_seat, size: selected ? 28 : 24, color: color),
+                if (!reserved)
+                  Icon(
+                    Icons.event_seat,
+                    size: selected ? 26 : 23,
+                    color: foregroundColor,
+                  ),
                 Text(
                   '$seat',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    color: foregroundColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: reserved ? 11 : null,
+                  ),
                 ),
+                if (reserved)
+                  Text(
+                    'ADMIN',
+                    style: TextStyle(
+                      color: foregroundColor,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
               ],
             ),
           ),
