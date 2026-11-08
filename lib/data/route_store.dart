@@ -1,0 +1,108 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../models/route_model.dart';
+import 'sample_data.dart';
+
+class RouteStore {
+  RouteStore._();
+
+  static final RouteStore instance = RouteStore._();
+  static const _storageKey = 'admin_routes_v1';
+
+  final ValueNotifier<int> changes = ValueNotifier(0);
+  List<RouteModel> _routes = List.of(sampleRoutes);
+  bool _loaded = false;
+  Future<void>? _loadFuture;
+
+  List<RouteModel> get routes => List.unmodifiable(_routes);
+  bool get isLoaded => _loaded;
+
+  Future<void> load() {
+    if (_loaded) return Future<void>.value();
+    return _loadFuture ??= _load().catchError((
+      Object error,
+      StackTrace stackTrace,
+    ) {
+      _loadFuture = null;
+      Error.throwWithStackTrace(error, stackTrace);
+    });
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getString(_storageKey);
+    if (stored != null) {
+      final values = jsonDecode(stored) as List<dynamic>;
+      _routes = values
+          .map((value) => RouteModel.fromJson(value as Map<String, dynamic>))
+          .toList();
+    } else {
+      await _persist(preferences: prefs);
+    }
+    _loaded = true;
+    changes.value++;
+  }
+
+  Future<void> saveRoute(RouteModel route) async {
+    await load();
+    final index = _routes.indexWhere((item) => item.id == route.id);
+    final updatedRoutes = index == -1
+        ? [..._routes, route]
+        : [
+            for (var i = 0; i < _routes.length; i++)
+              if (i == index) route else _routes[i],
+          ];
+    await _persist(routes: updatedRoutes);
+    _routes = updatedRoutes;
+    changes.value++;
+  }
+
+  Future<void> removeRoute(String id) async {
+    await load();
+    final updatedRoutes = _routes.where((route) => route.id != id).toList();
+    await _persist(routes: updatedRoutes);
+    _routes = updatedRoutes;
+    changes.value++;
+  }
+
+  Future<void> _persist({
+    SharedPreferences? preferences,
+    List<RouteModel>? routes,
+  }) async {
+    final prefs = preferences ?? await SharedPreferences.getInstance();
+    final saved = await prefs.setString(
+      _storageKey,
+      jsonEncode((routes ?? _routes).map((route) => route.toJson()).toList()),
+    );
+    if (!saved) {
+      throw StateError('Routes could not be saved on this device.');
+    }
+  }
+
+  List<RouteModel> searchRoutes({String origin = '', String destination = ''}) {
+    final normalizedOrigin = _normalize(origin);
+    final normalizedDestination = _normalize(destination);
+    if (normalizedOrigin.isEmpty && normalizedDestination.isEmpty) {
+      return const [];
+    }
+
+    return _routes.where((route) {
+      if (!route.active) return false;
+      return _matchesEndpoint(route.origin, normalizedOrigin) &&
+          _matchesEndpoint(route.destination, normalizedDestination);
+    }).toList();
+  }
+
+  String _normalize(String value) =>
+      value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+
+  bool _matchesEndpoint(String endpoint, String query) {
+    if (query.isEmpty) return true;
+    final normalizedEndpoint = _normalize(endpoint);
+    return normalizedEndpoint.contains(query) ||
+        query.contains(normalizedEndpoint);
+  }
+}

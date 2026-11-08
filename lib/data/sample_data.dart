@@ -1,12 +1,12 @@
 import '../models/route_model.dart';
-
+import '../models/trip_model.dart';
 
 RouteModel _makeRoute(
   String id,
   String origin,
   String destination,
   double fare,
-) {           
+) {
   return RouteModel(
     id: id,
     companyName: 'MOVA',
@@ -17,7 +17,6 @@ RouteModel _makeRoute(
     fare: fare,
   );
 }
-
 
 final List<RouteModel> sampleRoutes = [
   // Fares from Blantyre
@@ -63,7 +62,47 @@ const double returnTicketDiscount = 10000;
 const List<String> sampleNotifications = [
   'Welcome to MOVA.',
   'Check your selected journey and fare before booking.',
-  'Reference fares are based on the SoSoSo Coaches poster '
-      'effective 3 April 2026. Confirm fares before travelling.',
+  'Confirm the applicable fare and schedule with the transport operator '
+      'before travelling.',
 ];
 
+final List<Trip> sampleTrips = [
+  Trip(
+    id: 'TRIP001',
+    origin: 'Lilongwe',
+    destination: 'Blantyre',
+    departureTime: DateTime(2026, 11, 1, 7, 0),
+    arrivalTime: DateTime(2026, 11, 1, 12, 0),
+    fare: 25000,
+    totalSeats: 41,
+    bookedSeats: [3, 7, 12],
+    transportMode: 'Bus',
+    operatorName: 'MOVA Express',
+    routeName: 'M1',
+  ),
+  Trip(
+    id: 'TRIP002',
+    origin: 'Lilongwe',
+    destination: 'Mzuzu',
+    departureTime: DateTime(2026, 11, 1, 8, 30),
+    arrivalTime: DateTime(2026, 11, 1, 13, 0),
+    fare: 18000,
+    totalSeats: 32,
+    bookedSeats: [2, 5, 9],
+    transportMode: 'Bus',
+    operatorName: 'Northern Express',
+    routeName: 'M1',
+  ),
+  Trip(
+    id: 'TRIP003',
+    origin: 'Blantyre',
+    destination: 'Lilongwe',
+    departureTime: DateTime(2026, 11, 1, 6, 0),
+    arrivalTime: DateTime(2026, 11, 1, 11, 0),
+    fare: 25000,
+    totalSeats: 41,
+    bookedSeats: [1, 4, 10],
+    transportMode: 'Bus',
+    operatorName: 'MOVA Express',
+  ),
+];
