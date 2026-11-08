@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:mova/main.dart';
@@ -18,7 +19,37 @@ import 'package:mova/screens/user/route_details_screen.dart';
 import 'package:mova/screens/user/route_directions_details_screen.dart';
 import 'package:mova/screens/user/results_screen.dart';
 import 'package:mova/services/auth_service.dart';
+import 'package:mova/services/openstreetmap_service.dart';
 import 'package:mova/widgets/route_card.dart';
+
+class _FakeOpenStreetMapService extends OpenStreetMapService {
+  static const _point = LatLng(-13.96, 33.78);
+  static const _route = OsmRouteModel(
+    id: 'route-1',
+    geoJson: {
+      'type': 'LineString',
+      'coordinates': [
+        [33.78, -13.96],
+        [34.00, -14.10],
+      ],
+    },
+    distanceMeters: 10000,
+    durationSeconds: 3600,
+    steps: [],
+  );
+
+  @override
+  Future<LatLng> findPlace(String query) async => _point;
+
+  @override
+  Future<LatLng> currentPosition() async => _point;
+
+  @override
+  Future<List<OsmRouteModel>> findRoutes({
+    required LatLng origin,
+    required LatLng destination,
+  }) async => const [_route];
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -237,10 +268,11 @@ void main() {
     );
 
     await tester.pumpWidget(
-      const MaterialApp(
+      MaterialApp(
         home: ResultsScreen(
           origin: 'Configured Origin',
           destination: 'Configured Destination',
+          openStreetMapService: _FakeOpenStreetMapService(),
         ),
       ),
     );
@@ -254,6 +286,94 @@ void main() {
     expect(find.textContaining('Estimated fare'), findsNothing);
     await store.removeRoute('PASSENGER-ROUTE-RESULT-TEST');
   });
+
+  testWidgets('Destination search passes the Home location to results', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(
+      MaterialApp(
+        home: const HomeScreen(),
+        routes: {
+          '/results': (context) => Scaffold(
+            body: Text(ModalRoute.of(context)!.settings.arguments.toString()),
+          ),
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(TextField).first);
+    await tester.pumpAndSettle();
+    expect(find.text('Where are you heading?'), findsOneWidget);
+    await tester.tap(find.text('Lilongwe City Centre'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('origin: Zomba'), findsOneWidget);
+    expect(find.textContaining('Lilongwe City Centre'), findsOneWidget);
+  });
+
+  testWidgets('Destination search matches destinations along admin stops', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final store = RouteStore.instance;
+    const route = RouteModel(
+      id: 'SEARCH-STOP-ROUTE-TEST',
+      companyName: 'Test Transit',
+      name: 'Zomba - Lilongwe',
+      origin: 'Zomba',
+      destination: 'Lilongwe',
+      stops: ['Zomba', 'Machinga', 'Lilongwe'],
+      fare: 12345,
+    );
+    await store.saveRoute(route);
+    addTearDown(() => store.removeRoute(route.id));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ResultsScreen(
+          origin: 'Machinga',
+          destination: 'Lilongwe City Centre',
+          openStreetMapService: _FakeOpenStreetMapService(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Zomba → Lilongwe'), findsOneWidget);
+    expect(find.textContaining('Fare: MWK 12345'), findsOneWidget);
+    expect(
+      find.text('This route is not defined by the administrator.'),
+      findsNothing,
+    );
+  });
+
+  testWidgets(
+    'Unconfigured destination falls back to map routes with warning',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ResultsScreen(
+            destination: 'Test Destination',
+            openStreetMapService: _FakeOpenStreetMapService(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining('This route is not defined by the administrator.'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Your current location'), findsOneWidget);
+      expect(find.text('Map directions'), findsOneWidget);
+      expect(find.textContaining('Estimated fare: MWK 2200'), findsOneWidget);
+    },
+  );
 
   testWidgets('Admin fare edits update only the selected route', (
     tester,
