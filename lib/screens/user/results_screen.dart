@@ -10,6 +10,7 @@ import '../../utils/malawi_map.dart';
 import '../../utils/malawi_route_names.dart';
 import 'route_details_screen.dart';
 import 'route_directions_details_screen.dart';
+import 'booking/select_trip_screen.dart';
 
 class ResultsScreen extends StatefulWidget {
   final String origin;
@@ -284,8 +285,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
       (route.distanceMeters / 1000 * 220).roundToDouble();
 
   void _compareRoutes() {
-    final configuredRoute = _selectedRoute;
-    if (configuredRoute == null || _mapRoutes.length < 2) {
+    if (_mapRoutes.length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('There are no map alternatives to compare.'),
@@ -304,7 +304,9 @@ class _ResultsScreenState extends State<ResultsScreen> {
       MaterialPageRoute(
         builder: (_) => CompareRoutesScreen(
           routes: comparisonRoutes,
-          configuredRoute: configuredRoute,
+          origin: _selectedRoute?.origin ?? _displayOrigin,
+          destination: _selectedRoute?.destination ?? _effectiveDestination,
+          configuredRoute: _selectedRoute,
         ),
       ),
     );
@@ -671,11 +673,15 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
 class CompareRoutesScreen extends StatefulWidget {
   final List<OsmRouteModel> routes;
-  final RouteModel configuredRoute;
+  final String origin;
+  final String destination;
+  final RouteModel? configuredRoute;
 
   const CompareRoutesScreen({
     super.key,
     required this.routes,
+    required this.origin,
+    required this.destination,
     required this.configuredRoute,
   });
 
@@ -686,17 +692,57 @@ class CompareRoutesScreen extends StatefulWidget {
 class _CompareRoutesScreenState extends State<CompareRoutesScreen> {
   int _selectedRouteIndex = 0;
 
+  double _estimatedFare(OsmRouteModel route) =>
+      (route.distanceMeters / 1000 * 220).roundToDouble();
+
+  RouteModel _routeForBooking(int index) {
+    final mapRoute = widget.routes[index];
+    final configuredRoute = widget.configuredRoute;
+    if (configuredRoute != null) {
+      return configuredRoute.copyWith(
+        name: '${configuredRoute.name} · Map option ${index + 1}',
+        duration: mapRoute.durationLabel,
+        mapDistance: mapRoute.distanceLabel,
+      );
+    }
+
+    return RouteModel(
+      id: mapRoute.id,
+      companyName: 'Map route estimate',
+      name: 'Map option ${index + 1}: ${mapRoute.routeName}',
+      origin: widget.origin,
+      destination: widget.destination,
+      stops: [widget.origin, widget.destination],
+      fare: _estimatedFare(mapRoute),
+      duration: mapRoute.durationLabel,
+      mapDistance: mapRoute.distanceLabel,
+      transfers: 0,
+      fareIsEstimate: true,
+    );
+  }
+
+  void _bookMapOption(int index) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SelectTripScreen(initialRoute: _routeForBooking(index)),
+      ),
+    );
+  }
+
   void _continueWithSelectedRoute() {
     final selectedMapRoute = widget.routes[_selectedRouteIndex];
+    final configuredRoute = widget.configuredRoute;
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => RouteDirectionsDetailsScreen(
           route: selectedMapRoute,
-          origin: widget.configuredRoute.origin,
-          destination: widget.configuredRoute.destination,
-          estimatedFare: widget.configuredRoute.fare,
-          configuredRoute: widget.configuredRoute,
+          origin: widget.origin,
+          destination: widget.destination,
+          estimatedFare:
+              configuredRoute?.fare ?? _estimatedFare(selectedMapRoute),
+          configuredRoute: configuredRoute,
         ),
       ),
     );
@@ -717,8 +763,7 @@ class _CompareRoutesScreenState extends State<CompareRoutesScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '${widget.configuredRoute.origin} → '
-                '${widget.configuredRoute.destination}',
+                '${widget.origin} → ${widget.destination}',
                 style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -726,9 +771,13 @@ class _CompareRoutesScreenState extends State<CompareRoutesScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Driving directions for ${widget.configuredRoute.name}. '
-                'The administrator-set fare is MWK '
-                '${widget.configuredRoute.fare.toStringAsFixed(0)}.',
+                widget.configuredRoute == null
+                    ? 'Choose a map option to search for scheduled trips. '
+                          'The displayed map fare is an estimate.'
+                    : 'Driving directions for '
+                          '${widget.configuredRoute!.name}. '
+                          'The administrator-set fare is MWK '
+                          '${widget.configuredRoute!.fare.toStringAsFixed(0)}.',
                 style: const TextStyle(color: Colors.black54),
               ),
               const SizedBox(height: 16),
@@ -743,12 +792,42 @@ class _CompareRoutesScreenState extends State<CompareRoutesScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Map option ${index + 1}',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        Row(
+                          key: ValueKey('map-option-header-$index'),
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Map option ${index + 1}',
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            FilledButton.icon(
+                              key: ValueKey('book-map-option-$index'),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: Colors.deepPurple,
+                                foregroundColor: Colors.white,
+                                minimumSize: const Size(0, 36),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                ),
+                                visualDensity: VisualDensity.compact,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              onPressed: () => _bookMapOption(index),
+                              icon: const Icon(
+                                Icons.confirmation_number_outlined,
+                                size: 16,
+                              ),
+                              label: const Text(
+                                'Book now',
+                                style: TextStyle(fontSize: 13),
+                              ),
+                            ),
+                          ],
                         ),
                         InkWell(
                           key: ValueKey('route-option-selector-$index'),
@@ -781,9 +860,12 @@ class _CompareRoutesScreenState extends State<CompareRoutesScreen> {
                           value: widget.routes[index].roadNamesLabel,
                         ),
                         _ComparisonMetric(
-                          label: 'Administrator-set fare',
+                          label: widget.configuredRoute == null
+                              ? 'Estimated map fare'
+                              : 'Administrator-set fare',
                           value:
-                              'MWK ${widget.configuredRoute.fare.toStringAsFixed(0)}',
+                              'MWK '
+                              '${(widget.configuredRoute?.fare ?? _estimatedFare(widget.routes[index])).toStringAsFixed(0)}',
                         ),
                       ],
                     ),
@@ -797,7 +879,7 @@ class _CompareRoutesScreenState extends State<CompareRoutesScreen> {
                       ? null
                       : _continueWithSelectedRoute,
                   icon: const Icon(Icons.check_circle_outline),
-                  label: const Text('View configured route'),
+                  label: const Text('View selected map option'),
                 ),
               ),
             ],

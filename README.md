@@ -22,17 +22,17 @@ The use cases below describe the current prototype. “System” refers to the M
 
 - **Primary actor:** Passenger
 - **Precondition:** Route data is available in the app.
-- **Main flow:** The passenger browses routes or enters an origin and destination. The system displays matching active routes. The passenger selects a route to view its stops, pickup/drop-off information, operator, fare, and available route details.
+- **Main flow:** The passenger browses routes or enters an origin and destination. The system displays matching active routes and available map directions. The passenger can compare map options, review each option's distance, duration, and fare, and select **Book now** on the preferred option to search for scheduled trips for that journey. The passenger can also view route stops, pickup/drop-off information, operator, and fare.
 - **Alternative flows:** If no route matches, the system shows no results. The passenger may search a destination or request map directions; online map services or device location may be unavailable.
-- **Related requirements:** FR-02–FR-05
+- **Related requirements:** FR-02–FR-05, FR-12
 
 ### UC-03 — Search scheduled trips and select seats
 
 - **Primary actor:** Passenger
 - **Precondition:** At least one future schedule is stored on the device.
-- **Main flow:** The passenger enters an origin, destination, and travel date. The system lists matching future trips. The passenger selects a trip, chooses up to five available seats, and continues to passenger details.
+- **Main flow:** The passenger enters an origin, destination, and travel date, either directly or after selecting **Book now** for a map option. The system lists matching future trips. The passenger selects a trip, chooses up to five available seats, and continues to passenger details.
 - **Alternative flows:** If no scheduled trip matches, the system reports that no trips are available. Occupied seats cannot be selected; if a seat becomes unavailable before the booking is saved, the system rejects the booking and asks the passenger to choose again.
-- **Related requirements:** FR-06–FR-07
+- **Related requirements:** FR-06–FR-07, FR-12
 
 ### UC-04 — Review and pay for a booking
 
@@ -48,7 +48,7 @@ The use cases below describe the current prototype. “System” refers to the M
 - **Precondition:** The administrator is signed in with the admin role.
 - **Main flow:** The administrator adds or edits a route, configures its origin and destination, manages intermediate stops, and sets a positive fare in MWK. The administrator may activate/deactivate or delete a route. Changes are saved locally and reflected in passenger route data on this device.
 - **Alternative flows:** Invalid or duplicate route details are rejected. The origin and destination stops cannot be removed from a route.
-- **Related requirements:** FR-12–FR-14
+- **Related requirements:** FR-13–FR-15
 
 ### UC-06 — Manage trip schedules
 
@@ -56,7 +56,7 @@ The use cases below describe the current prototype. “System” refers to the M
 - **Precondition:** The administrator is signed in with the admin role.
 - **Main flow:** The administrator adds or edits a schedule's origin, destination, departure and arrival times, fare, and route/operator details. The system validates the schedule and saves it locally. The administrator can review availability and delete schedules.
 - **Alternative flows:** The system rejects invalid date/time values, a departure in the past, an arrival that is not after departure, or a non-positive fare.
-- **Related requirements:** FR-15–FR-16
+- **Related requirements:** FR-16–FR-17
 
 ### UC-07 — Review passenger bookings
 
@@ -64,7 +64,7 @@ The use cases below describe the current prototype. “System” refers to the M
 - **Precondition:** The administrator is signed in and booking data is available on this device.
 - **Main flow:** The administrator opens bookings and reviews each booking's reference, passenger details, trip, selected seats, amount, payment method, and status.
 - **Alternative flows:** If there are no bookings, the system displays an empty-state message.
-- **Related requirements:** FR-16
+- **Related requirements:** FR-17
 
 ## Functional requirements
 
@@ -83,16 +83,17 @@ The use cases below describe the current prototype. “System” refers to the M
 | FR-09 | The application shall create a unique booking reference, retain booking details and status on the device, and let the passenger view booking history. | Implemented with local persistence. |
 | FR-10 | The application shall offer Mobile Money and Bank Card checkout options and show the result of the checkout flow. | Implemented as a simulation only; no payment is processed. |
 | FR-11 | The application shall show an in-app confirmation notification when a simulated payment completes. | Implemented for payment confirmations; notifications are not sent by SMS or email. |
+| FR-12 | When multiple map-route options are available for a destination search, the application shall show a **Book now** action for each option and pass the chosen option into scheduled-trip search. | Implemented on the map-options comparison screen. A configured operator route retains its published fare; a map-only option uses an explicitly estimated fare. |
 
 ### Company administrator
 
 | ID | Requirement | Status |
 | --- | --- | --- |
-| FR-12 | An administrator shall be able to create, edit, activate/deactivate, and delete routes. | Implemented locally. |
-| FR-13 | An administrator shall be able to add or remove intermediate stops while retaining each route's origin and destination. | Implemented locally. |
-| FR-14 | An administrator shall be able to set a positive MWK fare for a route. Passengers shall not edit that fare. | Implemented locally; map-based estimates are separate from configured route fares. |
-| FR-15 | An administrator shall be able to create, edit, and delete bus schedules, including origin, destination, departure and arrival times, fare, and operator/route details. | Implemented locally; schedules require a future departure and arrival after departure. |
-| FR-16 | An administrator shall be able to view scheduled-trip seat availability and inspect passenger booking and payment-status details. | Implemented locally. |
+| FR-13 | An administrator shall be able to create, edit, activate/deactivate, and delete routes. | Implemented locally. |
+| FR-14 | An administrator shall be able to add or remove intermediate stops while retaining each route's origin and destination. | Implemented locally. |
+| FR-15 | An administrator shall be able to set a positive MWK fare for a route. Passengers shall not edit that fare. | Implemented locally; map-based estimates are separate from configured route fares. |
+| FR-16 | An administrator shall be able to create, edit, and delete bus schedules, including origin, destination, departure and arrival times, fare, and operator/route details. | Implemented locally; schedules require a future departure and arrival after departure. |
+| FR-17 | An administrator shall be able to view scheduled-trip seat availability and inspect passenger booking and payment-status details. | Implemented locally. |
 
 ## Non-functional requirements
 
