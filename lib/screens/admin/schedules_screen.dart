@@ -126,8 +126,8 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
                 return;
               }
 
-              if ((existing?.bookedSeats.length ?? 0) > 40) {
-                _message('Booked seats cannot exceed 40.');
+              if ((existing?.bookedSeats.length ?? 0) > 42) {
+                _message('Booked seats cannot exceed 42.');
                 return;
               }
 
@@ -146,7 +146,7 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
                   departureTime: departureTime,
                   arrivalTime: arrivalTime,
                   fare: amount,
-                  totalSeats: 40,
+                  totalSeats: 42,
                   bookedSeats: existing?.bookedSeats ?? const [],
                   operatorName: selectedBus,
                   routeName: routeName.text.trim(),
