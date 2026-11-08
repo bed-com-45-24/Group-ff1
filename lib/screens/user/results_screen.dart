@@ -14,8 +14,14 @@ import 'route_directions_details_screen.dart';
 class ResultsScreen extends StatefulWidget {
   final String origin;
   final String destination;
+  final OpenStreetMapService? openStreetMapService;
 
-  const ResultsScreen({super.key, this.origin = '', this.destination = ''});
+  const ResultsScreen({
+    super.key,
+    this.origin = '',
+    this.destination = '',
+    this.openStreetMapService,
+  });
 
   @override
   State<ResultsScreen> createState() => _ResultsScreenState();
@@ -36,6 +42,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
   String? _activeMapRouteId;
   bool _loading = true;
   bool _loadingMap = false;
+  bool _usingMapFallback = false;
   bool _readArguments = false;
   int _mapRequestId = 0;
 
@@ -52,6 +59,12 @@ class _ResultsScreenState extends State<ResultsScreen> {
                     _searchArguments?['address']?.toString() ??
                     '')
           .trim();
+
+  String get _displayOrigin =>
+      _effectiveOrigin.isEmpty ? 'Your current location' : _effectiveOrigin;
+
+  OpenStreetMapService get _mapService =>
+      widget.openStreetMapService ?? _openStreetMap;
 
   RouteModel? get _selectedRoute {
     for (final route in _routes) {
@@ -99,33 +112,39 @@ class _ResultsScreenState extends State<ResultsScreen> {
       _destinationPoint = null;
       _selectedRouteId = null;
       _activeMapRouteId = null;
+      _usingMapFallback = false;
     });
 
     try {
       await _store.load();
       final destinationQueries = {
-        _effectiveDestination,
+        _searchArguments?['name']?.toString().trim() ?? _effectiveDestination,
         _searchArguments?['address']?.toString().trim() ?? '',
       }..remove('');
-      final routesById = <String, RouteModel>{};
-      for (final destination in destinationQueries) {
-        for (final route in _store.searchRoutes(
-          origin: _effectiveOrigin,
-          destination: destination,
-        )) {
-          routesById.putIfAbsent(route.id, () => route);
-        }
-      }
-      final routes = routesById.values.toList();
+      final routes = _store.routes
+          .where(
+            (route) =>
+                route.active &&
+                _routeMatchesSearch(
+                  route,
+                  _effectiveOrigin,
+                  destinationQueries,
+                ),
+          )
+          .toList();
       if (!mounted) return;
       setState(() {
         _routes = routes;
         _selectedRouteId = routes.firstOrNull?.id;
+        _usingMapFallback = routes.isEmpty;
         _loading = false;
       });
-      if (routes.isNotEmpty) {
-        await _loadMapRoute(routes.first);
-      }
+      await _loadMapRoute(
+        origin: _effectiveOrigin.isEmpty
+            ? routes.firstOrNull?.origin ?? ''
+            : _effectiveOrigin,
+        destination: _effectiveDestination,
+      );
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -135,7 +154,38 @@ class _ResultsScreenState extends State<ResultsScreen> {
     }
   }
 
-  Future<void> _loadMapRoute(RouteModel route) async {
+  bool _routeMatchesSearch(
+    RouteModel route,
+    String origin,
+    Set<String> destinations,
+  ) {
+    if (origin.trim().isEmpty) return false;
+    final stops = <String>[route.origin, ...route.stops, route.destination];
+    final originIndex = stops.indexWhere((stop) => _matchesPlace(stop, origin));
+    if (originIndex == -1) return false;
+    return destinations.any((destination) {
+      return stops.asMap().entries.any(
+        (entry) =>
+            entry.key > originIndex && _matchesPlace(entry.value, destination),
+      );
+    });
+  }
+
+  bool _matchesPlace(String first, String second) {
+    final normalizedFirst = _normalizePlace(first);
+    final normalizedSecond = _normalizePlace(second);
+    if (normalizedFirst.isEmpty || normalizedSecond.isEmpty) return false;
+    return normalizedFirst.contains(normalizedSecond) ||
+        normalizedSecond.contains(normalizedFirst);
+  }
+
+  String _normalizePlace(String value) =>
+      value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+
+  Future<void> _loadMapRoute({
+    required String origin,
+    required String destination,
+  }) async {
     final requestId = ++_mapRequestId;
     setState(() {
       _loadingMap = true;
@@ -147,17 +197,37 @@ class _ResultsScreenState extends State<ResultsScreen> {
     });
 
     try {
-      final origin = await _openStreetMap.findPlace(route.origin);
-      await Future<void>.delayed(const Duration(seconds: 1));
-      final destination = await _openStreetMap.findPlace(route.destination);
-      final mapRoutes = await _openStreetMap.findRoutes(
-        origin: origin,
-        destination: destination,
+      final originLatitude = double.tryParse(
+        _searchArguments?['originLatitude']?.toString() ?? '',
+      );
+      final originLongitude = double.tryParse(
+        _searchArguments?['originLongitude']?.toString() ?? '',
+      );
+      final originPoint = originLatitude != null && originLongitude != null
+          ? LatLng(originLatitude, originLongitude)
+          : origin.trim().isEmpty
+          ? await _mapService.currentPosition()
+          : await _mapService.findPlace(origin);
+      final destinationLatitude = double.tryParse(
+        _searchArguments?['latitude']?.toString() ?? '',
+      );
+      final destinationLongitude = double.tryParse(
+        _searchArguments?['longitude']?.toString() ?? '',
+      );
+      final destinationPoint =
+          destinationLatitude != null && destinationLongitude != null
+          ? LatLng(destinationLatitude, destinationLongitude)
+          : await _mapService.findPlace(
+              _searchArguments?['address']?.toString() ?? destination,
+            );
+      final mapRoutes = await _mapService.findRoutes(
+        origin: originPoint,
+        destination: destinationPoint,
       );
       if (!mounted || requestId != _mapRequestId) return;
       setState(() {
-        _originPoint = origin;
-        _destinationPoint = destination;
+        _originPoint = originPoint;
+        _destinationPoint = destinationPoint;
         _mapRoutes = mapRoutes;
         _activeMapRouteId = mapRoutes.firstOrNull?.id;
         _loadingMap = false;
@@ -173,7 +243,10 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
   Future<void> _selectRoute(RouteModel route) async {
     setState(() => _selectedRouteId = route.id);
-    await _loadMapRoute(route);
+    await _loadMapRoute(
+      origin: _effectiveOrigin.isEmpty ? route.origin : _effectiveOrigin,
+      destination: _effectiveDestination,
+    );
   }
 
   void _fitMap(OsmRouteModel route) {
@@ -206,6 +279,9 @@ class _ResultsScreenState extends State<ResultsScreen> {
     if (knownName.isNotEmpty) return '$knownName Road';
     return route.roadNames.isEmpty ? route.routeName : route.roadNamesLabel;
   }
+
+  double _estimatedFare(OsmRouteModel route) =>
+      (route.distanceMeters / 1000 * 220).roundToDouble();
 
   void _compareRoutes() {
     final configuredRoute = _selectedRoute;
@@ -258,7 +334,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
           ? _message(_errorMessage!, onRetry: _loadRoutes)
-          : _routes.isEmpty
+          : _routes.isEmpty && !_usingMapFallback
           ? Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -274,6 +350,22 @@ class _ResultsScreenState extends State<ResultsScreen> {
             )
           : Column(
               children: [
+                if (_usingMapFallback)
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade50,
+                      border: Border.all(color: Colors.amber.shade300),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      'This route is not defined by the administrator. '
+                      'Map routes and fares are estimates from '
+                      '$_displayOrigin to $_effectiveDestination.',
+                    ),
+                  ),
                 if (_mapRoutes.isNotEmpty &&
                     _originPoint != null &&
                     _destinationPoint != null)
@@ -431,8 +523,10 @@ class _ResultsScreenState extends State<ResultsScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          '${_routes.length} administrator-configured route'
-                          '${_routes.length == 1 ? '' : 's'}',
+                          _usingMapFallback
+                              ? 'No administrator-defined route'
+                              : '${_routes.length} administrator-configured route'
+                                    '${_routes.length == 1 ? '' : 's'}',
                           style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
                       ),
@@ -449,6 +543,16 @@ class _ResultsScreenState extends State<ResultsScreen> {
                     child: Text(
                       'Map paths are driving directions for the configured '
                       'route; the fare below is the administrator-set fare.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                if (_usingMapFallback && activeMapRoute != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      'Estimated fare: MWK '
+                      '${_estimatedFare(activeMapRoute).toStringAsFixed(0)} '
+                      '(map estimate; confirm the actual fare with the operator).',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ),
@@ -502,23 +606,26 @@ class _ResultsScreenState extends State<ResultsScreen> {
                     children: [
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed:
-                              _selectedRoute == null || activeMapRoute == null
+                          onPressed: activeMapRoute == null
                               ? null
-                              : () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) =>
-                                        RouteDirectionsDetailsScreen(
-                                          route: activeMapRoute,
-                                          origin: _selectedRoute!.origin,
-                                          destination:
-                                              _selectedRoute!.destination,
-                                          estimatedFare: _selectedRoute!.fare,
-                                          configuredRoute: _selectedRoute,
-                                        ),
-                                  ),
-                                ),
+                              : () {
+                                  final configuredRoute = _selectedRoute;
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          RouteDirectionsDetailsScreen(
+                                            route: activeMapRoute,
+                                            origin: _displayOrigin,
+                                            destination: _effectiveDestination,
+                                            estimatedFare:
+                                                configuredRoute?.fare ??
+                                                _estimatedFare(activeMapRoute),
+                                            configuredRoute: configuredRoute,
+                                          ),
+                                    ),
+                                  );
+                                },
                           icon: const Icon(Icons.list_alt),
                           label: const Text('Map directions'),
                         ),

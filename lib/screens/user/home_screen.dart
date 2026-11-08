@@ -156,7 +156,13 @@ class _HomeTabState extends State<_HomeTab> with WidgetsBindingObserver {
   void _openSearchPage() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const SearchScreen()),
+      MaterialPageRoute(
+        builder: (_) => SearchScreen(
+          initialOrigin: _currentLocation == 'Detecting location...'
+              ? null
+              : _currentLocation,
+        ),
+      ),
     );
   }
 

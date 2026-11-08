@@ -6,7 +6,9 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({super.key});
+  final String? initialOrigin;
+
+  const SearchScreen({super.key, this.initialOrigin});
   @override
   State<SearchScreen> createState() => _SearchScreenState();
 }
@@ -196,6 +198,8 @@ class _SearchScreenState extends State<SearchScreen> {
       arguments: {
         'name': _selectedDestination!,
         'address': _selectedAddress ?? _selectedDestination!,
+        if (widget.initialOrigin?.trim().isNotEmpty == true)
+          'origin': widget.initialOrigin!.trim(),
         if (_selectedLatitude != null && _selectedLongitude != null) ...{
           'latitude': _selectedLatitude!,
           'longitude': _selectedLongitude!,
