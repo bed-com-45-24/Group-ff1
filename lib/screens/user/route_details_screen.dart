@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../data/booking_store.dart';
+import '../../data/route_store.dart';
 import '../../data/trip_store.dart';
 import '../../models/route_model.dart';
 import '../../models/osm_route_model.dart';
@@ -23,7 +25,11 @@ class RouteDetailsScreen extends StatefulWidget {
 class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
   final _openStreetMap = OpenStreetMapService();
   final _mapKey = GlobalKey();
+  final MapController _mapController = MapController();
   OsmRouteModel? _mapRoute;
+  List<_MapRouteOption> _mapRouteOptions = [];
+  int? _selectedRouteIndex;
+  Offset? _tooltipPosition;
   String? _mapError;
   bool _loadingMapRoute = true;
   bool _loadingSchedules = true;
@@ -47,13 +53,21 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
       ]);
       final origin = _normalizeLocation(route.origin);
       final destination = _normalizeLocation(route.destination);
+      final pickup = _normalizeLocation(route.pickupPoint);
+      final dropOff = _normalizeLocation(route.dropOffPoint);
       final trips =
           TripStore.instance.trips
               .where(
                 (trip) =>
                     trip.departureTime.isAfter(DateTime.now()) &&
-                    _normalizeLocation(trip.origin) == origin &&
-                    _normalizeLocation(trip.destination) == destination,
+                    _locationMatches(
+                      trip.origin,
+                      [pickup, origin],
+                    ) &&
+                    _locationMatches(
+                      trip.destination,
+                      [dropOff, destination],
+                    ),
               )
               .toList()
             ..sort(
@@ -77,6 +91,18 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
   String _normalizeLocation(String value) =>
       value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
 
+  bool _locationMatches(String scheduledLocation, List<String> configured) {
+    final normalizedScheduled = _normalizeLocation(scheduledLocation);
+    return configured.any((location) {
+      final normalizedLocation = location.trim();
+      return normalizedScheduled == normalizedLocation ||
+          (normalizedScheduled.isNotEmpty &&
+              normalizedLocation.isNotEmpty &&
+              (normalizedScheduled.contains(normalizedLocation) ||
+                  normalizedLocation.contains(normalizedScheduled)));
+    });
+  }
+
   Future<void> _viewMap() async {
     final mapContext = _mapKey.currentContext;
     if (mapContext == null) return;
@@ -96,13 +122,50 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
 
   Future<void> _loadMapRoute() async {
     try {
-      final routes = await _openStreetMap.findRoutesBetweenPlaces(
-        origin: route.origin,
-        destination: route.destination,
-      );
+      await RouteStore.instance.load();
+      final normalizedOrigin = _normalizeLocation(route.origin);
+      final normalizedDestination = _normalizeLocation(route.destination);
+      final configuredRoutes = RouteStore.instance.routes
+          .where(
+            (candidate) =>
+                candidate.active &&
+                _normalizeLocation(candidate.origin) == normalizedOrigin &&
+                _normalizeLocation(candidate.destination) ==
+                    normalizedDestination,
+          )
+          .toList();
+      final routesToMap = configuredRoutes.isEmpty ? [route] : configuredRoutes;
+      final options = <_MapRouteOption>[];
+
+      for (final configuredRoute in routesToMap) {
+        final alternatives = await _openStreetMap.findRoutesBetweenPlaces(
+          origin: configuredRoute.pickupPoint,
+          destination: configuredRoute.dropOffPoint,
+        );
+        final routesToAdd = routesToMap.length == 1
+            ? alternatives.take(2).toList()
+            : alternatives.take(1).toList();
+        options.addAll(
+          routesToAdd.map(
+            (mapRoute) => _MapRouteOption(
+              configuredRoute: configuredRoute,
+              mapRoute: mapRoute,
+            ),
+          ),
+        );
+      }
+
       if (!mounted) return;
       setState(() {
-        _mapRoute = routes.first;
+        _mapRouteOptions = options.asMap().entries.map((entry) {
+          final option = entry.value;
+          return option.copyWith(
+            name: _routeOptionName(entry.key, options.length, option),
+          );
+        }).toList();
+        _mapRoute = _mapRouteOptions.isEmpty
+            ? null
+            : _mapRouteOptions.first.mapRoute;
         _loadingMapRoute = false;
       });
     } catch (error) {
@@ -126,6 +189,47 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
       (_loadingMapRoute
           ? 'Loading map estimate...'
           : route.mapDistance ?? 'Not available');
+
+  String _routeOptionName(int index, int count, _MapRouteOption option) {
+    final genericName =
+        '${option.configuredRoute.origin} - ${option.configuredRoute.destination}';
+    if (option.configuredRoute.name.trim().isNotEmpty &&
+        option.configuredRoute.name.trim() != genericName &&
+        count <= countConfiguredRoutesForMap()) {
+      return option.configuredRoute.name.trim();
+    }
+    final knownName = knownMalawiRouteName(
+      option.configuredRoute.origin,
+      option.configuredRoute.destination,
+    );
+    if (index == 0 && knownName.isNotEmpty) return knownName;
+    if (knownName.isNotEmpty && count > 1) {
+      final isLilongweMzuzu =
+          (_normalizeLocation(option.configuredRoute.origin)
+                  .contains('lilongwe') &&
+              _normalizeLocation(option.configuredRoute.destination)
+                  .contains('mzuzu')) ||
+          (_normalizeLocation(option.configuredRoute.origin)
+                  .contains('mzuzu') &&
+              _normalizeLocation(option.configuredRoute.destination)
+                  .contains('lilongwe'));
+      if (isLilongweMzuzu && index == 1) return 'Other route';
+      return 'Alternative route $index';
+    }
+    final roadName = option.mapRoute.roadNamesLabel;
+    if (roadName != 'Road name unavailable') return '$roadName route';
+    return '${option.configuredRoute.origin} - ${option.configuredRoute.destination} route ${index + 1}';
+  }
+
+  int countConfiguredRoutesForMap() {
+    final origin = _normalizeLocation(route.origin);
+    final destination = _normalizeLocation(route.destination);
+    return RouteStore.instance.routes.where((candidate) {
+      return candidate.active &&
+          _normalizeLocation(candidate.origin) == origin &&
+          _normalizeLocation(candidate.destination) == destination;
+    }).length;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -362,95 +466,209 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
       borderRadius: BorderRadius.circular(12),
       child: SizedBox(
         height: 320,
-        child: FlutterMap(
-          options: MapOptions(
-            initialCenter: points.first,
-            initialZoom: 8,
-            cameraConstraint: CameraConstraint.containCenter(
-              bounds: malawiBounds,
-            ),
-            interactionOptions: const InteractionOptions(
-              flags: InteractiveFlag.all,
-            ),
-            initialCameraFit: CameraFit.bounds(
-              bounds: LatLngBounds.fromPoints(points),
-              padding: const EdgeInsets.all(48),
-            ),
-          ),
+        child: Stack(
           children: [
-            TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'com.example.mova',
-            ),
-            PolylineLayer(
-              polylines: [
-                Polyline(
-                  points: points,
-                  color: Colors.deepPurple,
-                  strokeWidth: 5,
+            FlutterMap(
+              mapController: _mapController,
+              options: MapOptions(
+                initialCenter: points.first,
+                initialZoom: 8,
+                cameraConstraint: CameraConstraint.containCenter(
+                  bounds: malawiBounds,
                 ),
-              ],
-            ),
-            MarkerLayer(
-              markers: [
-                Marker(
-                  point: points[points.length ~/ 2],
-                  width: 260,
-                  height: 72,
-                  child: Container(
-                    alignment: Alignment.center,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 5,
-                    ),
-                    child: Text(
-                      knownMalawiRouteName(
-                            route.origin,
-                            route.destination,
-                          ).isEmpty
-                          ? (_mapRoute?.roadNamesLabel ?? 'Route on map')
-                          : '${knownMalawiRouteName(route.origin, route.destination)} Road',
-                      maxLines: 4,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Colors.deepPurple,
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        backgroundColor: Colors.white,
-                        shadows: [Shadow(color: Colors.white, blurRadius: 3)],
+                interactionOptions: const InteractionOptions(
+                  flags: InteractiveFlag.all,
+                ),
+                initialCameraFit: CameraFit.bounds(
+                  bounds: LatLngBounds.fromPoints(points),
+                  padding: const EdgeInsets.all(48),
+                ),
+                onTap: _handleMapTap,
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.example.mova',
+                ),
+                PolylineLayer(
+                  polylines: [
+                    for (
+                      var index = 0;
+                      index < _mapRouteOptions.length;
+                      index++
+                    )
+                      Polyline(
+                        points: _mapRouteOptions[index].mapRoute.points,
+                        color: _routeColor(index),
+                        strokeWidth:
+                            _selectedRouteIndex == null ||
+                                _selectedRouteIndex == index
+                            ? 6
+                            : 3,
+                      ),
+                  ],
+                ),
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      point: points.first,
+                      width: 110,
+                      height: 54,
+                      child: _RouteMapMarker(
+                        label: route.pickupPoint,
+                        color: Colors.green.shade700,
+                        icon: Icons.trip_origin,
                       ),
                     ),
-                  ),
+                    Marker(
+                      point: points.last,
+                      width: 130,
+                      height: 54,
+                      child: _RouteMapMarker(
+                        label: route.dropOffPoint,
+                        color: Colors.red.shade700,
+                        icon: Icons.location_on,
+                      ),
+                    ),
+                  ],
                 ),
-                Marker(
-                  point: points.first,
-                  width: 110,
-                  height: 54,
-                  child: _RouteMapMarker(
-                    label: route.origin,
-                    color: Colors.green.shade700,
-                    icon: Icons.trip_origin,
-                  ),
-                ),
-                Marker(
-                  point: points.last,
-                  width: 130,
-                  height: 54,
-                  child: _RouteMapMarker(
-                    label: route.destination,
-                    color: Colors.red.shade700,
-                    icon: Icons.location_on,
-                  ),
+                RichAttributionWidget(
+                  attributions: [
+                    TextSourceAttribution(
+                      '© OpenStreetMap contributors',
+                      onTap: () {},
+                    ),
+                  ],
                 ),
               ],
             ),
-            RichAttributionWidget(
-              attributions: [
-                TextSourceAttribution(
-                  '© OpenStreetMap contributors',
-                  onTap: () {},
+            if (_selectedRouteIndex != null && _tooltipPosition != null)
+              Positioned(
+                left: (_tooltipPosition!.dx - 110).clamp(8.0, 192.0),
+                top: (_tooltipPosition!.dy - 78).clamp(8.0, 242.0),
+                child: _MapRouteTooltip(
+                  option: _mapRouteOptions[_selectedRouteIndex!],
                 ),
-              ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _routeColor(int index) {
+    final colors = <Color>[
+      Colors.deepPurple,
+      Colors.teal,
+      Colors.orange.shade800,
+      Colors.blue.shade700,
+    ];
+    if (_selectedRouteIndex == null || _selectedRouteIndex == index) {
+      return colors[index % colors.length];
+    }
+    return colors[index % colors.length].withValues(alpha: 0.18);
+  }
+
+  void _handleMapTap(TapPosition tapPosition, LatLng _) {
+    final tapOffset = tapPosition.relative;
+    if (tapOffset == null) return;
+
+    var closestIndex = -1;
+    var closestDistance = 24.0;
+    for (
+      var routeIndex = 0;
+      routeIndex < _mapRouteOptions.length;
+      routeIndex++
+    ) {
+      final routePoints = _mapRouteOptions[routeIndex].mapRoute.points;
+      for (
+        var pointIndex = 0;
+        pointIndex < routePoints.length - 1;
+        pointIndex++
+      ) {
+        final start = _mapController.camera.latLngToScreenOffset(
+          routePoints[pointIndex],
+        );
+        final end = _mapController.camera.latLngToScreenOffset(
+          routePoints[pointIndex + 1],
+        );
+        final distance = _distanceToSegment(tapOffset, start, end);
+        if (distance < closestDistance) {
+          closestDistance = distance;
+          closestIndex = routeIndex;
+        }
+      }
+    }
+
+    setState(() {
+      _selectedRouteIndex = closestIndex == -1 ? null : closestIndex;
+      _tooltipPosition = closestIndex == -1 ? null : tapOffset;
+    });
+  }
+
+  double _distanceToSegment(Offset point, Offset start, Offset end) {
+    final segment = end - start;
+    if (segment.distanceSquared == 0) return (point - start).distance;
+    final projection =
+        ((point - start).dx * segment.dx + (point - start).dy * segment.dy) /
+        segment.distanceSquared;
+    final t = projection.clamp(0.0, 1.0).toDouble();
+    final nearest = Offset(
+      start.dx + segment.dx * t,
+      start.dy + segment.dy * t,
+    );
+    return (point - nearest).distance;
+  }
+}
+
+class _MapRouteOption {
+  final String name;
+  final RouteModel configuredRoute;
+  final OsmRouteModel mapRoute;
+
+  const _MapRouteOption({
+    this.name = '',
+    required this.configuredRoute,
+    required this.mapRoute,
+  });
+
+  _MapRouteOption copyWith({required String name}) {
+    return _MapRouteOption(
+      name: name,
+      configuredRoute: configuredRoute,
+      mapRoute: mapRoute,
+    );
+  }
+}
+
+class _MapRouteTooltip extends StatelessWidget {
+  final _MapRouteOption option;
+
+  const _MapRouteTooltip({required this.option});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      elevation: 6,
+      borderRadius: BorderRadius.circular(10),
+      color: Colors.white,
+      child: Container(
+        width: 220,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              option.name,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              option.mapRoute.distanceLabel,
+              style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
             ),
           ],
         ),

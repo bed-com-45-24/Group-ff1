@@ -8,6 +8,7 @@ import '../../models/route_model.dart';
 import '../../services/openstreetmap_service.dart';
 import '../../services/location_service.dart';
 import '../../utils/malawi_map.dart';
+import '../../utils/malawi_route_names.dart';
 import 'profile_screen.dart';
 import 'search_screen.dart';
 
@@ -21,6 +22,43 @@ class MapScreen extends StatefulWidget {
   State<MapScreen> createState() => _MapScreenState();
 }
 
+class _MapRouteTooltip extends StatelessWidget {
+  final String name;
+  final String distance;
+
+  const _MapRouteTooltip({required this.name, required this.distance});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      elevation: 6,
+      borderRadius: BorderRadius.circular(10),
+      color: Colors.white,
+      child: Container(
+        width: 220,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              name,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              distance,
+              style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _MapScreenState extends State<MapScreen> {
   final _mapController = MapController();
   final _openStreetMap = OpenStreetMapService();
@@ -32,6 +70,7 @@ class _MapScreenState extends State<MapScreen> {
   final List<RouteModel> _configuredRoutes = [];
   final Map<String, String> _configuredRouteLabels = {};
   String? _selectedRouteId;
+  Offset? _tooltipPosition;
   String? _locationError;
   bool _locating = false;
   bool _findingRoute = false;
@@ -100,17 +139,21 @@ class _MapScreenState extends State<MapScreen> {
     final labels = <String, String>{};
     for (final route in _configuredRoutes) {
       try {
-        final origin = await _openStreetMap.findPlace(route.origin);
+        final origin = await _openStreetMap.findPlace(route.pickupPoint);
         await Future<void>.delayed(const Duration(milliseconds: 700));
-        final destination = await _openStreetMap.findPlace(route.destination);
+        final destination = await _openStreetMap.findPlace(route.dropOffPoint);
         final alternatives = await _openStreetMap.findRoutes(
           origin: origin,
           destination: destination,
         );
-        if (alternatives.isNotEmpty) {
-          final mapRoute = alternatives.first;
+        for (
+          var alternativeIndex = 0;
+          alternativeIndex < alternatives.take(2).length;
+          alternativeIndex++
+        ) {
+          final mapRoute = alternatives[alternativeIndex];
           final configuredRoute = OsmRouteModel(
-            id: 'configured-${route.id}',
+            id: 'configured-${route.id}-${alternativeIndex + 1}',
             geoJson: mapRoute.geoJson,
             distanceMeters: mapRoute.distanceMeters,
             durationSeconds: mapRoute.durationSeconds,
@@ -118,8 +161,17 @@ class _MapScreenState extends State<MapScreen> {
             roadNames: mapRoute.roadNames,
           );
           paths.add(configuredRoute);
+          final corridorName = knownMalawiRouteName(
+            route.origin,
+            route.destination,
+          );
+          final routeName = alternatives.length > 1 && alternativeIndex == 1
+              ? 'Other route'
+              : corridorName.isNotEmpty
+              ? corridorName
+              : route.name;
           labels[configuredRoute.id] =
-              '${route.name} · ${route.origin} to ${route.destination}';
+              '$routeName · ${route.origin} to ${route.destination}';
         }
       } catch (_) {}
     }
@@ -144,10 +196,49 @@ class _MapScreenState extends State<MapScreen> {
     return _routes.isEmpty ? null : _routes.first;
   }
 
-  LatLng? _routeLabelPoint(OsmRouteModel route) {
-    final points = route.points;
-    if (points.isEmpty) return null;
-    return points[points.length ~/ 2];
+  String _routeLabel(OsmRouteModel route) {
+    final configuredLabel = _configuredRouteLabels[route.id]
+        ?.split(' · ')
+        .first;
+    if (configuredLabel != null && configuredLabel.trim().isNotEmpty) {
+      return configuredLabel.trim();
+    }
+    if (route.roadNames.isNotEmpty) return route.roadNames.join(' → ');
+    return route.id;
+  }
+
+  OsmRouteModel? _routeAt(TapPosition tapPosition) {
+    final tapOffset = tapPosition.relative;
+    if (tapOffset == null) return null;
+    OsmRouteModel? nearestRoute;
+    var nearestDistance = 24.0;
+    for (final route in _routes) {
+      final points = route.points;
+      for (var i = 0; i < points.length - 1; i++) {
+        final start = _mapController.camera.latLngToScreenOffset(points[i]);
+        final end = _mapController.camera.latLngToScreenOffset(points[i + 1]);
+        final distance = _distanceToSegment(tapOffset, start, end);
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          nearestRoute = route;
+        }
+      }
+    }
+    return nearestRoute;
+  }
+
+  double _distanceToSegment(Offset point, Offset start, Offset end) {
+    final segment = end - start;
+    if (segment.distanceSquared == 0) return (point - start).distance;
+    final projection =
+        ((point - start).dx * segment.dx + (point - start).dy * segment.dy) /
+        segment.distanceSquared;
+    final t = projection.clamp(0.0, 1.0).toDouble();
+    final nearest = Offset(
+      start.dx + segment.dx * t,
+      start.dy + segment.dy * t,
+    );
+    return (point - nearest).distance;
   }
 
   Future<void> _routeTo(LatLng destination) async {
@@ -191,7 +282,6 @@ class _MapScreenState extends State<MapScreen> {
             ),
           );
         }
-
       });
     } catch (error) {
       if (!mounted) return;
@@ -281,11 +371,25 @@ class _MapScreenState extends State<MapScreen> {
                       flags: InteractiveFlag.all,
                     ),
                     onMapReady: () => _mapReady = true,
-                    onTap: (_, point) {
+                    onTap: (tapPosition, point) {
+                      final hitRoute = _routeAt(tapPosition);
+                      if (hitRoute != null) {
+                        setState(() {
+                          _selectedRouteId = hitRoute.id;
+                          _tooltipPosition = tapPosition.relative;
+                        });
+                        return;
+                      }
+                      setState(() {
+                        _selectedRouteId = null;
+                        _tooltipPosition = null;
+                      });
                       if (!isWithinMalawi(point)) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('Select a destination within Malawi.'),
+                            content: Text(
+                              'Select a destination within Malawi.',
+                            ),
                           ),
                         );
                         return;
@@ -325,35 +429,6 @@ class _MapScreenState extends State<MapScreen> {
                     if (_userLocation != null || _destination != null)
                       MarkerLayer(
                         markers: [
-                          for (var index = 0; index < _routes.length; index++)
-                            if (_routeLabelPoint(_routes[index]) != null)
-                              Marker(
-                              point: _routeLabelPoint(_routes[index])!,
-                              width: 42,
-                              height: 42,
-                              child: Container(
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  color: _routes[index].id == _selectedRouteId
-                                      ? Colors.deepPurple
-                                      : Colors.white,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: Colors.deepPurple,
-                                    width: 2,
-                                  ),
-                                ),
-                                child: Text(
-                                  '${index + 1}',
-                                  style: TextStyle(
-                                    color: _routes[index].id == _selectedRouteId
-                                        ? Colors.white
-                                        : Colors.deepPurple,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ),
                           if (_userLocation != null)
                             Marker(
                               point: _userLocation!,
@@ -404,7 +479,9 @@ class _MapScreenState extends State<MapScreen> {
                                 const SizedBox(
                                   width: 18,
                                   height: 18,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
                                 )
                               else
                                 const Icon(
@@ -422,7 +499,7 @@ class _MapScreenState extends State<MapScreen> {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                            ),
+                              ),
                               if (_routes.isNotEmpty)
                                 IconButton(
                                   tooltip: 'Clear route',
@@ -432,6 +509,22 @@ class _MapScreenState extends State<MapScreen> {
                                     _destination = null;
                                   }),
                                   icon: const Icon(Icons.close),
+                                ),
+                              if (_selectedRoute != null &&
+                                  _tooltipPosition != null)
+                                Positioned(
+                                  left: (_tooltipPosition!.dx - 110).clamp(
+                                    8.0,
+                                    220.0,
+                                  ),
+                                  top: (_tooltipPosition!.dy - 72).clamp(
+                                    8.0,
+                                    420.0,
+                                  ),
+                                  child: _MapRouteTooltip(
+                                    name: _routeLabel(_selectedRoute!),
+                                    distance: _selectedRoute!.distanceLabel,
+                                  ),
                                 ),
                             ],
                           ),
@@ -453,7 +546,9 @@ class _MapScreenState extends State<MapScreen> {
                                       });
                                       _mapController.fitCamera(
                                         CameraFit.bounds(
-                                          bounds: LatLngBounds.fromPoints(route.points),
+                                          bounds: LatLngBounds.fromPoints(
+                                            route.points,
+                                          ),
                                           padding: const EdgeInsets.all(56),
                                         ),
                                       );

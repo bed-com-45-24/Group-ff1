@@ -4,10 +4,7 @@ String knownMalawiRouteName(String origin, String destination) {
 
   String normalizePlace(String value) {
     final normalized = normalize(value);
-    const aliases = {
-      'brantyre': 'blantyre',
-      'blantyrecity': 'blantyre',
-    };
+    const aliases = {'brantyre': 'blantyre', 'blantyrecity': 'blantyre'};
     return aliases[normalized] ?? normalized;
   }
 
@@ -22,6 +19,13 @@ String knownMalawiRouteName(String origin, String destination) {
   if (corridor.length == 2 &&
       corridor.contains(normalizePlace('Lilongwe')) &&
       corridor.contains(normalizePlace('Blantyre'))) {
+    return 'M1';
+  }
+
+  if (corridor.length == 2 &&
+      corridor.contains(normalizePlace('Lilongwe')) &&
+      (corridor.contains(normalizePlace('Mzuzu')) ||
+          corridor.contains(normalizePlace('Mzimba/Mzuzu')))) {
     return 'M1';
   }
   return '';
