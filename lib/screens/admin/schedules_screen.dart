@@ -84,7 +84,7 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: DropdownButtonFormField<String>(
-                      value: selectedBus,
+                      initialValue: selectedBus,
                       decoration: const InputDecoration(
                         labelText: 'Select bus',
                         border: OutlineInputBorder(),
