@@ -1,6 +1,7 @@
 
 import 'package:flutter/material.dart';
 
+import '../../data/booking_store.dart';
 import '../../data/trip_store.dart';
 import '../../models/trip_model.dart';
 
@@ -24,6 +25,7 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
   void initState() {
     super.initState();
     _store.load();
+    BookingStore.instance.load();
   }
 
   Future<void> _editTrip([Trip? existing]) async {
@@ -50,11 +52,10 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
     final fare = TextEditingController(
       text: existing?.fare.toStringAsFixed(0) ?? '',
     );
-
-    final routeName = TextEditingController(
-      text: existing?.routeName ?? '',
+    final operator = TextEditingController(
+      text: existing?.operatorName ?? 'MOVA Express',
     );
-
+    final routeName = TextEditingController(text: existing?.routeName ?? '');
     final formKey = GlobalKey<FormState>();
 
     String selectedBus = _buses.contains(existing?.operatorName)
@@ -63,169 +64,101 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
 
     final result = await showDialog<Trip>(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: Text(
-            existing == null ? 'Add schedule' : 'Edit schedule',
-          ),
-          content: Form(
-            key: formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _field(origin, 'Origin'),
-
-                  _field(destination, 'Destination'),
-
-                  // Bus dropdown
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: DropdownButtonFormField<String>(
-                      initialValue: selectedBus,
-                      decoration: const InputDecoration(
-                        labelText: 'Select bus',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: _buses.map((bus) {
-                        return DropdownMenuItem<String>(
-                          value: bus,
-                          child: Text(bus),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        if (value != null) {
-                          setDialogState(() {
-                            selectedBus = value;
-                          });
-                        }
-                      },
-                    ),
-                  ),
-
-                  // Bus capacity fixed at 40
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: TextFormField(
-                      initialValue: '40',
-                      readOnly: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Bus capacity',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.event_seat),
+      builder: (dialogContext) => AlertDialog(
+        title: Text(existing == null ? 'Add schedule' : 'Edit schedule'),
+        content: Form(
+          key: formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _field(origin, 'Origin'),
+                _field(destination, 'Destination'),
+                _field(departure, 'Departure (YYYY-MM-DD HH:mm)'),
+                _field(arrival, 'Arrival (YYYY-MM-DD HH:mm)'),
+                _field(fare, 'Fare per seat (MWK)', number: true),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: InputDecorator(
+                    decoration: InputDecoration(
+                      labelText: 'Total seats',
+                      border: const OutlineInputBorder(),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
                       ),
                     ),
+                    child: const Text('42'),
                   ),
-
-                  _field(
-                    departure,
-                    'Departure (YYYY-MM-DD HH:mm)',
-                  ),
-
-                  _field(
-                    arrival,
-                    'Arrival (YYYY-MM-DD HH:mm)',
-                  ),
-
-                  _field(
-                    fare,
-                    'Fare per seat (MWK)',
-                    number: true,
-                  ),
-
-                  _field(
-                    routeName,
-                    'Route name / road (for example M1 Road)',
-                  ),
-                ],
-              ),
+                ),
+                _field(operator, 'Operator'),
+                _field(routeName, 'Route name / road (for example M1 Road)'),
+              ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
-            ),
-
-            FilledButton(
-              onPressed: () {
-                if (!formKey.currentState!.validate()) return;
-
-                final departureTime =
-                    _parseDateTime(departure.text);
-
-                final arrivalTime =
-                    _parseDateTime(arrival.text);
-
-                final amount =
-                    double.tryParse(fare.text.trim());
-
-                if (departureTime == null || arrivalTime == null) {
-                  _message(
-                    'Enter schedule times as YYYY-MM-DD HH:mm.',
-                  );
-                  return;
-                }
-
-                if (!arrivalTime.isAfter(departureTime)) {
-                  _message('Arrival must be after departure.');
-                  return;
-                }
-
-                if (departureTime.isBefore(DateTime.now())) {
-                  _message('Departure must be in the future.');
-                  return;
-                }
-
-                if ((existing?.bookedSeats.length ?? 0) > 40) {
-                  _message(
-                    'Booked seats cannot exceed 40.',
-                  );
-                  return;
-                }
-
-                if (amount == null || amount <= 0) {
-                  _message('Enter a fare greater than zero.');
-                  return;
-                }
-
-                Navigator.pop(
-                  dialogContext,
-                  Trip(
-                    id: existing?.id ??
-                        'TRIP-${DateTime.now().microsecondsSinceEpoch}',
-
-                    origin: origin.text.trim(),
-
-                    destination: destination.text.trim(),
-
-                    departureTime: departureTime,
-
-                    arrivalTime: arrivalTime,
-
-                    fare: amount,
-
-                    // Every bus has a capacity of 40.
-                    totalSeats: 40,
-
-                    // Preserve existing bookings when editing.
-                    bookedSeats: existing?.bookedSeats ?? const [],
-
-                    operatorName: selectedBus,
-
-                    routeName: routeName.text.trim(),
-
-                    transportMode: 'Bus',
-                  ),
-                );
-              },
-              child: const Text('Save'),
-            ),
-          ],
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (!formKey.currentState!.validate()) return;
+
+              final departureTime = _parseDateTime(departure.text);
+              final arrivalTime = _parseDateTime(arrival.text);
+              final amount = double.tryParse(fare.text.trim());
+
+              if (departureTime == null || arrivalTime == null) {
+                _message('Enter schedule times as YYYY-MM-DD HH:mm.');
+                return;
+              }
+
+              if (!arrivalTime.isAfter(departureTime)) {
+                _message('Arrival must be after departure.');
+                return;
+              }
+
+              if (departureTime.isBefore(DateTime.now())) {
+                _message('Departure must be in the future.');
+                return;
+              }
+
+              if ((existing?.bookedSeats.length ?? 0) > 40) {
+                _message('Booked seats cannot exceed 40.');
+                return;
+              }
+
+              if (amount == null || amount <= 0) {
+                _message('Enter a fare greater than zero.');
+                return;
+              }
+
+              Navigator.pop(
+                dialogContext,
+                Trip(
+                  id: existing?.id ??
+                      'TRIP-${DateTime.now().microsecondsSinceEpoch}',
+                  origin: origin.text.trim(),
+                  destination: destination.text.trim(),
+                  departureTime: departureTime,
+                  arrivalTime: arrivalTime,
+                  fare: amount,
+                  totalSeats: 40,
+                  bookedSeats: existing?.bookedSeats ?? const [],
+                  operatorName: selectedBus,
+                  routeName: routeName.text.trim(),
+                  transportMode: 'Bus',
+                ),
+              );
+            },
+            child: const Text('Save'),
+          ),
+        ],
       ),
     );
-
     await WidgetsBinding.instance.endOfFrame;
 
     origin.dispose();
@@ -233,6 +166,7 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
     departure.dispose();
     arrival.dispose();
     fare.dispose();
+    operator.dispose();
     routeName.dispose();
 
     if (result == null) return;
@@ -343,108 +277,78 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
       body: SafeArea(
         child: ValueListenableBuilder<int>(
           valueListenable: _store.changes,
-          builder: (context, _, _) {
-            final trips = _store.trips;
-
-            return Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Schedules & seats',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
+          builder: (context, _, _) => ValueListenableBuilder<int>(
+            valueListenable: BookingStore.instance.changes,
+            builder: (context, _, _) {
+              final trips = _store.trips;
+              return Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Schedules & seats',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-
-                  const SizedBox(height: 5),
-
-                  const Text(
-                    'Manage buses, departures, fares, and seat capacity.',
-                  ),
-
-                  const SizedBox(height: 18),
-
-                  Expanded(
-                    child: !_store.isLoaded
-                        ? const Center(
-                            child: CircularProgressIndicator(),
-                          )
-                        : trips.isEmpty
-                            ? const Center(
-                                child: Text('No schedules yet.'),
-                              )
-                            : ListView.builder(
-                                itemCount: trips.length,
-                                itemBuilder: (context, index) {
-                                  final trip = trips[index];
-
-                                  return Card(
-                                    child: ListTile(
-                                      title: Text(
-                                        '${trip.origin} → ${trip.destination}',
-                                      ),
-
-                                      subtitle: Text(
-                                        '${trip.operatorName} · '
-                                        '${_dateTimeString(trip.departureTime)} → '
-                                        '${_dateTimeString(trip.arrivalTime)} · '
-                                        '${_durationLabel(trip)} · '
-                                        '${trip.availableSeats}/40 seats available · '
-                                        'MWK ${trip.fare.toStringAsFixed(0)}',
-                                      ),
-
-                                      isThreeLine: true,
-
-                                      onTap: () => _editTrip(trip),
-
-                                      trailing: Wrap(
-                                        spacing: 4,
-                                        crossAxisAlignment:
-                                            WrapCrossAlignment.center,
-                                        children: [
-                                          IconButton(
-                                            tooltip: 'Edit schedule',
-                                            onPressed: () =>
-                                                _editTrip(trip),
-                                            icon: const Icon(
-                                              Icons.edit_outlined,
-                                            ),
-                                          ),
-
-                                          // Black delete icon.
-                                          // Deletes immediately when clicked.
-                                          IconButton(
-                                            tooltip: 'Delete schedule',
-                                            onPressed: () =>
-                                                _deleteTrip(trip),
-                                            icon: const Icon(
-                                              Icons.delete_outline,
-                                              color: Colors.black,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
+                    const SizedBox(height: 5),
+                    const Text('Manage departure and fare.'),
+                    const SizedBox(height: 18),
+                    Expanded(
+                      child: !_store.isLoaded
+                          ? const Center(child: CircularProgressIndicator())
+                          : trips.isEmpty
+                          ? const Center(child: Text('No schedules yet.'))
+                          : ListView.builder(
+                              itemCount: trips.length,
+                              itemBuilder: (context, index) {
+                                final trip = trips[index];
+                                final availableSeats =
+                                    (trip.totalSeats -
+                                            BookingStore.instance
+                                                .activeBookingSeatsForTrip(trip)
+                                                .length)
+                                        .clamp(0, trip.totalSeats);
+                                return Card(
+                                  child: ListTile(
+                                    title: Text(
+                                      '${trip.origin} → ${trip.destination}',
                                     ),
-                                  );
-                                },
-                              ),
-                  ),
-
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: () => _editTrip(),
-                      icon: const Icon(Icons.add),
-                      label: const Text('Add schedule'),
+                                    subtitle: Text(
+                                      '${_dateTimeString(trip.departureTime)} → '
+                                      '${_dateTimeString(trip.arrivalTime)} · '
+                                      '${_durationLabel(trip)} · '
+                                      '$availableSeats/${trip.totalSeats} '
+                                      'seats · MWK '
+                                      '${trip.fare.toStringAsFixed(0)}',
+                                    ),
+                                    isThreeLine: true,
+                                    onTap: () => _editTrip(trip),
+                                    trailing: IconButton(
+                                      tooltip: 'Delete schedule',
+                                      onPressed: () => _deleteTrip(trip),
+                                      icon: const Icon(Icons.delete_outline),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
                     ),
-                  ),
-                ],
-              ),
-            );
-          },
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: () => _editTrip(),
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add schedule'),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
         ),
       ),
     );

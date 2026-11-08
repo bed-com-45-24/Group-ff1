@@ -30,6 +30,7 @@ void main() {
 
     await store.createDraft(draft);
     expect(store.findBooking(draft.reference)?.status, BookingStatus.draft);
+    expect(store.activeBookingSeatsForTrip(trip), {1, 2});
     expect(
       () => BookingDraft(
         trip: trip,
