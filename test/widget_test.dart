@@ -250,6 +250,22 @@ void main() {
     expect(find.text('Updated Admin Route'), findsNothing);
   });
 
+  testWidgets('Home Book Now opens the trip booking workflow', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+
+    await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
+    await tester.pumpAndSettle();
+
+    final bookNowButton = find.widgetWithText(FilledButton, 'Book Now');
+    await tester.ensureVisible(bookNowButton);
+    await tester.tap(bookNowButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Departure location'), findsOneWidget);
+    expect(find.text('Destination'), findsOneWidget);
+    expect(find.text('Travel date'), findsOneWidget);
+  });
+
   testWidgets('Passenger route results show configured route fares only', (
     tester,
   ) async {

@@ -4,6 +4,7 @@ import '../../data/route_store.dart';
 import '../../models/route_model.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/route_card.dart';
+import 'booking/select_trip_screen.dart';
 import 'map_screen.dart';
 import 'notifications_screen.dart';
 import 'profile_screen.dart';
@@ -166,6 +167,13 @@ class _HomeTabState extends State<_HomeTab> with WidgetsBindingObserver {
     );
   }
 
+  void _openBooking() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const SelectTripScreen()),
+    );
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
@@ -288,6 +296,27 @@ class _HomeTabState extends State<_HomeTab> with WidgetsBindingObserver {
                         ),
                       ),
                     ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: _openBooking,
+                        icon: const Icon(Icons.directions_bus),
+                        label: const Text('Book Now'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.deepPurple,
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size.fromHeight(54),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          textStyle: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -317,9 +346,7 @@ class _HomeTabState extends State<_HomeTab> with WidgetsBindingObserver {
   }
 
   List<RouteModel> get _featuredRoutes {
-    return RouteStore.instance.routes
-        .where((route) => route.active)
-        .toList();
+    return RouteStore.instance.routes.where((route) => route.active).toList();
   }
 }
 
