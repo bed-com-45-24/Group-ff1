@@ -57,11 +57,15 @@ class _RoutesScreenState extends State<RoutesScreen> {
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
+  String _normalizeRouteValue(String value) =>
+      value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+
   Future<void> _editRoute([RouteModel? existing]) async {
     final origin = TextEditingController(text: existing?.origin ?? '');
     final destination = TextEditingController(
       text: existing?.destination ?? '',
     );
+    final roadName = TextEditingController(text: existing?.roadName ?? '');
 
     final pickupLocation = TextEditingController(
       text: existing?.pickupLocation?.isNotEmpty == true
@@ -111,6 +115,7 @@ class _RoutesScreenState extends State<RoutesScreen> {
               children: [
                 _field(origin, 'Origin'),
                 _field(destination, 'Destination'),
+                _field(roadName, 'Road / highway (for example M1 or M5)'),
 
                 // Pickup depot is automatically determined by origin.
                 _field(pickupLocation, 'Pickup depot', readOnly: true),
@@ -153,16 +158,21 @@ class _RoutesScreenState extends State<RoutesScreen> {
 
               final from = origin.text.trim();
               final to = destination.text.trim();
+              final road = roadName.text.trim();
 
               final duplicate = _store.routes.any(
                 (route) =>
                     route.id != existing?.id &&
-                    route.origin.toLowerCase() == from.toLowerCase() &&
-                    route.destination.toLowerCase() == to.toLowerCase(),
+                    _normalizeRouteValue(route.origin) ==
+                        _normalizeRouteValue(from) &&
+                    _normalizeRouteValue(route.destination) ==
+                        _normalizeRouteValue(to) &&
+                    _normalizeRouteValue(route.roadName) ==
+                        _normalizeRouteValue(road),
               );
 
               if (duplicate) {
-                _showMessage('That route already exists.');
+                _showMessage('That route on $road already exists.');
                 return;
               }
 
@@ -181,6 +191,7 @@ class _RoutesScreenState extends State<RoutesScreen> {
                   name: '$from - $to',
                   origin: from,
                   destination: to,
+                  roadName: road,
                   pickupLocation: pickupLocation.text.trim(),
                   dropOffLocation: dropoffLocation.text.trim(),
                   stops: [from, ...intermediateStops, to],
@@ -207,6 +218,7 @@ class _RoutesScreenState extends State<RoutesScreen> {
 
     origin.dispose();
     destination.dispose();
+    roadName.dispose();
     pickupLocation.dispose();
     dropoffLocation.dispose();
     company.dispose();
@@ -293,7 +305,11 @@ class _RoutesScreenState extends State<RoutesScreen> {
                                 color: Colors.white,
                                 margin: const EdgeInsets.only(bottom: 12),
                                 child: ListTile(
-                                  title: Text(route.name),
+                                  title: Text(
+                                    route.roadName.isEmpty
+                                        ? route.name
+                                        : '${route.name} · ${route.roadName}',
+                                  ),
 
                                   subtitle: Text(
                                     'Pickup: ${_getDepot(route.origin)}\n'

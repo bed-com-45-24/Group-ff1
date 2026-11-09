@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 import '../../data/booking_store.dart';
@@ -15,12 +14,6 @@ class SchedulesScreen extends StatefulWidget {
 class _SchedulesScreenState extends State<SchedulesScreen> {
   final _store = TripStore.instance;
 
-  final List<String> _buses = [
-    'MOVA 1',
-    'MOVA 2',
-    'MOVA 3',
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -29,24 +22,18 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
   }
 
   Future<void> _editTrip([Trip? existing]) async {
-    final origin = TextEditingController(
-      text: existing?.origin ?? '',
-    );
+    final origin = TextEditingController(text: existing?.origin ?? '');
 
     final destination = TextEditingController(
       text: existing?.destination ?? '',
     );
 
     final departure = TextEditingController(
-      text: existing == null
-          ? ''
-          : _dateTimeString(existing.departureTime),
+      text: existing == null ? '' : _dateTimeString(existing.departureTime),
     );
 
     final arrival = TextEditingController(
-      text: existing == null
-          ? ''
-          : _dateTimeString(existing.arrivalTime),
+      text: existing == null ? '' : _dateTimeString(existing.arrivalTime),
     );
 
     final fare = TextEditingController(
@@ -56,11 +43,10 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
       text: existing?.operatorName ?? 'MOVA Express',
     );
     final routeName = TextEditingController(text: existing?.routeName ?? '');
+    final vehicleName = TextEditingController(
+      text: existing?.vehicleName ?? '',
+    );
     final formKey = GlobalKey<FormState>();
-
-    String selectedBus = _buses.contains(existing?.operatorName)
-        ? existing!.operatorName
-        : _buses.first;
 
     final result = await showDialog<Trip>(
       context: context,
@@ -92,8 +78,15 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
                     child: const Text('42'),
                   ),
                 ),
-                _field(operator, 'Operator'),
-                _field(routeName, 'Route name / road (for example M1 Road)'),
+                _field(operator, 'Transport company / operator'),
+                _field(
+                  routeName,
+                  'Road / highway (match the admin route, e.g. M1 or M5)',
+                ),
+                _field(
+                  vehicleName,
+                  'Vehicle / car identifier (for example MOVA 1)',
+                ),
               ],
             ),
           ),
@@ -139,7 +132,8 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
               Navigator.pop(
                 dialogContext,
                 Trip(
-                  id: existing?.id ??
+                  id:
+                      existing?.id ??
                       'TRIP-${DateTime.now().microsecondsSinceEpoch}',
                   origin: origin.text.trim(),
                   destination: destination.text.trim(),
@@ -148,8 +142,9 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
                   fare: amount,
                   totalSeats: 42,
                   bookedSeats: existing?.bookedSeats ?? const [],
-                  operatorName: selectedBus,
+                  operatorName: operator.text.trim(),
                   routeName: routeName.text.trim(),
+                  vehicleName: vehicleName.text.trim(),
                   transportMode: 'Bus',
                 ),
               );
@@ -168,6 +163,7 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
     fare.dispose();
     operator.dispose();
     routeName.dispose();
+    vehicleName.dispose();
 
     if (result == null) return;
 
@@ -192,22 +188,18 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
       '${value.minute.toString().padLeft(2, '0')}';
 
   String _durationLabel(Trip trip) {
-    final duration =
-        trip.arrivalTime.difference(trip.departureTime);
+    final duration = trip.arrivalTime.difference(trip.departureTime);
 
     final hours = duration.inHours;
 
     final minutes = duration.inMinutes.remainder(60);
 
-    return hours == 0
-        ? '$minutes min'
-        : '${hours}h ${minutes}m';
+    return hours == 0 ? '$minutes min' : '${hours}h ${minutes}m';
   }
 
   DateTime? _parseDateTime(String value) {
-    final match = RegExp(
-      r'^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$',
-    ).firstMatch(value.trim());
+    final match = RegExp(r'^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$')
+        .firstMatch(value.trim());
 
     if (match == null) return null;
 
@@ -217,33 +209,20 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
     final hour = int.parse(match.group(4)!);
     final minute = int.parse(match.group(5)!);
 
-    if (month < 1 ||
-        month > 12 ||
-        day < 1 ||
-        hour > 23 ||
-        minute > 59) {
+    if (month < 1 || month > 12 || day < 1 || hour > 23 || minute > 59) {
       return null;
     }
 
-    final result = DateTime(
-      year,
-      month,
-      day,
-      hour,
-      minute,
-    );
+    final result = DateTime(year, month, day, hour, minute);
 
-    return result.year == year &&
-            result.month == month &&
-            result.day == day
+    return result.year == year && result.month == month && result.day == day
         ? result
         : null;
   }
 
   void _message(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   Widget _field(
@@ -255,17 +234,13 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
       padding: const EdgeInsets.only(bottom: 12),
       child: TextFormField(
         controller: controller,
-        keyboardType: number
-            ? TextInputType.number
-            : TextInputType.text,
+        keyboardType: number ? TextInputType.number : TextInputType.text,
         decoration: InputDecoration(
           labelText: label,
           border: const OutlineInputBorder(),
         ),
         validator: (value) =>
-            value == null || value.trim().isEmpty
-                ? 'Required'
-                : null,
+            value == null || value.trim().isEmpty ? 'Required' : null,
       ),
     );
   }
@@ -317,6 +292,9 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
                                       '${trip.origin} → ${trip.destination}',
                                     ),
                                     subtitle: Text(
+                                      '${trip.routeName.isEmpty ? 'Road not set' : 'Road: ${trip.routeName}'} · '
+                                      '${trip.operatorName}'
+                                      '${trip.vehicleName.isEmpty ? '' : ' · ${trip.vehicleName}'}\n'
                                       '${_dateTimeString(trip.departureTime)} → '
                                       '${_dateTimeString(trip.arrivalTime)} · '
                                       '${_durationLabel(trip)} · '

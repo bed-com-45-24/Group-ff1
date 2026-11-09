@@ -74,7 +74,9 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                 (trip) =>
                     trip.departureTime.isAfter(DateTime.now()) &&
                     _normalizeLocation(trip.origin) == origin &&
-                    _normalizeLocation(trip.destination) == destination,
+                    _normalizeLocation(trip.destination) == destination &&
+                    (route.roadName.trim().isEmpty ||
+                        _matchesRoad(trip.routeName, route.roadName)),
               )
               .toList()
             ..sort(
@@ -97,6 +99,14 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
 
   String _normalizeLocation(String value) =>
       value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+
+  bool _matchesRoad(String scheduledRoad, String routeRoad) {
+    final scheduled = _normalizeLocation(scheduledRoad);
+    final configured = _normalizeLocation(routeRoad);
+    return scheduled.isNotEmpty &&
+        configured.isNotEmpty &&
+        (scheduled.contains(configured) || configured.contains(scheduled));
+  }
 
   Future<void> _viewMap() async {
     final mapContext = _mapKey.currentContext;
@@ -163,6 +173,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
           const SizedBox(height: 8),
 
           Text('Transport company: ${route.companyName}'),
+          if (route.roadName.trim().isNotEmpty) Text('Road: ${route.roadName}'),
 
           const SizedBox(height: 16),
 
@@ -309,7 +320,9 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                       '${MaterialLocalizations.of(context).formatTimeOfDay(TimeOfDay.fromDateTime(trip.departureTime))}',
                     ),
                     subtitle: Text(
-                      '${trip.transportMode} · ${trip.operatorName}\n'
+                      '${trip.routeName.isEmpty ? 'Road not specified' : trip.routeName}'
+                      ' · ${trip.transportMode} · ${trip.operatorName}'
+                      '${trip.vehicleName.isEmpty ? '' : ' · ${trip.vehicleName}'}\n'
                       '$availableSeats of ${trip.totalSeats} seats available',
                     ),
                     isThreeLine: true,
@@ -437,6 +450,36 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                     ),
                     MarkerLayer(
                       markers: [
+                        Marker(
+                          point: _mapRoutes
+                              .first
+                              .points[_mapRoutes.first.points.length ~/ 2],
+                          width: 260,
+                          height: 72,
+                          child: Container(
+                            alignment: Alignment.center,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 5,
+                            ),
+                            child: Text(
+                              route.roadName.trim().isNotEmpty
+                                  ? route.roadName
+                                  : _fullRouteName(_mapRoutes.first),
+                              maxLines: 2,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Colors.deepPurple,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                backgroundColor: Colors.white,
+                                shadows: [
+                                  Shadow(color: Colors.white, blurRadius: 3),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
                         Marker(
                           point: _mapRoutes.first.points.first,
                           width: 110,

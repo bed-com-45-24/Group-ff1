@@ -117,6 +117,8 @@ class _BookingCard extends StatelessWidget {
         title: Text('${trip.origin} → ${trip.destination}'),
         subtitle: Text(
           'Ref: ${booking.reference}\n'
+          '${trip.routeName.isEmpty ? 'Road not specified' : trip.routeName}'
+          '${trip.vehicleName.isEmpty ? '' : ' · ${trip.vehicleName}'}\n'
           'Seats: ${booking.selectedSeats.join(', ')} · ${booking.status.label}',
         ),
         isThreeLine: true,

@@ -14,6 +14,7 @@ class Trip {
   final String transportMode;
   final String operatorName;
   final String routeName;
+  final String vehicleName;
 
   const Trip({
     required this.id,
@@ -29,6 +30,7 @@ class Trip {
     this.transportMode = 'Bus',
     this.operatorName = 'MOVA Transport',
     this.routeName = '',
+    this.vehicleName = '',
   });
 
   int get availableSeats => totalSeats - bookedSeats.length;
@@ -46,6 +48,7 @@ class Trip {
     String? transportMode,
     String? operatorName,
     String? routeName,
+    String? vehicleName,
   }) {
     return Trip(
       id: id,
@@ -61,6 +64,7 @@ class Trip {
       transportMode: transportMode ?? this.transportMode,
       operatorName: operatorName ?? this.operatorName,
       routeName: routeName ?? this.routeName,
+      vehicleName: vehicleName ?? this.vehicleName,
     );
   }
 
@@ -78,6 +82,7 @@ class Trip {
     'transportMode': transportMode,
     'operatorName': operatorName,
     'routeName': routeName,
+    'vehicleName': vehicleName,
   };
 
   factory Trip.fromJson(Map<String, dynamic> json) => Trip(
@@ -95,5 +100,6 @@ class Trip {
     transportMode: json['transportMode'] as String? ?? 'Bus',
     operatorName: json['operatorName'] as String? ?? 'MOVA Transport',
     routeName: json['routeName'] as String? ?? '',
+    vehicleName: json['vehicleName'] as String? ?? '',
   );
 }

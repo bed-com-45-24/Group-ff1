@@ -46,17 +46,17 @@ The use cases below describe the current prototype. “System” refers to the M
 
 - **Primary actor:** Company administrator
 - **Precondition:** The administrator is signed in with the admin role.
-- **Main flow:** The administrator adds or edits a route, configures its origin and destination, manages intermediate stops, and sets a positive fare in MWK. The administrator may activate/deactivate or delete a route. Changes are saved locally and reflected in passenger route data on this device.
-- **Alternative flows:** Invalid or duplicate route details are rejected. The origin and destination stops cannot be removed from a route.
-- **Related requirements:** FR-13–FR-15
+- **Main flow:** The administrator adds or edits a route, configures its origin and destination and road/highway, manages intermediate stops, and sets a positive fare in MWK. Multiple routes may share endpoints when their roads differ. The administrator may activate/deactivate or delete a route. Changes are saved locally and reflected in passenger route data on this device.
+- **Alternative flows:** A route with the same origin, destination, and road cannot be duplicated. The origin and destination stops cannot be removed from a route.
+- **Related requirements:** FR-13–FR-15, FR-18
 
 ### UC-06 — Manage trip schedules
 
 - **Primary actor:** Company administrator
 - **Precondition:** The administrator is signed in with the admin role.
-- **Main flow:** The administrator adds or edits a schedule's origin, destination, departure and arrival times, fare, and route/operator details. The system validates the schedule and saves it locally. The administrator can review availability and delete schedules.
+- **Main flow:** The administrator adds or edits a schedule's origin, destination, road/highway, departure and arrival times, fare, transport company, and vehicle identifier. Multiple schedules may share endpoints when assigned to different roads and vehicles. The system validates the schedule and saves it locally. The administrator can review availability and delete schedules.
 - **Alternative flows:** The system rejects invalid date/time values, a departure in the past, an arrival that is not after departure, or a non-positive fare.
-- **Related requirements:** FR-16–FR-17
+- **Related requirements:** FR-16–FR-17, FR-19
 
 ### UC-07 — Review passenger bookings
 
@@ -74,7 +74,7 @@ The use cases below describe the current prototype. “System” refers to the M
 | --- | --- | --- |
 | FR-01 | The application shall let a user choose the passenger or company-admin role, register or sign in locally, and log out. | Implemented as a local prototype; not production authentication. |
 | FR-02 | The application shall let a passenger browse active routes and search for routes by origin and destination. | Implemented using locally stored route data. |
-| FR-03 | The application shall show route details, including origin, destination, stops, pickup/drop-off information, operator, available departure times, and fare where provided. | Implemented; displayed information depends on the route record. |
+| FR-03 | The application shall show route details, including origin, destination, road/highway, stops, pickup/drop-off information, operator, available departure times, and fare where provided. | Implemented; displayed information depends on the route record. |
 | FR-04 | The application shall display configured route fares in MWK and distinguish map-distance fare estimates from configured fares. | Implemented. Estimate and schedule data are not guaranteed operator prices. |
 | FR-05 | The application shall display an interactive map and driving directions for supported places, and shall request device-location permission when current location is needed. | Implemented using OpenStreetMap, Nominatim, and OSRM public services; network and permission required. |
 | FR-06 | The application shall let a passenger search for future scheduled bus trips by origin, destination, and travel date, and display matching departure/arrival times and fares. | Implemented using locally stored schedules. |
@@ -92,8 +92,10 @@ The use cases below describe the current prototype. “System” refers to the M
 | FR-13 | An administrator shall be able to create, edit, activate/deactivate, and delete routes. | Implemented locally. |
 | FR-14 | An administrator shall be able to add or remove intermediate stops while retaining each route's origin and destination. | Implemented locally. |
 | FR-15 | An administrator shall be able to set a positive MWK fare for a route. Passengers shall not edit that fare. | Implemented locally; map-based estimates are separate from configured route fares. |
-| FR-16 | An administrator shall be able to create, edit, and delete bus schedules, including origin, destination, departure and arrival times, fare, and operator/route details. | Implemented locally; schedules require a future departure and arrival after departure. |
+| FR-16 | An administrator shall be able to create, edit, and delete bus schedules, including origin, destination, departure and arrival times, fare, road, operator, and vehicle identifier. | Implemented locally; schedules require a future departure and arrival after departure. |
 | FR-17 | An administrator shall be able to view scheduled-trip seat availability and inspect passenger booking and payment-status details. | Implemented locally. |
+| FR-18 | An administrator shall be able to distinguish routes with identical endpoints by assigning each a road/highway name; otherwise duplicate routes with the same endpoints and road shall be rejected. | Implemented locally. |
+| FR-19 | An administrator shall be able to assign each schedule a road/highway, transport company, and vehicle identifier so trips to the same destination can be distinguished. Passenger trip search shall retain the selected route's road and show the scheduled vehicle. | Implemented locally; enter the same road name on the route and its schedules for road-specific results. |
 
 ## Non-functional requirements
 

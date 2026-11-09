@@ -62,6 +62,7 @@ class _SelectTripScreenState extends State<SelectTripScreen> {
         _tripStore.trips,
         _originController.text,
         _destinationController.text,
+        roadName: widget.initialRoute?.roadName ?? '',
       );
       _scheduleLoadError = null;
     });
@@ -93,6 +94,7 @@ class _SelectTripScreenState extends State<SelectTripScreen> {
           _tripStore.trips,
           origin,
           destination,
+          roadName: widget.initialRoute?.roadName ?? '',
         );
         _isLoadingSchedules = false;
       });
@@ -132,6 +134,7 @@ class _SelectTripScreenState extends State<SelectTripScreen> {
         _tripStore.trips,
         _originController.text,
         _destinationController.text,
+        roadName: widget.initialRoute?.roadName ?? '',
       );
       final matchingTrips = _findTripsForDate();
       if (!mounted) return;
@@ -177,6 +180,7 @@ class _SelectTripScreenState extends State<SelectTripScreen> {
       builder: (context) => _ScheduleDatePickerDialog(
         origin: _originController.text.trim(),
         destination: _destinationController.text.trim(),
+        roadName: widget.initialRoute?.roadName ?? '',
         initialDate: travelDate,
         loadError: _scheduleLoadError,
       ),
@@ -209,8 +213,9 @@ class _SelectTripScreenState extends State<SelectTripScreen> {
               ? trip
               : trip.copyWith(
                   fare: widget.initialRoute!.fare,
-                  operatorName: widget.initialRoute!.companyName,
-                  routeName: widget.initialRoute!.name,
+                  routeName: widget.initialRoute!.roadName.trim().isEmpty
+                      ? trip.routeName
+                      : widget.initialRoute!.roadName,
                   fareIsEstimate: widget.initialRoute!.fareIsEstimate,
                 ),
         ),
@@ -366,7 +371,10 @@ class _SelectTripScreenState extends State<SelectTripScreen> {
                     leading: const Icon(Icons.route),
                     title: Text('${trip.origin} → ${trip.destination}'),
                     subtitle: Text(
-                      '${_durationLabel(trip)} · ${trip.operatorName}\n'
+                      '${trip.routeName.isEmpty ? 'Road not specified' : trip.routeName}'
+                      ' · ${trip.operatorName}'
+                      '${trip.vehicleName.isEmpty ? '' : ' · ${trip.vehicleName}'}\n'
+                      '${_durationLabel(trip)} · '
                       '${MaterialLocalizations.of(context).formatMediumDate(trip.departureTime)} · '
                       '${_timeLabel(trip.departureTime)} · '
                       '$availableSeats seats available',
@@ -412,21 +420,28 @@ class _SelectTripScreenState extends State<SelectTripScreen> {
 List<Trip> _matchingTripsForRoute(
   List<Trip> trips,
   String origin,
-  String destination,
-) {
+  String destination, {
+  String roadName = '',
+}) {
   final normalizedOrigin = _normalizeLocation(origin);
   final normalizedDestination = _normalizeLocation(destination);
+  final normalizedRoadName = _normalizeLocation(roadName);
   if (normalizedOrigin.isEmpty || normalizedDestination.isEmpty) {
     return const [];
   }
   return trips.where((trip) {
     final scheduledOrigin = _normalizeLocation(trip.origin);
     final scheduledDestination = _normalizeLocation(trip.destination);
+    final scheduledRoadName = _normalizeLocation(trip.routeName);
     return !trip.id.startsWith('MAP-ESTIMATE-') &&
         (scheduledOrigin.contains(normalizedOrigin) ||
             normalizedOrigin.contains(scheduledOrigin)) &&
         (scheduledDestination.contains(normalizedDestination) ||
-            normalizedDestination.contains(scheduledDestination));
+            normalizedDestination.contains(scheduledDestination)) &&
+        (normalizedRoadName.isEmpty ||
+            (scheduledRoadName.isNotEmpty &&
+                (scheduledRoadName.contains(normalizedRoadName) ||
+                    normalizedRoadName.contains(scheduledRoadName))));
   }).toList()..sort(
     (first, second) => first.departureTime.compareTo(second.departureTime),
   );
@@ -445,12 +460,14 @@ class _ScheduleSelection {
 class _ScheduleDatePickerDialog extends StatefulWidget {
   final String origin;
   final String destination;
+  final String roadName;
   final DateTime? initialDate;
   final String? loadError;
 
   const _ScheduleDatePickerDialog({
     required this.origin,
     required this.destination,
+    required this.roadName,
     required this.initialDate,
     required this.loadError,
   });
@@ -481,6 +498,7 @@ class _ScheduleDatePickerDialogState extends State<_ScheduleDatePickerDialog> {
     TripStore.instance.trips,
     widget.origin,
     widget.destination,
+    roadName: widget.roadName,
   );
 
   void _changeMonth(int offset) {

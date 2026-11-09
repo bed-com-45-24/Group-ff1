@@ -92,6 +92,8 @@ class _RouteCardState extends State<RouteCard> {
             const SizedBox(height: 8),
 
             Text('Company: ${route.companyName}'),
+            if (route.roadName.trim().isNotEmpty)
+              Text('Road: ${route.roadName}'),
 
             Text('Official fare: MWK ${route.fare.toStringAsFixed(0)}'),
 
