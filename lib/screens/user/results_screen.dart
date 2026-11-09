@@ -273,6 +273,9 @@ class _ResultsScreenState extends State<ResultsScreen> {
   String _mapRouteLabel(OsmRouteModel route) {
     final selectedRoute = _selectedRoute;
     if (selectedRoute == null) return route.routeName;
+    if (selectedRoute.roadName.trim().isNotEmpty) {
+      return selectedRoute.roadName;
+    }
     final knownName = knownMalawiRouteName(
       selectedRoute.origin,
       selectedRoute.destination,
@@ -582,6 +585,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                           title: Text('${route.origin} → ${route.destination}'),
                           subtitle: Text(
                             '${route.companyName} · ${route.name}\n'
+                            '${route.roadName.isEmpty ? 'Road not specified' : 'Road: ${route.roadName}'} · '
                             'Fare: MWK '
                             '${route.fare.toStringAsFixed(0)}',
                           ),

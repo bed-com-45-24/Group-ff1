@@ -84,11 +84,17 @@ class _SelectTripScreenState extends State<SelectTripScreen> {
   List<Trip> _findTripsForDate() {
     final origin = _normalizeLocation(_originController.text);
     final destination = _normalizeLocation(_destinationController.text);
+    final selectedRoad = widget.initialRoute?.roadName.trim() ?? '';
     final trips =
         _tripStore.trips.where((trip) {
           return !trip.id.startsWith('MAP-ESTIMATE-') &&
               _locationMatches(trip.origin, origin) &&
               _locationMatches(trip.destination, destination) &&
+              (selectedRoad.isEmpty ||
+                  _locationMatches(
+                    trip.routeName,
+                    _normalizeLocation(selectedRoad),
+                  )) &&
               (travelDate == null ||
                   DateUtils.isSameDay(trip.departureTime, travelDate)) &&
               trip.departureTime.isAfter(DateTime.now());
@@ -134,8 +140,9 @@ class _SelectTripScreenState extends State<SelectTripScreen> {
               ? trip
               : trip.copyWith(
                   fare: widget.initialRoute!.fare,
-                  operatorName: widget.initialRoute!.companyName,
-                  routeName: widget.initialRoute!.name,
+                  routeName: widget.initialRoute!.roadName.trim().isEmpty
+                      ? trip.routeName
+                      : widget.initialRoute!.roadName,
                   fareIsEstimate: widget.initialRoute!.fareIsEstimate,
                 ),
         ),
@@ -275,7 +282,10 @@ class _SelectTripScreenState extends State<SelectTripScreen> {
                     leading: const Icon(Icons.route),
                     title: Text('${trip.origin} → ${trip.destination}'),
                     subtitle: Text(
-                      '${_durationLabel(trip)} · ${trip.operatorName}\n'
+                      '${trip.routeName.isEmpty ? 'Road not specified' : trip.routeName}'
+                      ' · ${trip.operatorName}'
+                      '${trip.vehicleName.isEmpty ? '' : ' · ${trip.vehicleName}'}\n'
+                      '${_durationLabel(trip)} · '
                       '${MaterialLocalizations.of(context).formatMediumDate(trip.departureTime)} · '
                       '${_timeLabel(trip.departureTime)} · '
                       '${trip.availableSeats} seats available',

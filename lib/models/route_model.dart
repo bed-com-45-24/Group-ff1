@@ -4,6 +4,7 @@ class RouteModel {
   final String name;
   final String origin;
   final String destination;
+  final String roadName;
   final String? pickupLocation;
   final List<String> stops;
   final double fare;
@@ -20,6 +21,7 @@ class RouteModel {
     required this.name,
     required this.origin,
     required this.destination,
+    this.roadName = '',
     this.pickupLocation,
     required this.stops,
     required this.fare,
@@ -46,6 +48,7 @@ class RouteModel {
     String? name,
     String? origin,
     String? destination,
+    String? roadName,
     String? pickupLocation,
     List<String>? stops,
     double? fare,
@@ -62,6 +65,7 @@ class RouteModel {
       name: name ?? this.name,
       origin: origin ?? this.origin,
       destination: destination ?? this.destination,
+      roadName: roadName ?? this.roadName,
       pickupLocation: pickupLocation ?? this.pickupLocation,
       stops: stops ?? this.stops,
       fare: fare ?? this.fare,
@@ -80,6 +84,7 @@ class RouteModel {
     'name': name,
     'origin': origin,
     'destination': destination,
+    'roadName': roadName,
     'pickupLocation': pickupLocation,
     'stops': stops,
     'fare': fare,
@@ -97,6 +102,7 @@ class RouteModel {
     name: json['name'] as String,
     origin: json['origin'] as String,
     destination: json['destination'] as String,
+    roadName: json['roadName'] as String? ?? '',
     pickupLocation: json['pickupLocation'] as String?,
     stops: (json['stops'] as List<dynamic>).cast<String>(),
     fare: (json['fare'] as num).toDouble(),

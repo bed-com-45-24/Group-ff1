@@ -74,11 +74,14 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                     '${booking.trip.origin} → ${booking.trip.destination}',
                   ),
                   _ticketRow(
-                    'Route name',
+                    'Road / route',
                     booking.trip.routeName.trim().isEmpty
                         ? 'Not specified'
                         : booking.trip.routeName.trim(),
                   ),
+                  _ticketRow('Transport company', booking.trip.operatorName),
+                  if (booking.trip.vehicleName.trim().isNotEmpty)
+                    _ticketRow('Vehicle', booking.trip.vehicleName),
                   _ticketRow('Passenger', booking.passengerName),
                   _ticketRow('Phone', booking.phoneNumber),
                   _ticketSeats(booking.selectedSeats),
