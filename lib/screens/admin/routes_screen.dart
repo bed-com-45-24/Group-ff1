@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 import '../../data/route_store.dart';
@@ -50,7 +49,7 @@ class _RoutesScreenState extends State<RoutesScreen> {
       'nkhata bay': 'Nkhata Bay Depot',
     };
 
-    return depots[place] ?? '$location Depot';
+    return depots[place] ?? location.trim();
   }
 
   void _showMessage(String message) {
@@ -65,11 +64,15 @@ class _RoutesScreenState extends State<RoutesScreen> {
     );
 
     final pickupLocation = TextEditingController(
-      text: _getDepot(existing?.origin ?? ''),
+      text: existing?.pickupLocation?.isNotEmpty == true
+          ? existing!.pickupLocation!
+          : _getDepot(existing?.origin ?? ''),
     );
 
     final dropoffLocation = TextEditingController(
-      text: _getDepot(existing?.destination ?? ''),
+      text: existing?.dropOffLocation?.isNotEmpty == true
+          ? existing!.dropOffLocation!
+          : _getDepot(existing?.destination ?? ''),
     );
 
     // Automatically update pickup depot when origin changes.
@@ -110,18 +113,10 @@ class _RoutesScreenState extends State<RoutesScreen> {
                 _field(destination, 'Destination'),
 
                 // Pickup depot is automatically determined by origin.
-                _field(
-                  pickupLocation,
-                  'Pickup depot',
-                  readOnly: true,
-                ),
+                _field(pickupLocation, 'Pickup depot', readOnly: true),
 
                 // Drop-off depot is automatically determined by destination.
-                _field(
-                  dropoffLocation,
-                  'Drop-off depot',
-                  readOnly: true,
-                ),
+                _field(dropoffLocation, 'Drop-off depot', readOnly: true),
 
                 _field(company, 'Transport company'),
 
@@ -130,8 +125,7 @@ class _RoutesScreenState extends State<RoutesScreen> {
                   'Fare in MWK',
                   keyboardType: TextInputType.number,
                   validator: (value) {
-                    final amount =
-                        double.tryParse(value?.trim() ?? '');
+                    final amount = double.tryParse(value?.trim() ?? '');
 
                     return amount == null || amount <= 0
                         ? 'Enter a fare greater than zero'
@@ -174,22 +168,21 @@ class _RoutesScreenState extends State<RoutesScreen> {
 
               final intermediateStops =
                   existing != null && existing.stops.length > 2
-                      ? existing.stops.sublist(
-                          1,
-                          existing.stops.length - 1,
-                        )
-                      : const <String>[];
+                  ? existing.stops.sublist(1, existing.stops.length - 1)
+                  : const <String>[];
 
               Navigator.pop(
                 dialogContext,
                 RouteModel(
-                  id: existing?.id ??
+                  id:
+                      existing?.id ??
                       'R-${DateTime.now().microsecondsSinceEpoch}',
                   companyName: company.text.trim(),
                   name: '$from - $to',
                   origin: from,
                   destination: to,
-                  pickupLocation: _getDepot(from),
+                  pickupLocation: pickupLocation.text.trim(),
+                  dropOffLocation: dropoffLocation.text.trim(),
                   stops: [from, ...intermediateStops, to],
                   fare: double.parse(fare.text.trim()),
                   duration: existing?.duration,
@@ -274,10 +267,7 @@ class _RoutesScreenState extends State<RoutesScreen> {
                 children: [
                   const Text(
                     'Manage routes',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
 
                   const SizedBox(height: 5),
@@ -291,65 +281,53 @@ class _RoutesScreenState extends State<RoutesScreen> {
 
                   Expanded(
                     child: !_store.isLoaded
-                        ? const Center(
-                            child: CircularProgressIndicator(),
-                          )
+                        ? const Center(child: CircularProgressIndicator())
                         : routes.isEmpty
-                            ? const Center(
-                                child: Text('No routes yet. Add one.'),
-                              )
-                            : ListView.builder(
-                                itemCount: routes.length,
-                                itemBuilder: (context, index) {
-                                  final route = routes[index];
+                        ? const Center(child: Text('No routes yet. Add one.'))
+                        : ListView.builder(
+                            itemCount: routes.length,
+                            itemBuilder: (context, index) {
+                              final route = routes[index];
 
-                                  return Card(
-                                    color: Colors.white,
-                                    margin: const EdgeInsets.only(
-                                      bottom: 12,
-                                    ),
-                                    child: ListTile(
-                                      title: Text(route.name),
+                              return Card(
+                                color: Colors.white,
+                                margin: const EdgeInsets.only(bottom: 12),
+                                child: ListTile(
+                                  title: Text(route.name),
 
-                                      subtitle: Text(
-                                        'Pickup: ${_getDepot(route.origin)}\n'
-                                        'Drop-off: ${_getDepot(route.destination)}\n'
-                                        'MWK ${route.fare.toStringAsFixed(0)}',
+                                  subtitle: Text(
+                                    'Pickup: ${_getDepot(route.origin)}\n'
+                                    'Drop-off: ${_getDepot(route.destination)}\n'
+                                    'MWK ${route.fare.toStringAsFixed(0)}',
+                                  ),
+
+                                  isThreeLine: true,
+
+                                  onTap: () => _editRoute(route),
+
+                                  trailing: Wrap(
+                                    spacing: 0,
+                                    crossAxisAlignment:
+                                        WrapCrossAlignment.center,
+                                    children: [
+                                      Switch(
+                                        value: route.active,
+                                        onChanged: (active) => _store.saveRoute(
+                                          route.copyWith(active: active),
+                                        ),
                                       ),
 
-                                      isThreeLine: true,
-
-                                      onTap: () => _editRoute(route),
-
-                                      trailing: Wrap(
-                                        spacing: 0,
-                                        crossAxisAlignment:
-                                            WrapCrossAlignment.center,
-                                        children: [
-                                          Switch(
-                                            value: route.active,
-                                            onChanged: (active) =>
-                                                _store.saveRoute(
-                                              route.copyWith(
-                                                active: active,
-                                              ),
-                                            ),
-                                          ),
-
-                                          IconButton(
-                                            tooltip: 'Delete route',
-                                            onPressed: () =>
-                                                _removeRoute(route),
-                                            icon: const Icon(
-                                              Icons.delete_outline,
-                                            ),
-                                          ),
-                                        ],
+                                      IconButton(
+                                        tooltip: 'Delete route',
+                                        onPressed: () => _removeRoute(route),
+                                        icon: const Icon(Icons.delete_outline),
                                       ),
-                                    ),
-                                  );
-                                },
-                              ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
                   ),
 
                   SizedBox(
@@ -387,11 +365,11 @@ class _RoutesScreenState extends State<RoutesScreen> {
           labelText: label,
           border: const OutlineInputBorder(),
         ),
-        validator: validator ??
-            (value) =>
-                required && (value == null || value.trim().isEmpty)
-                    ? 'This field is required'
-                    : null,
+        validator:
+            validator ??
+            (value) => required && (value == null || value.trim().isEmpty)
+                ? 'This field is required'
+                : null,
       ),
     );
   }

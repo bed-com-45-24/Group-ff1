@@ -45,10 +45,26 @@ class OpenStreetMapService {
     required String origin,
     required String destination,
   }) async {
-    final originPoint = await findPlace(origin);
+    final originPoint = await _findPlaceOrTown(origin);
     await Future<void>.delayed(const Duration(seconds: 1));
-    final destinationPoint = await findPlace(destination);
+    final destinationPoint = await _findPlaceOrTown(destination);
     return findRoutes(origin: originPoint, destination: destinationPoint);
+  }
+
+  Future<LatLng> _findPlaceOrTown(String place) async {
+    try {
+      return await findPlace(place);
+    } catch (_) {
+      final trimmed = place.trim();
+      final town = RegExp(r'\bdepot\b$', caseSensitive: false).hasMatch(trimmed)
+          ? trimmed.replaceFirst(
+              RegExp(r'\s+depot\s*$', caseSensitive: false),
+              '',
+            )
+          : trimmed;
+      if (town.isEmpty || town == trimmed) rethrow;
+      return findPlace(town);
+    }
   }
 
   Future<LatLng> currentPosition() async {

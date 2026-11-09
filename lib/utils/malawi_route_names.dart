@@ -9,6 +9,24 @@ String knownMalawiRouteName(String origin, String destination) {
       corridor.contains(normalize('Mchinji'))) {
     return 'M12';
   }
+
+  const corridorNumbers = <String, String>{
+    'blantyre-karonga': 'M1',
+    'blantyrelilongwe': 'M1',
+    'kasungulilongwe': 'M1',
+    'kasungumzuzu': 'M1',
+    'lilongwemzuzu': 'M1',
+    'blantyremzuzu': 'M1',
+    'lilongwemangochi': 'M5',
+    'lilongwesalima': 'M5',
+    'mangochisalima': 'M5',
+    'mzuzuzomba': 'M5',
+  };
+
+  final orderedNames = corridor.toList()..sort();
+  final corridorKey = orderedNames.length == 2 ? orderedNames.join() : '';
+  final mappedNumber = corridorNumbers[corridorKey];
+  if (mappedNumber != null) return mappedNumber;
   final normalizedBlantyre = normalize(destination) == normalize('Brantyre')
       ? normalize('Blantyre')
       : normalize(destination);

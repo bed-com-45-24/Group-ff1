@@ -23,7 +23,11 @@ class RouteDetailsScreen extends StatefulWidget {
 class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
   final _openStreetMap = OpenStreetMapService();
   final _mapKey = GlobalKey();
+  final _routeHitNotifier = LayerHitNotifier<String>(null);
   OsmRouteModel? _mapRoute;
+  final List<OsmRouteModel> _mapRoutes = [];
+  bool _showRouteTooltip = false;
+  String? _tappedRouteId;
   String? _mapError;
   bool _loadingMapRoute = true;
   bool _loadingSchedules = true;
@@ -37,6 +41,23 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
     super.initState();
     _loadMapRoute();
     _loadSchedules();
+    _routeHitNotifier.addListener(_handleRouteHit);
+  }
+
+  @override
+  void dispose() {
+    _routeHitNotifier.removeListener(_handleRouteHit);
+    _routeHitNotifier.dispose();
+    super.dispose();
+  }
+
+  void _handleRouteHit() {
+    if (!mounted) return;
+    final hitValues = _routeHitNotifier.value?.hitValues;
+    setState(() {
+      _tappedRouteId = hitValues?.isNotEmpty == true ? hitValues!.first : null;
+      _showRouteTooltip = _tappedRouteId != null;
+    });
   }
 
   Future<void> _loadSchedules() async {
@@ -103,6 +124,9 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
       if (!mounted) return;
       setState(() {
         _mapRoute = routes.first;
+        _mapRoutes
+          ..clear()
+          ..addAll(routes.where((route) => route.points.length >= 2));
         _loadingMapRoute = false;
       });
     } catch (error) {
@@ -337,8 +361,10 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
       );
     }
 
-    final points = _mapRoute?.points;
-    if (points == null || points.length < 2) {
+    final routePoints = _mapRoutes
+        .expand((mapRoute) => mapRoute.points)
+        .toList(growable: false);
+    if (routePoints.length < 2) {
       return Container(
         height: 180,
         alignment: Alignment.center,
@@ -360,102 +386,154 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
-      child: SizedBox(
-        height: 320,
-        child: FlutterMap(
-          options: MapOptions(
-            initialCenter: points.first,
-            initialZoom: 8,
-            cameraConstraint: CameraConstraint.containCenter(
-              bounds: malawiBounds,
-            ),
-            interactionOptions: const InteractionOptions(
-              flags: InteractiveFlag.all,
-            ),
-            initialCameraFit: CameraFit.bounds(
-              bounds: LatLngBounds.fromPoints(points),
-              padding: const EdgeInsets.all(48),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            height: 320,
+            child: Stack(
+              children: [
+                FlutterMap(
+                  options: MapOptions(
+                    initialCenter: _mapRoutes.first.points.first,
+                    initialZoom: 8,
+                    cameraConstraint: CameraConstraint.containCenter(
+                      bounds: malawiBounds,
+                    ),
+                    interactionOptions: const InteractionOptions(
+                      flags: InteractiveFlag.all,
+                    ),
+                    onTap: (_, _) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        _handleRouteHit();
+                      });
+                    },
+                    initialCameraFit: CameraFit.bounds(
+                      bounds: LatLngBounds.fromPoints(routePoints.toList()),
+                      padding: const EdgeInsets.all(48),
+                    ),
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'com.example.mova',
+                    ),
+                    PolylineLayer(
+                      hitNotifier: _routeHitNotifier,
+                      minimumHitbox: 18,
+                      polylines: _mapRoutes.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final mapRoute = entry.value;
+                        return Polyline(
+                          points: mapRoute.points,
+                          color: index == 0
+                              ? Colors.blue
+                              : Colors.grey.shade700,
+                          strokeWidth: 5,
+                          hitValue: mapRoute.id,
+                        );
+                      }).toList(),
+                    ),
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          point: _mapRoutes.first.points.first,
+                          width: 110,
+                          height: 54,
+                          child: _RouteMapMarker(
+                            label: route.pickupPoint,
+                            color: Colors.green.shade700,
+                            icon: Icons.trip_origin,
+                          ),
+                        ),
+                        Marker(
+                          point: _mapRoutes.first.points.last,
+                          width: 130,
+                          height: 54,
+                          child: _RouteMapMarker(
+                            label: route.dropOffPoint,
+                            color: Colors.red.shade700,
+                            icon: Icons.location_on,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (_showRouteTooltip)
+                      Positioned(
+                        left: 12,
+                        right: 12,
+                        bottom: 12,
+                        child: Material(
+                          elevation: 5,
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          child: Padding(
+                            padding: const EdgeInsets.all(10),
+                            child: Text(
+                              '${_fullRouteName(_tappedMapRoute())}\n'
+                              '${_tappedMapRoute()?.distanceLabel ?? 'Distance unavailable'} · '
+                              '${_tappedMapRoute()?.durationLabel ?? 'Time unavailable'}',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                RichAttributionWidget(
+                  attributions: [
+                    TextSourceAttribution(
+                      '© OpenStreetMap contributors',
+                      onTap: () {},
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-          children: [
-            TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'com.example.mova',
-            ),
-            PolylineLayer(
-              polylines: [
-                Polyline(
-                  points: points,
-                  color: Colors.deepPurple,
-                  strokeWidth: 5,
-                ),
-              ],
-            ),
-            MarkerLayer(
-              markers: [
-                Marker(
-                  point: points[points.length ~/ 2],
-                  width: 260,
-                  height: 72,
-                  child: Container(
-                    alignment: Alignment.center,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 5,
-                    ),
-                    child: Text(
-                      knownMalawiRouteName(
-                            route.origin,
-                            route.destination,
-                          ).isEmpty
-                          ? (_mapRoute?.roadNamesLabel ?? 'Route on map')
-                          : '${knownMalawiRouteName(route.origin, route.destination)} Road',
-                      maxLines: 4,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Colors.deepPurple,
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        backgroundColor: Colors.white,
-                        shadows: [Shadow(color: Colors.white, blurRadius: 3)],
-                      ),
-                    ),
-                  ),
-                ),
-                Marker(
-                  point: points.first,
-                  width: 110,
-                  height: 54,
-                  child: _RouteMapMarker(
-                    label: route.pickupPoint,
-                    color: Colors.green.shade700,
-                    icon: Icons.trip_origin,
-                  ),
-                ),
-                Marker(
-                  point: points.last,
-                  width: 130,
-                  height: 54,
-                  child: _RouteMapMarker(
-                    label: route.dropOffPoint,
-                    color: Colors.red.shade700,
-                    icon: Icons.location_on,
-                  ),
-                ),
-              ],
-            ),
-            RichAttributionWidget(
-              attributions: [
-                TextSourceAttribution(
-                  '© OpenStreetMap contributors',
-                  onTap: () {},
-                ),
-              ],
-            ),
-          ],
-        ),
+        ],
       ),
     );
+  }
+
+  OsmRouteModel? _tappedMapRoute() {
+    for (final mapRoute in _mapRoutes) {
+      if (mapRoute.id == _tappedRouteId) return mapRoute;
+    }
+    return _mapRoute;
+  }
+
+  String _routeName(OsmRouteModel mapRoute) {
+    final knownName = knownMalawiRouteName(route.origin, route.destination);
+    if (knownName.isNotEmpty) return knownName;
+
+    final roadNames = mapRoute.roadNamesLabel;
+    if (roadNames != 'Road name unavailable') {
+      final roadNumber = RegExp(
+        r'\b[MS]\s?-?\s?\d{1,3}\b',
+        caseSensitive: false,
+      ).firstMatch(roadNames);
+      if (roadNumber != null) {
+        final number = roadNumber.group(0)!.replaceAll(RegExp(r'\s|-'), '');
+        return '$number Road';
+      }
+    }
+
+    final routeIndex = _mapRoutes.indexWhere((item) => item.id == mapRoute.id);
+    return 'Route ${routeIndex < 0 ? 1 : routeIndex + 1}';
+  }
+
+  String _fullRouteName(OsmRouteModel? mapRoute) =>
+      mapRoute == null ? _fullRouteNameWithoutRoute() : _routeName(mapRoute);
+
+  String _fullRouteNameWithoutRoute() {
+    final knownName = knownMalawiRouteName(route.origin, route.destination);
+    if (knownName.isNotEmpty) return knownName;
+    return _mapRoute == null ? 'Route 1' : _routeName(_mapRoute!);
   }
 }
 

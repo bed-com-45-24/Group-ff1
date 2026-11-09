@@ -5,6 +5,7 @@ class RouteModel {
   final String origin;
   final String destination;
   final String? pickupLocation;
+  final String? dropOffLocation;
   final List<String> stops;
   final double fare;
   final String? duration;
@@ -21,6 +22,7 @@ class RouteModel {
     required this.origin,
     required this.destination,
     this.pickupLocation,
+    this.dropOffLocation,
     required this.stops,
     required this.fare,
     this.duration,
@@ -36,10 +38,16 @@ class RouteModel {
     if (savedPickup != null && savedPickup.isNotEmpty) return savedPickup;
     return RegExp(r'\bdepot\b', caseSensitive: false).hasMatch(origin)
         ? origin.trim()
-        : '${origin.trim()} Depot';
+        : origin.trim();
   }
 
-  String get dropOffPoint => destination;
+  String get dropOffPoint {
+    final savedDropOff = dropOffLocation?.trim();
+    if (savedDropOff != null && savedDropOff.isNotEmpty) return savedDropOff;
+    return RegExp(r'\bdepot\b', caseSensitive: false).hasMatch(destination)
+        ? destination.trim()
+        : destination.trim();
+  }
 
   RouteModel copyWith({
     String? companyName,
@@ -47,6 +55,7 @@ class RouteModel {
     String? origin,
     String? destination,
     String? pickupLocation,
+    String? dropOffLocation,
     List<String>? stops,
     double? fare,
     String? duration,
@@ -63,6 +72,7 @@ class RouteModel {
       origin: origin ?? this.origin,
       destination: destination ?? this.destination,
       pickupLocation: pickupLocation ?? this.pickupLocation,
+      dropOffLocation: dropOffLocation ?? this.dropOffLocation,
       stops: stops ?? this.stops,
       fare: fare ?? this.fare,
       duration: duration ?? this.duration,
@@ -81,6 +91,7 @@ class RouteModel {
     'origin': origin,
     'destination': destination,
     'pickupLocation': pickupLocation,
+    'dropOffLocation': dropOffLocation,
     'stops': stops,
     'fare': fare,
     'duration': duration,
@@ -98,6 +109,7 @@ class RouteModel {
     origin: json['origin'] as String,
     destination: json['destination'] as String,
     pickupLocation: json['pickupLocation'] as String?,
+    dropOffLocation: json['dropOffLocation'] as String?,
     stops: (json['stops'] as List<dynamic>).cast<String>(),
     fare: (json['fare'] as num).toDouble(),
     duration: json['duration'] as String?,
