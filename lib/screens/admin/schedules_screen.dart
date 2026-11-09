@@ -12,6 +12,19 @@ class SchedulesScreen extends StatefulWidget {
 }
 
 class _SchedulesScreenState extends State<SchedulesScreen> {
+  static const _vehicles = [
+    'MOVA 1',
+    'MOVA 2',
+    'MOVA 3',
+    'MOVA 4',
+    'MOVA 5',
+    'MOVA 6',
+    'MOVA 7',
+    'MOVA 8',
+    'MOVA 9',
+    'MOVA 10',
+  ];
+
   final _store = TripStore.instance;
 
   @override
@@ -43,9 +56,9 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
       text: existing?.operatorName ?? 'MOVA Express',
     );
     final routeName = TextEditingController(text: existing?.routeName ?? '');
-    final vehicleName = TextEditingController(
-      text: existing?.vehicleName ?? '',
-    );
+    var vehicleName = _vehicles.contains(existing?.vehicleName)
+        ? existing!.vehicleName
+        : null;
     final formKey = GlobalKey<FormState>();
 
     final result = await showDialog<Trip>(
@@ -83,9 +96,26 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
                   routeName,
                   'Road / highway (match the admin route, e.g. M1 or M5)',
                 ),
-                _field(
-                  vehicleName,
-                  'Vehicle / car identifier (for example MOVA 1)',
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: DropdownButtonFormField<String>(
+                    initialValue: vehicleName,
+                    decoration: const InputDecoration(
+                      labelText: 'Vehicle',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: _vehicles
+                        .map(
+                          (vehicle) => DropdownMenuItem(
+                            value: vehicle,
+                            child: Text(vehicle),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) => vehicleName = value,
+                    validator: (value) =>
+                        value == null ? 'Select a vehicle' : null,
+                  ),
                 ),
               ],
             ),
@@ -144,7 +174,7 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
                   bookedSeats: existing?.bookedSeats ?? const [],
                   operatorName: operator.text.trim(),
                   routeName: routeName.text.trim(),
-                  vehicleName: vehicleName.text.trim(),
+                  vehicleName: vehicleName!,
                   transportMode: 'Bus',
                 ),
               );
@@ -163,8 +193,6 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
     fare.dispose();
     operator.dispose();
     routeName.dispose();
-    vehicleName.dispose();
-
     if (result == null) return;
 
     await _store.saveTrip(result);

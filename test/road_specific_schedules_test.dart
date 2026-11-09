@@ -127,7 +127,11 @@ Future<void> _addSchedule(
   await tester.enterText(find.byType(TextFormField).at(4), '22000');
   await tester.enterText(find.byType(TextFormField).at(5), 'MOVA Express');
   await tester.enterText(find.byType(TextFormField).at(6), road);
-  await tester.enterText(find.byType(TextFormField).at(7), vehicle);
+  await tester.tap(find.byType(DropdownButtonFormField<String>));
+  await tester.pumpAndSettle();
+  expect(find.text('MOVA 10'), findsOneWidget);
+  await tester.tap(find.text(vehicle).last);
+  await tester.pumpAndSettle();
   await tester.tap(find.text('Save'));
   await tester.pumpAndSettle();
   await tester.pump(const Duration(seconds: 5));
