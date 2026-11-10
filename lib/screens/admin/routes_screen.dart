@@ -17,11 +17,21 @@ class RoutesScreen extends StatefulWidget {
 
 class _RoutesScreenState extends State<RoutesScreen> {
   final _store = RouteStore.instance;
+  String? _loadError;
 
   @override
   void initState() {
     super.initState();
-    _store.load();
+    _loadRoutes();
+  }
+
+  Future<void> _loadRoutes() async {
+    try {
+      await _store.load(refresh: true);
+      if (mounted) setState(() => _loadError = null);
+    } catch (error) {
+      if (mounted) setState(() => _loadError = error.toString());
+    }
   }
 
   // Hard-coded depot mapping for Malawi towns.
@@ -227,7 +237,12 @@ class _RoutesScreenState extends State<RoutesScreen> {
 
     if (result == null) return;
 
-    await _store.saveRoute(result);
+    try {
+      await _store.saveRoute(result);
+    } catch (error) {
+      if (mounted) _showMessage('Route could not be saved: $error');
+      return;
+    }
 
     if (mounted) {
       _showMessage('Route saved.');
@@ -255,7 +270,12 @@ class _RoutesScreenState extends State<RoutesScreen> {
 
     if (confirmed != true) return;
 
-    await _store.removeRoute(route.id);
+    try {
+      await _store.removeRoute(route.id);
+    } catch (error) {
+      if (mounted) _showMessage('Route could not be deleted: $error');
+      return;
+    }
 
     if (mounted) {
       _showMessage('Route deleted.');
@@ -292,7 +312,21 @@ class _RoutesScreenState extends State<RoutesScreen> {
                   const SizedBox(height: 18),
 
                   Expanded(
-                    child: !_store.isLoaded
+                    child: _loadError != null
+                        ? Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'Could not load routes: $_loadError',
+                                textAlign: TextAlign.center,
+                              ),
+                              TextButton(
+                                onPressed: _loadRoutes,
+                                child: const Text('Retry'),
+                              ),
+                            ],
+                          )
+                        : !_store.isLoaded
                         ? const Center(child: CircularProgressIndicator())
                         : routes.isEmpty
                         ? const Center(child: Text('No routes yet. Add one.'))

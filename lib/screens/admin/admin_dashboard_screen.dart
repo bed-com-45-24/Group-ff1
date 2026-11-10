@@ -16,7 +16,7 @@ class AdminDashboardScreen extends StatefulWidget {
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   int selectedIndex = 0;
-  late final Future<bool> _accessCheck = _isAuthorizedAdmin();
+  late Future<bool> _accessCheck;
 
   final List<Widget> screens = const [
     RoutesScreen(),
@@ -25,6 +25,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     SchedulesScreen(),
     AdminBookingsScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _accessCheck = _isAuthorizedAdmin();
+  }
 
   Future<bool> _isAuthorizedAdmin() async {
     final auth = AuthService();
@@ -38,6 +44,32 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return FutureBuilder<bool>(
       future: _accessCheck,
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Scaffold(
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Could not verify administrator access: '
+                      '${snapshot.error}',
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    FilledButton(
+                      onPressed: () {
+                        setState(() => _accessCheck = _isAuthorizedAdmin());
+                      },
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
         if (snapshot.data != true) {
           if (snapshot.connectionState == ConnectionState.done) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -55,59 +87,63 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           );
         }
         return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        title: Text(
-          'Company admin · ${titles[selectedIndex]}',
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'Log out',
-            onPressed: () async {
-              await AuthService().logout();
-              if (!context.mounted) return;
-              Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+          backgroundColor: const Color(0xFFF5F6FA),
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            title: Text(
+              'Company admin · ${titles[selectedIndex]}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            actions: [
+              IconButton(
+                tooltip: 'Log out',
+                onPressed: () async {
+                  await AuthService().logout();
+                  if (!context.mounted) return;
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    '/',
+                    (route) => false,
+                  );
+                },
+                icon: const Icon(Icons.logout),
+              ),
+            ],
+          ),
+          body: IndexedStack(index: selectedIndex, children: screens),
+          bottomNavigationBar: NavigationBar(
+            selectedIndex: selectedIndex,
+            onDestinationSelected: (index) {
+              setState(() => selectedIndex = index);
             },
-            icon: const Icon(Icons.logout),
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.alt_route_outlined),
+                selectedIcon: Icon(Icons.alt_route),
+                label: 'Routes',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.location_on_outlined),
+                selectedIcon: Icon(Icons.location_on),
+                label: 'Stops',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.payments_outlined),
+                selectedIcon: Icon(Icons.payments),
+                label: 'Fares',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.schedule_outlined),
+                selectedIcon: Icon(Icons.schedule),
+                label: 'Schedules',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.confirmation_number_outlined),
+                selectedIcon: Icon(Icons.confirmation_number),
+                label: 'Bookings',
+              ),
+            ],
           ),
-        ],
-      ),
-      body: IndexedStack(index: selectedIndex, children: screens),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: selectedIndex,
-        onDestinationSelected: (index) {
-          setState(() => selectedIndex = index);
-        },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.alt_route_outlined),
-            selectedIcon: Icon(Icons.alt_route),
-            label: 'Routes',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.location_on_outlined),
-            selectedIcon: Icon(Icons.location_on),
-            label: 'Stops',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.payments_outlined),
-            selectedIcon: Icon(Icons.payments),
-            label: 'Fares',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.schedule_outlined),
-            selectedIcon: Icon(Icons.schedule),
-            label: 'Schedules',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.confirmation_number_outlined),
-            selectedIcon: Icon(Icons.confirmation_number),
-            label: 'Bookings',
-          ),
-        ],
-      ),
         );
       },
     );

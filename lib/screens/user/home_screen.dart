@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 import '../../data/route_store.dart';
@@ -91,9 +90,20 @@ class _HomeTabState extends State<_HomeTab> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _routeStore.changes.addListener(_refreshRoutes);
-    _routeStore.load();
+    _loadRoutes();
     _loadUserInfo();
     _loadCurrentLocation();
+  }
+
+  Future<void> _loadRoutes() async {
+    try {
+      await _routeStore.load(refresh: true);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not load routes: $error')));
+    }
   }
 
   void _refreshRoutes() {
@@ -108,14 +118,21 @@ class _HomeTabState extends State<_HomeTab> with WidgetsBindingObserver {
   }
 
   Future<void> _loadUserInfo() async {
-    final userName = await _authService.getUserName();
-    final userEmail = await _authService.getUserEmail();
-    if (!mounted) return;
+    try {
+      final userName = await _authService.getUserName();
+      final userEmail = await _authService.getUserEmail();
+      if (!mounted) return;
 
-    final name = (userName ?? userEmail ?? '').trim();
-    setState(() {
-      _userInitial = name.isEmpty ? 'U' : name[0].toUpperCase();
-    });
+      final name = (userName ?? userEmail ?? '').trim();
+      setState(() {
+        _userInitial = name.isEmpty ? 'U' : name[0].toUpperCase();
+      });
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not load your account details: $error')),
+      );
+    }
   }
 
   Future<void> _loadCurrentLocation() async {
@@ -368,7 +385,11 @@ class _AllPopularRoutesScreenState extends State<AllPopularRoutesScreen> {
   @override
   void initState() {
     super.initState();
-    _store.load();
+    _store.load(refresh: true).catchError((Object error) {
+      if (mounted) {
+        setState(() => _routeSearchError = 'Could not load routes: $error');
+      }
+    });
   }
 
   @override

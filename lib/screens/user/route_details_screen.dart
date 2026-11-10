@@ -63,8 +63,8 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
   Future<void> _loadSchedules() async {
     try {
       await Future.wait([
-        TripStore.instance.load(),
-        BookingStore.instance.load(),
+        TripStore.instance.load(refresh: true),
+        BookingStore.instance.load(refresh: true),
       ]);
       final origin = _normalizeLocation(route.origin);
       final destination = _normalizeLocation(route.destination);

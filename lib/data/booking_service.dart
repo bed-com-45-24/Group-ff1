@@ -21,8 +21,7 @@ class BookingService {
       reference: reference,
       selectedSeats: selectedSeats,
     );
-    await _store.createDraft(booking);
-    return booking;
+    return _store.createDraft(booking);
   }
 
   Future<BookingDraft> review({

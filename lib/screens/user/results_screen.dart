@@ -117,7 +117,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
     });
 
     try {
-      await _store.load();
+      await _store.load(refresh: true);
       final destinationQueries = {
         _searchArguments?['name']?.toString().trim() ?? _effectiveDestination,
         _searchArguments?['address']?.toString().trim() ?? '',

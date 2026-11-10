@@ -29,9 +29,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadUserInfo() async {
-    final userName = await _authService.getUserName();
-    final userEmail = await _authService.getUserEmail();
-    if (mounted) {
+    try {
+      final userName = await _authService.getUserName();
+      final userEmail = await _authService.getUserEmail();
+      if (!mounted) return;
       setState(() {
         _userName = userName ?? 'User Name';
         _userEmail = userEmail ?? 'user@example.com';
@@ -39,6 +40,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             .substring(0, 1)
             .toUpperCase();
       });
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not load your account details: $error')),
+      );
     }
   }
 

@@ -67,11 +67,11 @@ class _SignupScreenState extends State<SignupScreen> {
           _isLoading = false;
         });
       }
-    } catch (e) {
+    } catch (error) {
       if (!mounted) return;
 
       setState(() {
-        _errorMessage = 'An error occurred. Please try again.';
+        _errorMessage = error.toString();
         _isLoading = false;
       });
     }
@@ -148,7 +148,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       const SizedBox(height: 8),
 
                       const Text(
-                        'Sign up to get started with MOVA',
+                        'Create a passenger account with your Gmail address.',
                         textAlign: TextAlign.center,
                         style: TextStyle(fontSize: 16, color: Colors.black54),
                       ),
@@ -188,7 +188,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         keyboardType: TextInputType.emailAddress,
                         decoration: InputDecoration(
                           labelText: 'Email',
-                          hintText: 'Enter your email',
+                          hintText: 'name@gmail.com',
                           prefixIcon: const Icon(Icons.email_outlined),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -200,8 +200,12 @@ class _SignupScreenState extends State<SignupScreen> {
                           if (value == null || value.trim().isEmpty) {
                             return 'Please enter your email';
                           }
-                          if (!value.contains('@')) {
-                            return 'Please enter a valid email';
+                          final email = value.trim();
+                          if (!RegExp(
+                            r'^[^@\s]+@gmail\.com$',
+                            caseSensitive: false,
+                          ).hasMatch(email)) {
+                            return 'Please enter a valid @gmail.com address';
                           }
                           return null;
                         },
@@ -356,8 +360,9 @@ class _SignupScreenState extends State<SignupScreen> {
                       const SizedBox(height: 24),
 
                       // Login link
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           const Text(
                             'Already have an account? ',

@@ -17,7 +17,7 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadFuture = _store.load();
+    _loadFuture = _store.load(refresh: true);
   }
 
   @override

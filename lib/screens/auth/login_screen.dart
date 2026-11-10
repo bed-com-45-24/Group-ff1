@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../services/app_config.dart';
 import '../../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
-  final String role;
-
-  const LoginScreen({super.key, this.role = 'passenger'});
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -36,31 +35,29 @@ class _LoginScreenState extends State<LoginScreen> {
       final email = _emailController.text.trim();
       final password = _passwordController.text;
 
-      final success = await _authService.login(
-        email,
-        password,
-        role: widget.role,
-      );
+      final success = await _authService.login(email, password);
 
       if (!mounted) return;
 
       if (success) {
+        final userRole = await _authService.getUserRole();
+        if (!mounted) return;
         Navigator.pushNamedAndRemoveUntil(
           context,
-          widget.role == 'admin' ? '/admin' : '/home',
+          userRole == 'admin' ? '/admin' : '/home',
           (route) => false,
         );
       } else {
         setState(() {
-          _errorMessage = 'Account not found or credentials are incorrect. Please sign up first.';
+          _errorMessage = 'Email or password is incorrect. Please check your details and try again.';
           _isLoading = false;
         });
       }
-    } catch (e) {
+    } catch (error) {
       if (!mounted) return;
 
       setState(() {
-        _errorMessage = 'An error occurred. Please try again.';
+        _errorMessage = error.toString();
         _isLoading = false;
       });
     }
@@ -142,7 +139,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
                       const SizedBox(height: 12),
                       Text(
-                        'Signing in as ${widget.role == 'admin' ? 'Company admin' : 'Normal user'}',
+                        AppConfig.backendEnabled
+                            ? 'Sign in with your account. Your access is determined by MOVA.'
+                            : 'Frontend-only demo. Admin: admin@mova.test / password123. '
+                                  'You can also create a passenger account.',
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           color: Colors.deepPurple,
@@ -158,9 +158,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         keyboardType: TextInputType.emailAddress,
                         decoration: InputDecoration(
                           labelText: 'Email',
-                          hintText: widget.role == 'admin'
-                              ? 'admin@mova.com'
-                              : 'Enter your email',
+                          hintText: 'Enter your email',
                           prefixIcon: const Icon(Icons.email_outlined),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -172,7 +170,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           if (value == null || value.trim().isEmpty) {
                             return 'Please enter your email';
                           }
-                          if (!value.contains('@')) {
+                          if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+                              .hasMatch(value.trim())) {
                             return 'Please enter a valid email';
                           }
                           return null;
@@ -330,10 +329,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               Navigator.pushReplacementNamed(
                                 context,
                                 '/signup',
-                                arguments: widget.role,
                               );
                             },
-                            child: const Text('Sign Up'),
+                            child: const Text('Create passenger account'),
                           ),
                         ],
                       ),

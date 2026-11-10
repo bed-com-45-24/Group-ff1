@@ -26,12 +26,24 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
   ];
 
   final _store = TripStore.instance;
+  String? _loadError;
 
   @override
   void initState() {
     super.initState();
-    _store.load();
-    BookingStore.instance.load();
+    _loadSchedules();
+  }
+
+  Future<void> _loadSchedules() async {
+    try {
+      await Future.wait([
+        _store.load(refresh: true),
+        BookingStore.instance.load(refresh: true),
+      ]);
+      if (mounted) setState(() => _loadError = null);
+    } catch (error) {
+      if (mounted) setState(() => _loadError = error.toString());
+    }
   }
 
   Future<void> _editTrip([Trip? existing]) async {
@@ -195,7 +207,12 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
     routeName.dispose();
     if (result == null) return;
 
-    await _store.saveTrip(result);
+    try {
+      await _store.saveTrip(result);
+    } catch (error) {
+      if (mounted) _message('Schedule could not be saved: $error');
+      return;
+    }
 
     if (mounted) {
       _message('Schedule saved.');
@@ -205,7 +222,11 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
   // Delete immediately without confirmation or success message.
   // This also deletes schedules that have booked seats.
   Future<void> _deleteTrip(Trip trip) async {
-    await _store.removeTrip(trip.id);
+    try {
+      await _store.removeTrip(trip.id);
+    } catch (error) {
+      if (mounted) _message('Schedule could not be deleted: $error');
+    }
   }
 
   String _dateTimeString(DateTime value) =>
@@ -300,7 +321,21 @@ class _SchedulesScreenState extends State<SchedulesScreen> {
                     const Text('Manage departure and fare.'),
                     const SizedBox(height: 18),
                     Expanded(
-                      child: !_store.isLoaded
+                      child: _loadError != null
+                          ? Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  'Could not load schedules: $_loadError',
+                                  textAlign: TextAlign.center,
+                                ),
+                                TextButton(
+                                  onPressed: _loadSchedules,
+                                  child: const Text('Retry'),
+                                ),
+                              ],
+                            )
+                          : !_store.isLoaded
                           ? const Center(child: CircularProgressIndicator())
                           : trips.isEmpty
                           ? const Center(child: Text('No schedules yet.'))

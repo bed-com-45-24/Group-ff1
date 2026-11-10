@@ -4,17 +4,26 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/api_client.dart';
+import '../services/auth_service.dart';
 import '../models/booking_model.dart';
 import '../models/trip_model.dart';
 
 class BookingStore {
-  BookingStore._();
+  BookingStore._({ApiClient? apiClient})
+    : _api = apiClient ?? ApiClient.instance;
 
   static final BookingStore instance = BookingStore._();
+  BookingStore.forApi({required ApiClient apiClient})
+    : _api = apiClient,
+      _backendEnabled = true;
+
   static const _storageKey = 'mova_bookings_v1';
 
+  final ApiClient _api;
   final List<BookingDraft> _bookings = [];
   final ValueNotifier<int> changes = ValueNotifier(0);
+  bool _backendEnabled = false;
   bool _loaded = false;
   Future<void>? _loadFuture;
   Future<void> _writeQueue = Future<void>.value();
@@ -22,15 +31,46 @@ class BookingStore {
   List<BookingDraft> get bookings => List.unmodifiable(_bookings);
   bool get isLoaded => _loaded;
 
-  Future<void> load() {
-    if (_loaded) return Future<void>.value();
-    return _loadFuture ??= _load().catchError((Object error) {
-      _loadFuture = null;
-      Error.throwWithStackTrace(error, StackTrace.current);
-    });
+  void enableBackend() {
+    if (_backendEnabled) return;
+    _backendEnabled = true;
+    _bookings.clear();
+    _loaded = false;
+    _loadFuture = null;
+  }
+
+  Future<void> load({bool refresh = false}) {
+    if (_loaded && (!refresh || !_backendEnabled)) {
+      return Future<void>.value();
+    }
+    return _loadFuture ??= _load().whenComplete(() => _loadFuture = null);
   }
 
   Future<void> _load() async {
+    if (_backendEnabled) {
+      final token = await _api.accessToken;
+      final role = token == null
+          ? null
+          : await AuthService(apiClient: _api).getUserRole();
+      final response = await _api.get(
+        role == 'admin' ? 'bookings/admin/list' : 'bookings/mine',
+        authenticated: true,
+      );
+      final values = _listResponse(response, 'bookings');
+      _bookings
+        ..clear()
+        ..addAll(
+          values.map(
+            (value) => BookingDraft.fromApiJson(
+              Map<String, dynamic>.from(value as Map),
+            ),
+          ),
+        );
+      _loaded = true;
+      changes.value++;
+      return;
+    }
+
     final prefs = await SharedPreferences.getInstance();
     final stored = prefs.getString(_storageKey);
     if (stored != null) {
@@ -74,20 +114,74 @@ class BookingStore {
     changes.value++;
   }
 
-  Future<void> createDraft(BookingDraft booking) => _serialize(() async {
-    await load();
-    if (booking.status != BookingStatus.draft) {
-      throw StateError('A new booking must start as a draft.');
+  void _upsert(BookingDraft booking) {
+    final index = _bookings.indexWhere(
+      (item) => item.reference == booking.reference,
+    );
+    if (index == -1) {
+      _bookings.insert(0, booking);
+    } else {
+      _bookings[index] = booking;
     }
-    if (_bookings.any((item) => item.reference == booking.reference)) {
-      throw StateError('A booking with this reference already exists.');
+    changes.value++;
+  }
+
+  List<dynamic> _listResponse(dynamic response, String name) {
+    if (response is List) return response;
+    if (response is Map) {
+      final data = response['data'] ?? response['items'] ?? response['results'];
+      if (data is List) return data;
+      if (data is Map && data['bookings'] is List) {
+        return data['bookings'] as List;
+      }
     }
-    final occupiedSeats = activeBookingSeatsForTrip(booking.trip);
-    if (booking.selectedSeats.any(occupiedSeats.contains)) {
-      throw StateError('One or more selected seats are no longer available.');
+    throw FormatException('The API returned an invalid $name response.');
+  }
+
+  Map<String, dynamic> _mapResponse(dynamic response, String name) {
+    if (response is Map<String, dynamic>) {
+      final data = response['data'] ?? response['booking'];
+      if (data is Map) {
+        final booking = data['booking'];
+        if (booking is Map) return Map<String, dynamic>.from(booking);
+        return Map<String, dynamic>.from(data);
+      }
+      return response;
     }
-    await _save([..._bookings, booking]);
-  });
+    throw FormatException('The API returned an invalid $name response.');
+  }
+
+  Future<BookingDraft> createDraft(BookingDraft booking) => _serialize(
+    () async {
+      await load();
+      if (booking.status != BookingStatus.draft) {
+        throw StateError('A new booking must start as a draft.');
+      }
+      if (_backendEnabled) {
+        final response = await _api.post(
+          'bookings',
+          body: {
+            'tripId': booking.trip.id,
+            'selectedSeats': booking.selectedSeats,
+          },
+        );
+        final created = BookingDraft.fromApiJson(
+          _mapResponse(response, 'created booking'),
+        );
+        _upsert(created);
+        return created;
+      }
+      if (_bookings.any((item) => item.reference == booking.reference)) {
+        throw StateError('A booking with this reference already exists.');
+      }
+      final occupiedSeats = activeBookingSeatsForTrip(booking.trip);
+      if (booking.selectedSeats.any(occupiedSeats.contains)) {
+        throw StateError('One or more selected seats are no longer available.');
+      }
+      await _save([..._bookings, booking]);
+      return booking;
+    },
+  );
 
   Future<BookingDraft> reviewBooking({
     required String reference,
@@ -106,6 +200,22 @@ class BookingStore {
       email: passengerEmail,
       phone: phoneNumber,
     );
+    if (_backendEnabled) {
+      final response = await _api.patch(
+        'bookings/${Uri.encodeComponent(reference)}',
+        body: {
+          'passengerName': passengerName.trim(),
+          'passengerEmail': passengerEmail.trim(),
+          'phoneNumber': phoneNumber.trim(),
+          'identificationNumber': identificationNumber.trim(),
+        },
+      );
+      final reviewed = BookingDraft.fromApiJson(
+        _mapResponse(response, 'reviewed booking'),
+      );
+      _upsert(reviewed);
+      return reviewed;
+    }
     final updated = current.copyWith(
       passengerName: passengerName.trim(),
       passengerEmail: passengerEmail.trim(),
@@ -134,6 +244,20 @@ class BookingStore {
     if (paymentMethod.trim().isEmpty || paymentReference.trim().isEmpty) {
       throw ArgumentError('Payment method and reference are required.');
     }
+    if (_backendEnabled) {
+      final response = await _api.post(
+        'bookings/${Uri.encodeComponent(reference)}/payment',
+        body: {
+          'paymentMethod': paymentMethod.trim(),
+          'paymentReference': paymentReference.trim(),
+        },
+      );
+      final paidBooking = BookingDraft.fromApiJson(
+        _mapResponse(response, 'paid booking'),
+      );
+      _upsert(paidBooking);
+      return paidBooking;
+    }
     final occupiedSeats = activeBookingSeatsForTrip(
       current.trip,
       excludingReference: current.reference,
@@ -157,6 +281,16 @@ class BookingStore {
     if (current.status != BookingStatus.paid) {
       throw StateError('Only a paid booking can be confirmed.');
     }
+    if (_backendEnabled) {
+      final response = await _api.post(
+        'bookings/${Uri.encodeComponent(reference)}/confirm',
+      );
+      final confirmed = BookingDraft.fromApiJson(
+        _mapResponse(response, 'confirmed booking'),
+      );
+      _upsert(confirmed);
+      return confirmed;
+    }
     final updated = current.copyWith(status: BookingStatus.confirmed);
     await _replace(updated);
     return updated;
@@ -171,6 +305,46 @@ class BookingStore {
     var current = _requireBooking(reference);
     if (current.status == BookingStatus.confirmed) {
       return (booking: current, newlyConfirmed: false);
+    }
+    if (_backendEnabled) {
+      if (current.status != BookingStatus.reviewed &&
+          current.status != BookingStatus.paid) {
+        throw StateError('Only a reviewed booking can be paid.');
+      }
+      if (current.status == BookingStatus.reviewed &&
+          (paymentMethod.trim().isEmpty || paymentReference.trim().isEmpty)) {
+        throw ArgumentError('Payment method and reference are required.');
+      }
+      final response = current.status == BookingStatus.reviewed
+          ? await _api.post(
+              'bookings/${Uri.encodeComponent(reference)}/payment',
+              body: {
+                'paymentMethod': paymentMethod.trim(),
+                'paymentReference': paymentReference.trim(),
+              },
+            )
+          : await _api.post(
+              'bookings/${Uri.encodeComponent(reference)}/confirm',
+            );
+      var completed = BookingDraft.fromApiJson(
+        _mapResponse(response, 'confirmed booking'),
+      );
+      if (completed.status == BookingStatus.paid) {
+        final confirmResponse = await _api.post(
+          'bookings/${Uri.encodeComponent(reference)}/confirm',
+        );
+        completed = BookingDraft.fromApiJson(
+          _mapResponse(confirmResponse, 'confirmed booking'),
+        );
+      }
+      if (completed.status != BookingStatus.confirmed) {
+        throw StateError('The backend did not confirm the booking payment.');
+      }
+      final newlyConfirmed =
+          completed.status == BookingStatus.confirmed &&
+          current.status != BookingStatus.confirmed;
+      _upsert(completed);
+      return (booking: completed, newlyConfirmed: newlyConfirmed);
     }
     if (current.status == BookingStatus.reviewed) {
       if (paymentMethod.trim().isEmpty || paymentReference.trim().isEmpty) {
@@ -205,6 +379,16 @@ class BookingStore {
     if (current.status == BookingStatus.paid ||
         current.status == BookingStatus.confirmed) {
       throw StateError('Paid bookings cannot be cancelled here.');
+    }
+    if (_backendEnabled) {
+      final response = await _api.post(
+        'bookings/${Uri.encodeComponent(reference)}/cancel',
+      );
+      final cancelled = BookingDraft.fromApiJson(
+        _mapResponse(response, 'cancelled booking'),
+      );
+      _upsert(cancelled);
+      return cancelled;
     }
     final updated = current.copyWith(status: BookingStatus.cancelled);
     await _replace(updated);

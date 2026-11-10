@@ -54,7 +54,7 @@ class _MyBookingsTabState extends State<_MyBookingsTab> {
   @override
   void initState() {
     super.initState();
-    _loadFuture = BookingStore.instance.load();
+    _loadFuture = BookingStore.instance.load(refresh: true);
   }
 
   @override

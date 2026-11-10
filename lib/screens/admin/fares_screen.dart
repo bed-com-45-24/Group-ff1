@@ -12,11 +12,21 @@ class FaresScreen extends StatefulWidget {
 
 class _FaresScreenState extends State<FaresScreen> {
   final _store = RouteStore.instance;
+  String? _loadError;
 
   @override
   void initState() {
     super.initState();
-    _store.load();
+    _loadRoutes();
+  }
+
+  Future<void> _loadRoutes() async {
+    try {
+      await _store.load(refresh: true);
+      if (mounted) setState(() => _loadError = null);
+    } catch (error) {
+      if (mounted) setState(() => _loadError = error.toString());
+    }
   }
 
   Future<void> _editFare(RouteModel route) async {
@@ -115,7 +125,21 @@ class _FaresScreenState extends State<FaresScreen> {
                   ),
                   const SizedBox(height: 18),
                   Expanded(
-                    child: !_store.isLoaded
+                    child: _loadError != null
+                        ? Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'Could not load routes: $_loadError',
+                                textAlign: TextAlign.center,
+                              ),
+                              TextButton(
+                                onPressed: _loadRoutes,
+                                child: const Text('Retry'),
+                              ),
+                            ],
+                          )
+                        : !_store.isLoaded
                         ? const Center(child: CircularProgressIndicator())
                         : routes.isEmpty
                         ? const Center(

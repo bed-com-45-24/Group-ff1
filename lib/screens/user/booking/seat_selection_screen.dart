@@ -31,7 +31,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
 
   Future<void> _loadBookings() async {
     try {
-      await BookingStore.instance.load();
+      await BookingStore.instance.load(refresh: true);
       if (mounted) {
         setState(() {
           _isLoadingBookings = false;

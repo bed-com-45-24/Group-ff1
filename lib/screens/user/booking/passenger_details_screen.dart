@@ -38,6 +38,7 @@ class _PassengerDetailsScreenState extends State<PassengerDetailsScreen> {
   }
 
   Future<void> _loadSavedPassengerDetails() async {
+    if (!await _authService.isLoggedIn()) return;
     final details = await _authService.getPassengerDetails();
     if (!mounted) return;
 

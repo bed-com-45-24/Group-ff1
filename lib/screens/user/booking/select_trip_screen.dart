@@ -87,7 +87,10 @@ class _SelectTripScreenState extends State<SelectTripScreen> {
       _scheduleLoadError = null;
     });
     try {
-      await Future.wait([_tripStore.load(), BookingStore.instance.load()]);
+      await Future.wait([
+        _tripStore.load(refresh: true),
+        BookingStore.instance.load(refresh: true),
+      ]);
       if (!mounted || requestId != _scheduleRequestId) return;
       setState(() {
         _routeTrips = _matchingTripsForRoute(
