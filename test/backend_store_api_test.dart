@@ -9,7 +9,7 @@ import 'package:mova/data/trip_store.dart';
 import 'package:mova/models/booking_model.dart';
 import 'package:mova/models/route_model.dart';
 import 'package:mova/models/trip_model.dart';
-import 'package:mova/services/api_client.dart';
+import 'package:mova/services/backend_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -19,7 +19,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     final requests = <http.Request>[];
     final store = TripStore.forApi(
-      apiClient: ApiClient(
+      backendService: BackendService(
         baseUrl: 'https://mova.test/api/v1',
         client: MockClient((request) async {
           requests.add(request);
@@ -63,7 +63,7 @@ void main() {
     });
     final requests = <http.Request>[];
     final store = RouteStore.forApi(
-      apiClient: ApiClient(
+      backendService: BackendService(
         baseUrl: 'https://mova.test/api/v1',
         client: MockClient((request) async {
           requests.add(request);
@@ -162,7 +162,7 @@ void main() {
     });
     final requests = <http.Request>[];
     final store = TripStore.forApi(
-      apiClient: ApiClient(
+      backendService: BackendService(
         baseUrl: 'https://mova.test/api/v1',
         client: MockClient((request) async {
           requests.add(request);
@@ -258,7 +258,7 @@ void main() {
     };
 
     final store = BookingStore.forApi(
-      apiClient: ApiClient(
+      backendService: BackendService(
         baseUrl: 'https://mova.test/api/v1',
         client: MockClient((request) async {
           requests.add(request);

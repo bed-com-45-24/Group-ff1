@@ -1,9 +1,9 @@
 import 'app_config.dart';
-import 'api_client.dart';
+import 'backend_service.dart';
 
 class AuthService {
-  AuthService({ApiClient? apiClient, bool? backendEnabled})
-    : _apiClient = apiClient ?? ApiClient.instance,
+  AuthService({BackendService? backendService, bool? backendEnabled})
+    : _backendService = backendService ?? BackendService.instance,
       _backendEnabled = backendEnabled ?? AppConfig.backendEnabled;
 
   static final Map<String, _DemoUser> _demoUsers = {
@@ -16,11 +16,11 @@ class AuthService {
   };
   static _DemoUser? _currentDemoUser;
 
-  final ApiClient _apiClient;
+  final BackendService _backendService;
   final bool _backendEnabled;
 
   Future<bool> isLoggedIn() async => _backendEnabled
-      ? (await _apiClient.accessToken) != null
+      ? (await _backendService.accessToken) != null
       : _currentDemoUser != null;
 
   Future<String?> getUserEmail() async => _backendEnabled
@@ -52,7 +52,7 @@ class AuthService {
       };
     }
     final profile = _asMap(
-      await _apiClient.get('me/passenger-profile'),
+      await _backendService.get('me/passenger-profile'),
       responseName: 'passenger profile',
     );
     return {
@@ -85,7 +85,7 @@ class AuthService {
         ..identificationNumber = identificationNumber.trim();
       return;
     }
-    await _apiClient.patch(
+    await _backendService.patch(
       'me/passenger-profile',
       body: {
         'name': name.trim(),
@@ -106,7 +106,7 @@ class AuthService {
       _currentDemoUser = user;
       return true;
     }
-    final rawResponse = await _apiClient.post(
+    final rawResponse = await _backendService.post(
       'auth/login',
       authenticated: false,
       body: {'email': email.trim(), 'password': password},
@@ -132,7 +132,7 @@ class AuthService {
         'The API login response did not include both tokens.',
       );
     }
-    await _apiClient.saveTokens(
+    await _backendService.saveTokens(
       accessToken: accessToken,
       refreshToken: refreshToken,
     );
@@ -145,7 +145,7 @@ class AuthService {
       }
       return true;
     } catch (_) {
-      await _apiClient.clearTokens();
+      await _backendService.clearTokens();
       rethrow;
     }
   }
@@ -184,7 +184,7 @@ class AuthService {
       );
       return true;
     }
-    await _apiClient.post(
+    await _backendService.post(
       'auth/register',
       authenticated: false,
       body: {'name': name.trim(), 'email': email.trim(), 'password': password},
@@ -198,14 +198,14 @@ class AuthService {
       return;
     }
     try {
-      if (await isLoggedIn()) await _apiClient.post('auth/logout');
+      if (await isLoggedIn()) await _backendService.post('auth/logout');
     } finally {
-      await _apiClient.clearTokens();
+      await _backendService.clearTokens();
     }
   }
 
   Future<Map<String, dynamic>> _loadCurrentUser() async =>
-      _asMap(await _apiClient.get('me'), responseName: 'current user');
+      _asMap(await _backendService.get('me'), responseName: 'current user');
 
   _DemoUser _requireDemoUser() {
     final user = _currentDemoUser;

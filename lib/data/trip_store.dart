@@ -3,17 +3,18 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../services/api_client.dart';
+import '../services/backend_service.dart';
 import '../services/auth_service.dart';
 import '../models/trip_model.dart';
 import 'sample_data.dart';
 
 class TripStore {
-  TripStore._({ApiClient? apiClient}) : _api = apiClient ?? ApiClient.instance;
+  TripStore._({BackendService? backendService})
+    : _api = backendService ?? BackendService.instance;
 
   static final TripStore instance = TripStore._();
-  TripStore.forApi({required ApiClient apiClient})
-    : _api = apiClient,
+  TripStore.forApi({required BackendService backendService})
+    : _api = backendService,
       _backendEnabled = true {
     _trips = [];
   }
@@ -22,7 +23,7 @@ class TripStore {
   static const _adminSeat = 2;
   static const _demoAvailableSeats = {1, 4, 10};
 
-  final ApiClient _api;
+  final BackendService _api;
   final ValueNotifier<int> changes = ValueNotifier(0);
   List<Trip> _trips = List.of(sampleTrips);
   bool _backendEnabled = false;
@@ -52,7 +53,7 @@ class TripStore {
       final token = await _api.accessToken;
       final role = token == null
           ? null
-          : await AuthService(apiClient: _api).getUserRole();
+          : await AuthService(backendService: _api).getUserRole();
       final response = await _api.get(
         role == 'admin' ? 'schedules/admin/list' : 'schedules',
         authenticated: role == 'admin',

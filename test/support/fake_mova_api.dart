@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:mova/data/sample_data.dart';
-import 'package:mova/services/api_client.dart';
+import 'package:mova/services/backend_service.dart';
 
 class FakeMovaApi {
   final Map<String, _FakeUser> _users = {};
@@ -43,8 +43,8 @@ class FakeMovaApi {
   }
 
   void install() {
-    ApiClient.overrideInstanceForTesting(
-      ApiClient(client: client, baseUrl: 'https://mova.test/api/v1'),
+    BackendService.overrideInstanceForTesting(
+      BackendService(client: client, baseUrl: 'https://mova.test/api/v1'),
     );
   }
 

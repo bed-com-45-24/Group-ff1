@@ -4,23 +4,23 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../services/api_client.dart';
+import '../services/backend_service.dart';
 import '../services/auth_service.dart';
 import '../models/booking_model.dart';
 import '../models/trip_model.dart';
 
 class BookingStore {
-  BookingStore._({ApiClient? apiClient})
-    : _api = apiClient ?? ApiClient.instance;
+  BookingStore._({BackendService? backendService})
+    : _api = backendService ?? BackendService.instance;
 
   static final BookingStore instance = BookingStore._();
-  BookingStore.forApi({required ApiClient apiClient})
-    : _api = apiClient,
+  BookingStore.forApi({required BackendService backendService})
+    : _api = backendService,
       _backendEnabled = true;
 
   static const _storageKey = 'mova_bookings_v1';
 
-  final ApiClient _api;
+  final BackendService _api;
   final List<BookingDraft> _bookings = [];
   final ValueNotifier<int> changes = ValueNotifier(0);
   bool _backendEnabled = false;
@@ -51,7 +51,7 @@ class BookingStore {
       final token = await _api.accessToken;
       final role = token == null
           ? null
-          : await AuthService(apiClient: _api).getUserRole();
+          : await AuthService(backendService: _api).getUserRole();
       final response = await _api.get(
         role == 'admin' ? 'bookings/admin/list' : 'bookings/mine',
         authenticated: true,

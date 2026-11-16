@@ -19,7 +19,7 @@ import 'package:mova/screens/user/home_screen.dart';
 import 'package:mova/screens/user/route_details_screen.dart';
 import 'package:mova/screens/user/route_directions_details_screen.dart';
 import 'package:mova/screens/user/results_screen.dart';
-import 'package:mova/services/api_client.dart';
+import 'package:mova/services/backend_service.dart';
 import 'package:mova/services/auth_service.dart';
 import 'package:mova/services/openstreetmap_service.dart';
 import 'package:mova/widgets/route_card.dart';

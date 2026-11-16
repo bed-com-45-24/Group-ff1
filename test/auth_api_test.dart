@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:mova/services/api_client.dart';
+import 'package:mova/services/backend_service.dart';
 import 'package:mova/services/auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -11,7 +11,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test('API requests fail clearly when no server URL is configured', () async {
-    final client = ApiClient(
+    final client = BackendService(
       baseUrl: '',
       client: MockClient((_) async {
         fail('An API request must not be sent without a configured URL.');
@@ -33,7 +33,7 @@ void main() {
   test('login uses API tokens and the server-assigned account role', () async {
     SharedPreferences.setMockInitialValues({});
     final requests = <http.Request>[];
-    final client = ApiClient(
+    final client = BackendService(
       baseUrl: 'https://mova.test/api/v1',
       client: MockClient((request) async {
         requests.add(request);
@@ -63,7 +63,7 @@ void main() {
         return http.Response('Not found', 404);
       }),
     );
-    final auth = AuthService(apiClient: client);
+    final auth = AuthService(backendService: client);
 
     expect(await auth.login('admin@example.test', 'secret-password'), isTrue);
     expect(await auth.getUserRole(), 'admin');
@@ -82,7 +82,7 @@ void main() {
   test('registration does not allow assigning an admin role locally', () async {
     SharedPreferences.setMockInitialValues({});
     final auth = AuthService(
-      apiClient: ApiClient(
+      backendService: BackendService(
         baseUrl: 'https://mova.test/api/v1',
         client: MockClient((_) async {
           fail('Admin registration must not reach the API.');

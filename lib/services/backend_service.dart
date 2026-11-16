@@ -14,20 +14,20 @@ class ApiException implements Exception {
   String toString() => message;
 }
 
-class ApiClient {
-  ApiClient({http.Client? client, String? baseUrl})
+class BackendService {
+  BackendService({http.Client? client, String? baseUrl})
     : _client = client ?? http.Client(),
       _baseUrlOverride = baseUrl;
 
   static const _accessTokenKey = 'mova_access_token';
   static const _refreshTokenKey = 'mova_refresh_token';
 
-  static ApiClient _instance = ApiClient();
+  static BackendService _instance = BackendService();
 
-  static ApiClient get instance => _instance;
+  static BackendService get instance => _instance;
 
   @visibleForTesting
-  static void overrideInstanceForTesting(ApiClient client) {
+  static void overrideInstanceForTesting(BackendService client) {
     _instance = client;
   }
 

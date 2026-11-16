@@ -4,23 +4,24 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/route_model.dart';
-import '../services/api_client.dart';
+import '../services/backend_service.dart';
 import '../services/auth_service.dart';
 import 'sample_data.dart';
 
 class RouteStore {
-  RouteStore._({ApiClient? apiClient}) : _api = apiClient ?? ApiClient.instance;
+  RouteStore._({BackendService? backendService})
+    : _api = backendService ?? BackendService.instance;
 
   static final RouteStore instance = RouteStore._();
-  RouteStore.forApi({required ApiClient apiClient})
-    : _api = apiClient,
+  RouteStore.forApi({required BackendService backendService})
+    : _api = backendService,
       _backendEnabled = true {
     _routes = [];
   }
 
   static const _storageKey = 'admin_routes_v1';
 
-  final ApiClient _api;
+  final BackendService _api;
   final ValueNotifier<int> changes = ValueNotifier(0);
   List<RouteModel> _routes = List.of(sampleRoutes);
   bool _backendEnabled = false;
@@ -65,7 +66,7 @@ class RouteStore {
     final token = await _api.accessToken;
     final role = token == null
         ? null
-        : await AuthService(apiClient: _api).getUserRole();
+        : await AuthService(backendService: _api).getUserRole();
     final response = await _api.get(
       role == 'admin' ? 'routes/admin/list' : 'routes',
       authenticated: role == 'admin',
