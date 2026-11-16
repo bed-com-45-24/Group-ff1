@@ -43,7 +43,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
   String? _activeMapRouteId;
   bool _loading = true;
   bool _loadingMap = false;
-  bool _usingMapFallback = false;
+  bool _usingMapEstimate = false;
   bool _readArguments = false;
   int _mapRequestId = 0;
 
@@ -113,7 +113,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
       _destinationPoint = null;
       _selectedRouteId = null;
       _activeMapRouteId = null;
-      _usingMapFallback = false;
+      _usingMapEstimate = false;
     });
 
     try {
@@ -122,22 +122,42 @@ class _ResultsScreenState extends State<ResultsScreen> {
         _searchArguments?['name']?.toString().trim() ?? _effectiveDestination,
         _searchArguments?['address']?.toString().trim() ?? '',
       }..remove('');
-      final routes = _store.routes
-          .where(
-            (route) =>
-                route.active &&
-                _routeMatchesSearch(
-                  route,
-                  _effectiveOrigin,
-                  destinationQueries,
-                ),
-          )
-          .toList();
+      final routesById = <String, RouteModel>{};
+      for (final destination in destinationQueries) {
+        for (final route in _store.searchRoutes(
+          origin: _effectiveOrigin,
+          destination: destination,
+        )) {
+          routesById.putIfAbsent(route.id, () => route);
+        }
+      }
+      var routes = routesById.values.toList();
+      final usingMapEstimate =
+          routes.isEmpty && _effectiveDestination.isNotEmpty;
+      if (usingMapEstimate) {
+        routes = [
+          RouteModel(
+            id: 'MAP-ESTIMATE-${DateTime.now().microsecondsSinceEpoch}',
+            companyName: 'Map-based estimate',
+            name: 'Route not defined by admin',
+            origin: _effectiveOrigin.isEmpty
+                ? 'Current location'
+                : _effectiveOrigin,
+            destination: _effectiveDestination,
+            stops: [
+              _effectiveOrigin.isEmpty ? 'Current location' : _effectiveOrigin,
+              _effectiveDestination,
+            ],
+            fare: 0,
+            fareIsEstimate: true,
+          ),
+        ];
+      }
       if (!mounted) return;
       setState(() {
         _routes = routes;
         _selectedRouteId = routes.firstOrNull?.id;
-        _usingMapFallback = routes.isEmpty;
+        _usingMapEstimate = usingMapEstimate;
         _loading = false;
       });
       await _loadMapRoute(
@@ -155,34 +175,6 @@ class _ResultsScreenState extends State<ResultsScreen> {
     }
   }
 
-  bool _routeMatchesSearch(
-    RouteModel route,
-    String origin,
-    Set<String> destinations,
-  ) {
-    if (origin.trim().isEmpty) return false;
-    final stops = <String>[route.origin, ...route.stops, route.destination];
-    final originIndex = stops.indexWhere((stop) => _matchesPlace(stop, origin));
-    if (originIndex == -1) return false;
-    return destinations.any((destination) {
-      return stops.asMap().entries.any(
-        (entry) =>
-            entry.key > originIndex && _matchesPlace(entry.value, destination),
-      );
-    });
-  }
-
-  bool _matchesPlace(String first, String second) {
-    final normalizedFirst = _normalizePlace(first);
-    final normalizedSecond = _normalizePlace(second);
-    if (normalizedFirst.isEmpty || normalizedSecond.isEmpty) return false;
-    return normalizedFirst.contains(normalizedSecond) ||
-        normalizedSecond.contains(normalizedFirst);
-  }
-
-  String _normalizePlace(String value) =>
-      value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
-
   Future<void> _loadMapRoute({
     required String origin,
     required String destination,
@@ -198,35 +190,30 @@ class _ResultsScreenState extends State<ResultsScreen> {
     });
 
     try {
-      final originLatitude = double.tryParse(
-        _searchArguments?['originLatitude']?.toString() ?? '',
-      );
-      final originLongitude = double.tryParse(
-        _searchArguments?['originLongitude']?.toString() ?? '',
-      );
-      final originPoint = originLatitude != null && originLongitude != null
-          ? LatLng(originLatitude, originLongitude)
-          : origin.trim().isEmpty
-          ? await _mapService.currentPosition()
-          : await _mapService.findPlace(origin);
-      final destinationLatitude = double.tryParse(
-        _searchArguments?['latitude']?.toString() ?? '',
-      );
-      final destinationLongitude = double.tryParse(
-        _searchArguments?['longitude']?.toString() ?? '',
-      );
+      final originPoint =
+          _argumentPoint('originLatitude', 'originLongitude') ??
+          await _mapService.findPlace(origin);
       final destinationPoint =
-          destinationLatitude != null && destinationLongitude != null
-          ? LatLng(destinationLatitude, destinationLongitude)
-          : await _mapService.findPlace(
-              _searchArguments?['address']?.toString() ?? destination,
-            );
+          _argumentPoint('latitude', 'longitude') ??
+          await _mapService.findPlace(destination);
       final mapRoutes = await _mapService.findRoutes(
         origin: originPoint,
         destination: destinationPoint,
       );
       if (!mounted || requestId != _mapRequestId) return;
+      final estimatedRoute = _routes.firstOrNull;
+      final updatedRoutes = _usingMapEstimate && estimatedRoute != null
+          ? [
+              estimatedRoute.copyWith(
+                fare: (mapRoutes.first.distanceMeters / 1000 * 220)
+                    .roundToDouble(),
+                mapDistance: mapRoutes.first.distanceLabel,
+                fareIsEstimate: true,
+              ),
+            ]
+          : _routes;
       setState(() {
+        _routes = updatedRoutes;
         _originPoint = originPoint;
         _destinationPoint = destinationPoint;
         _mapRoutes = mapRoutes;
@@ -240,6 +227,17 @@ class _ResultsScreenState extends State<ResultsScreen> {
         _mapError = error.toString().replaceFirst('Exception: ', '');
       });
     }
+  }
+
+  LatLng? _argumentPoint(String latitudeKey, String longitudeKey) {
+    final latitude = double.tryParse(
+      _searchArguments?[latitudeKey]?.toString() ?? '',
+    );
+    final longitude = double.tryParse(
+      _searchArguments?[longitudeKey]?.toString() ?? '',
+    );
+    if (latitude == null || longitude == null) return null;
+    return LatLng(latitude, longitude);
   }
 
   Future<void> _selectRoute(RouteModel route) async {
@@ -339,7 +337,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
           ? _message(_errorMessage!, onRetry: _loadRoutes)
-          : _routes.isEmpty && !_usingMapFallback
+          : _routes.isEmpty && !_usingMapEstimate
           ? Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -355,7 +353,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
             )
           : Column(
               children: [
-                if (_usingMapFallback)
+                if (_usingMapEstimate)
                   Container(
                     width: double.infinity,
                     margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
@@ -365,10 +363,19 @@ class _ResultsScreenState extends State<ResultsScreen> {
                       border: Border.all(color: Colors.amber.shade300),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(
-                      'This route is not defined by the administrator. '
-                      'Map routes and fares are estimates from '
-                      '$_displayOrigin to $_effectiveDestination.',
+                    child: const Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.deepOrange),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'This route is not defined by the administrator. '
+                            'Map directions and fare are estimates only; '
+                            'confirm an actual service and fare before travel.',
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 if (_mapRoutes.isNotEmpty &&
@@ -528,7 +535,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          _usingMapFallback
+                          _usingMapEstimate
                               ? 'No administrator-defined route'
                               : '${_routes.length} administrator-configured route'
                                     '${_routes.length == 1 ? '' : 's'}',
@@ -546,12 +553,15 @@ class _ResultsScreenState extends State<ResultsScreen> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Text(
-                      'Map paths are driving directions for the configured '
-                      'route; the fare below is the administrator-set fare.',
+                      _usingMapEstimate
+                          ? 'Estimated fare: MWK 220 per kilometre. '
+                                'This is not an administrator-published fare.'
+                          : 'Map paths are driving directions for the configured '
+                                'route; the fare below is the administrator-set fare.',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ),
-                if (_usingMapFallback && activeMapRoute != null)
+                if (_usingMapEstimate && activeMapRoute != null)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Text(
@@ -584,10 +594,12 @@ class _ResultsScreenState extends State<ResultsScreen> {
                           ),
                           title: Text('${route.origin} → ${route.destination}'),
                           subtitle: Text(
-                            '${route.companyName} · ${route.name}\n'
-                            '${route.roadName.isEmpty ? 'Road not specified' : 'Road: ${route.roadName}'} · '
-                            'Fare: MWK '
-                            '${route.fare.toStringAsFixed(0)}',
+                            _usingMapEstimate
+                                ? '${route.name}\n'
+                                      '${route.fare > 0 ? 'Estimated fare: MWK ${route.fare.toStringAsFixed(0)}' : 'Fare estimate unavailable'}'
+                                : '${route.companyName} · ${route.name}\n'
+                                      'Administrator fare: MWK '
+                                      '${route.fare.toStringAsFixed(0)}',
                           ),
                           isThreeLine: true,
                           trailing: IconButton(
@@ -745,8 +757,12 @@ class _CompareRoutesScreenState extends State<CompareRoutesScreen> {
           origin: widget.origin,
           destination: widget.destination,
           estimatedFare:
-              configuredRoute?.fare ?? _estimatedFare(selectedMapRoute),
-          configuredRoute: configuredRoute,
+              configuredRoute != null && !configuredRoute.fareIsEstimate
+              ? configuredRoute.fare
+              : _estimatedFare(selectedMapRoute),
+          configuredRoute: configuredRoute?.fareIsEstimate == true
+              ? null
+              : configuredRoute,
         ),
       ),
     );
@@ -754,6 +770,7 @@ class _CompareRoutesScreenState extends State<CompareRoutesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final configuredRoute = widget.configuredRoute;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Compare map options'),
@@ -775,13 +792,12 @@ class _CompareRoutesScreenState extends State<CompareRoutesScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                widget.configuredRoute == null
-                    ? 'Choose a map option to search for scheduled trips. '
-                          'The displayed map fare is an estimate.'
-                    : 'Driving directions for '
-                          '${widget.configuredRoute!.name}. '
+                configuredRoute == null || configuredRoute.fareIsEstimate
+                    ? 'This route is not defined by the administrator. '
+                          'Map directions and fare are estimates only.'
+                    : 'Driving directions for ${configuredRoute.name}. '
                           'The administrator-set fare is MWK '
-                          '${widget.configuredRoute!.fare.toStringAsFixed(0)}.',
+                          '${configuredRoute.fare.toStringAsFixed(0)}.',
                 style: const TextStyle(color: Colors.black54),
               ),
               const SizedBox(height: 16),

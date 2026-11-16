@@ -95,10 +95,38 @@ void main() {
         'admin@example.test',
         'secret-password',
         'Unapproved Admin',
+        phoneNumber: '0991234567',
         role: 'admin',
       ),
       throwsA(isA<ApiException>()),
     );
+  });
+
+  test('passenger registration sends phone number as a string', () async {
+    SharedPreferences.setMockInitialValues({});
+    http.Request? registrationRequest;
+    final auth = AuthService(
+      apiClient: ApiClient(
+        baseUrl: 'https://mova.test/api/v1',
+        client: MockClient((request) async {
+          registrationRequest = request;
+          return http.Response('', 201);
+        }),
+      ),
+    );
+
+    await auth.signup(
+      'passenger@gmail.com',
+      'secret-password',
+      'Test Passenger',
+      phoneNumber: '0991234567',
+      role: 'passenger',
+    );
+
+    expect(registrationRequest, isNotNull);
+    final body = jsonDecode(registrationRequest!.body) as Map<String, dynamic>;
+    expect(body['phone'], '0991234567');
+    expect(body['phone'], isA<String>());
   });
 
   test('frontend-only auth supports demo admin and Gmail passengers', () async {
@@ -113,6 +141,7 @@ void main() {
         'passenger@gmail.com',
         'password123',
         'Demo Passenger',
+        phoneNumber: '0991234567',
         role: 'passenger',
       ),
       isTrue,
@@ -120,6 +149,7 @@ void main() {
     expect(await auth.login('passenger@gmail.com', 'password123'), isTrue);
     expect(await auth.getUserRole(), 'passenger');
     expect(await auth.getUserName(), 'Demo Passenger');
+    expect((await auth.getPassengerDetails())['phoneNumber'], '0991234567');
     await auth.logout();
   });
 }

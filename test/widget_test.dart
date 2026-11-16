@@ -93,8 +93,9 @@ void main() {
       find.byType(TextFormField).at(1),
       'person@example.com',
     );
-    await tester.enterText(find.byType(TextFormField).at(2), 'password123');
+    await tester.enterText(find.byType(TextFormField).at(2), '0991234567');
     await tester.enterText(find.byType(TextFormField).at(3), 'password123');
+    await tester.enterText(find.byType(TextFormField).at(4), 'password123');
     await tester.ensureVisible(find.text('Sign Up'));
     await tester.tap(find.text('Sign Up'));
     await tester.pumpAndSettle();
@@ -138,6 +139,7 @@ void main() {
         'passenger@gmail.com',
         'password123',
         'Test Passenger',
+        phoneNumber: '0991234567',
         role: 'passenger',
       ),
       isTrue,

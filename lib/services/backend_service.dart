@@ -19,6 +19,8 @@ class BackendService {
     : _client = client ?? http.Client(),
       _baseUrlOverride = baseUrl;
 
+  static const _defaultBaseUrl =
+      'https://net-spiritual-battery.ngrok-free.dev/api/v1';
   static const _accessTokenKey = 'mova_access_token';
   static const _refreshTokenKey = 'mova_refresh_token';
 
@@ -35,7 +37,10 @@ class BackendService {
   final String? _baseUrlOverride;
 
   Uri get _baseUri {
-    const configuredUrl = String.fromEnvironment('MOVA_API_BASE_URL');
+    const configuredUrl = String.fromEnvironment(
+      'MOVA_API_BASE_URL',
+      defaultValue: _defaultBaseUrl,
+    );
     final baseUrl = (_baseUrlOverride ?? configuredUrl).trim();
     if (baseUrl.isEmpty) {
       throw const ApiException(

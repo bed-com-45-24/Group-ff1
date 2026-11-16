@@ -8,7 +8,7 @@ The app has passenger and company-admin roles. It supports route and fare discov
 
 ## Backend API contract
 
-The app has no hard-coded API server URL. Supply the current API base URL at launch with `--dart-define=MOVA_API_BASE_URL=https://your-api-host/api/v1`. Protected requests send `Authorization: Bearer <access-token>`. The API should return lists as a raw JSON array or `{ "data": [...] }`, and a single resource as a raw object or `{ "data": {...} }`.
+The default API base URL is `https://net-spiritual-battery.ngrok-free.dev/api/v1`; Swagger documentation is available at `/docs`. Override the URL for another environment at launch or build time with `--dart-define=MOVA_API_BASE_URL=https://your-api-host/api/v1`. The API returns raw JSON collections or wraps them in a `data` field.
 
 ### Frontend-only demo mode
 
@@ -52,6 +52,9 @@ on the device. Demo mode is for UI testing only, not production use.
 | POST | `/bookings/{reference}/payment` | Record the app's simulated payment result |
 | POST | `/bookings/{reference}/confirm` | Confirm a paid booking |
 | POST | `/bookings/{reference}/cancel` | Cancel an unpaid booking |
+
+Passenger registration sends `name`, `email`, `password`, and `phone`. The
+phone value is sent as a string so leading zeroes are preserved.
 
 Schedule responses must include an ID, origin, destination, departure and arrival timestamps, fare, and occupied seat numbers. The client treats bus capacity as 42 seats, and seat 2 is reserved for the administrator. Booking responses must include a reference, status, selected seats, and the associated schedule/trip; paid or confirmed bookings must also include payment method and reference. The server must validate seat availability atomically when creating a booking, reject reservations for seat 2, enforce passenger/admin authorization, and reject invalid state transitions. The payment endpoints above only record the current demo checkout result; they must not charge cards or mobile-money accounts.
 
