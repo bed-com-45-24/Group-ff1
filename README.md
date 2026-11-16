@@ -1,14 +1,14 @@
 # MOVA — Project Requirements
 
-MOVA is a Flutter client for public-transport route information and scheduled bus bookings in Malawi. Authentication, routes, fares, schedules, and bookings use the configured REST API when the app is launched normally. The backend source code is not included in this repository. Map tiles, place lookup, and driving directions use OpenStreetMap-related public services.
+MOVA is a Flutter client for public-transport route information and scheduled bus bookings in Malawi. Authentication, routes, fares, schedules, and bookings use the Docker-hosted REST API. The backend source code is not included; Docker Compose runs the provided API image with PostGIS. Map tiles, place lookup, and driving directions use OpenStreetMap-related public services.
 
 ## Project scope
 
-The app has passenger and company-admin roles. It supports route and fare discovery, maps, scheduled bus seat bookings, simulated checkout, and administration. The Flutter client expects a shared backend; this repository does not contain or deploy that server. Checkout remains simulated and does not charge a payment method.
+The app has passenger and company-admin roles. It supports route and fare discovery, maps, scheduled bus seat bookings, simulated checkout, and administration. Docker Compose runs the shared backend and database locally. Checkout remains simulated and does not charge a payment method.
 
 ## Backend API contract
 
-The default API base URL is `https://net-spiritual-battery.ngrok-free.dev/api/v1`; Swagger documentation is available at `/docs`. Override the URL for another environment at launch or build time with `--dart-define=MOVA_API_BASE_URL=https://your-api-host/api/v1`. The API returns raw JSON collections or wraps them in a `data` field.
+The API is served by Docker on port `3000`. The app uses `http://10.0.2.2:3000/api/v1` by default on Android emulators and `http://localhost:3000/api/v1` on web and desktop. For a physical Android device, point the app to the computer's LAN address (for example, `192.168.1.20`) with `--dart-define=MOVA_API_BASE_URL=http://192.168.1.20:3000/api/v1`. The API returns raw JSON collections or wraps them in a `data` field. The supplied API image does not enable CORS, so Flutter Web sign-in is blocked by browsers; use the Android emulator or a native desktop build unless the backend is updated to enable CORS.
 
 ### Frontend-only demo mode
 
@@ -168,7 +168,7 @@ The use cases below describe the current client behavior. “System” refers to
 
 The following are not current application capabilities and require additional product/backend work:
 
-- The backend source code, database schema, deployment, and operational monitoring are not included in this repository.
+- The backend source code, database schema, and production operational monitoring are not included in this repository.
 - Real payment-provider integration, payment settlement, or refunds.
 - Sending booking confirmations or route alerts through SMS, email, or push notifications.
 - Passenger self-service booking changes or cancellations.
@@ -180,19 +180,22 @@ The following are not current application capabilities and require additional pr
 
 - Flutter SDK and a Dart SDK satisfying the constraint in `pubspec.yaml` (`^3.13.4`).
 - Android SDK and an Android device or emulator.
+- Docker Desktop with Docker Compose; the local API image is supplied as `yendaroute-api.tar`.
 - Internet access for map tiles, place lookup, and driving directions.
 
 From the repository root:
 
 ```shell
 flutter pub get
+docker load --input yendaroute-api.tar
+docker compose -f compose.app.yaml up -d
 flutter run
 ```
 
-To point the client at a different backend, pass its API base URL:
+To point a physical device at Docker, replace `192.168.1.20` with the computer's LAN IP:
 
 ```shell
-flutter run --dart-define=MOVA_API_BASE_URL=https://your-api-host/api/v1
+flutter run --dart-define=MOVA_API_BASE_URL=http://192.168.1.20:3000/api/v1
 ```
 
 Allow location access when prompted to use device location. Run the tests and static analysis with:

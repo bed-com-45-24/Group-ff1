@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -28,6 +29,23 @@ void main() {
         ),
       ),
     );
+  });
+
+  test('Android emulator defaults to the local Docker API', () async {
+    final previousPlatform = debugDefaultTargetPlatformOverride;
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    addTearDown(() {
+      debugDefaultTargetPlatformOverride = previousPlatform;
+    });
+
+    final service = BackendService(
+      client: MockClient((request) async {
+        expect(request.url, Uri.parse('http://10.0.2.2:3000/api/v1/routes'));
+        return http.Response('[]', 200);
+      }),
+    );
+
+    await service.get('routes', authenticated: false);
   });
 
   test('login uses API tokens and the server-assigned account role', () async {
@@ -106,7 +124,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     http.Request? registrationRequest;
     final auth = AuthService(
-      apiClient: ApiClient(
+      backendService: BackendService(
         baseUrl: 'https://mova.test/api/v1',
         client: MockClient((request) async {
           registrationRequest = request;

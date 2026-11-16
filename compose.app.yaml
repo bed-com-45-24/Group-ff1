@@ -1,0 +1,40 @@
+services:
+  db:
+    image: postgis/postgis:16-3.5
+    container_name: yendaroute-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: yendaroute
+      POSTGRES_USER: yenda
+      POSTGRES_PASSWORD: yenda123
+    volumes:
+      - yendaroute_app_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U yenda -d yendaroute"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    image: yendaroute-api:1.0
+    pull_policy: never
+    container_name: yendaroute-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: yenda
+      DB_PASS: yenda123
+      DB_NAME: yendaroute
+      DB_SSL: "false"
+      JWT_SECRET: dev-secret-change-me
+      JWT_EXPIRES_IN: 1h
+      JWT_REFRESH_DAYS: 7
+    ports:
+      - "3000:3000"
+
+volumes:
+  yendaroute_app_pgdata:
