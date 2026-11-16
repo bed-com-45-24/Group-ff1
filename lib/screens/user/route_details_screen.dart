@@ -175,6 +175,23 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
           Text('Transport company: ${route.companyName}'),
           if (route.roadName.trim().isNotEmpty) Text('Road: ${route.roadName}'),
 
+          if (route.fareIsEstimate) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade50,
+                border: Border.all(color: Colors.amber.shade300),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Text(
+                'This route is not defined by the administrator. '
+                'Map directions and fare are estimates only. Confirm an '
+                'actual service and fare before travel.',
+              ),
+            ),
+          ],
+
           const SizedBox(height: 16),
 
           Text(
@@ -226,7 +243,9 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
 
           ListTile(
             leading: const Icon(Icons.payments),
-            title: const Text('Fare'),
+            title: Text(
+              route.fareIsEstimate ? 'Estimated fare' : 'Fare',
+            ),
             subtitle: Text('MWK ${route.fare.toStringAsFixed(0)}'),
           ),
 
@@ -332,9 +351,12 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
 
           const SizedBox(height: 16),
 
-          const Text(
-            'The fare shown is set by the transport administrator.',
-            style: TextStyle(fontSize: 12, color: Colors.grey),
+          Text(
+            route.fareIsEstimate
+                ? 'Map-based estimate at MWK 220 per kilometre. '
+                      'This is not a published fare.'
+                : 'The fare shown is set by the transport administrator.',
+            style: const TextStyle(fontSize: 12, color: Colors.grey),
           ),
           const SizedBox(height: 16),
         ],

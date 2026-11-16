@@ -1,6 +1,18 @@
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 
+class CurrentLocation {
+  final String name;
+  final double latitude;
+  final double longitude;
+
+  const CurrentLocation({
+    required this.name,
+    required this.latitude,
+    required this.longitude,
+  });
+}
+
 class LocationService {
   /// Get the current location name with improved field prioritization
   Future<String> getCurrentLocationName() async {
@@ -15,6 +27,26 @@ class LocationService {
     final position = await _readCurrentPosition();
     if (position == null) return 'Location unavailable';
 
+    return _locationName(position);
+  }
+
+  Future<CurrentLocation?> getCurrentLocationDetails() async {
+    if (!await Geolocator.isLocationServiceEnabled() ||
+        !await _hasLocationPermission()) {
+      return null;
+    }
+
+    final position = await _readCurrentPosition();
+    if (position == null) return null;
+
+    return CurrentLocation(
+      name: await _locationName(position),
+      latitude: position.latitude,
+      longitude: position.longitude,
+    );
+  }
+
+  Future<String> _locationName(Position position) async {
     try {
       final placemarks = await placemarkFromCoordinates(
         position.latitude,

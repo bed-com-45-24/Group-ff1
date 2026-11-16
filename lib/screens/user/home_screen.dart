@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../data/route_store.dart';
 import '../../models/route_model.dart';
 import '../../services/auth_service.dart';
+import '../../services/location_service.dart';
 import '../../widgets/route_card.dart';
 import 'booking/select_trip_screen.dart';
 import 'map_screen.dart';
@@ -81,8 +82,10 @@ class _HomeTabState extends State<_HomeTab> with WidgetsBindingObserver {
   final _searchController = TextEditingController();
   final _authService = AuthService();
   final _routeStore = RouteStore.instance;
+  final _locationService = LocationService();
   String _userInitial = 'U';
   String _currentLocation = 'Detecting location...';
+  CurrentLocation? _location;
   bool _isLoadingLocation = false;
 
   @override
@@ -138,12 +141,22 @@ class _HomeTabState extends State<_HomeTab> with WidgetsBindingObserver {
   Future<void> _loadCurrentLocation() async {
     if (_isLoadingLocation) return;
     setState(() => _isLoadingLocation = true);
-    await Future<void>.delayed(const Duration(seconds: 1));
-    if (!mounted) return;
-    setState(() {
-      _currentLocation = 'Zomba';
-      _isLoadingLocation = false;
-    });
+    try {
+      final location = await _locationService.getCurrentLocationDetails();
+      if (!mounted) return;
+      setState(() {
+        _location = location;
+        _currentLocation = location?.name ?? 'Location unavailable';
+        _isLoadingLocation = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _location = null;
+        _currentLocation = 'Location unavailable';
+        _isLoadingLocation = false;
+      });
+    }
   }
 
   Future<void> _refreshLocation() async {
@@ -176,11 +189,7 @@ class _HomeTabState extends State<_HomeTab> with WidgetsBindingObserver {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => SearchScreen(
-          initialOrigin: _currentLocation == 'Detecting location...'
-              ? null
-              : _currentLocation,
-        ),
+        builder: (_) => SearchScreen(initialLocation: _location),
       ),
     );
   }

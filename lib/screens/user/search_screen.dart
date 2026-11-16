@@ -5,10 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-class SearchScreen extends StatefulWidget {
-  final String? initialOrigin;
+import '../../services/location_service.dart';
 
-  const SearchScreen({super.key, this.initialOrigin});
+class SearchScreen extends StatefulWidget {
+  final CurrentLocation? initialLocation;
+
+  const SearchScreen({super.key, this.initialLocation});
+
   @override
   State<SearchScreen> createState() => _SearchScreenState();
 }
@@ -16,6 +19,7 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
+  final _locationService = LocationService();
   Timer? _debounceTimer;
   List<Map<String, dynamic>> _destinations = [];
   List<String> _recentSearches = [];
@@ -26,6 +30,9 @@ class _SearchScreenState extends State<SearchScreen> {
   String? _selectedAddress;
   String? _selectedLatitude;
   String? _selectedLongitude;
+  CurrentLocation? _originLocation;
+  bool _isLoadingLocation = false;
+  String? _locationError;
   int _searchRequestId = 0;
   final List<Map<String, String>> _suggestedPlaces = [
     {'name': 'Lilongwe City Centre', 'address': 'Lilongwe, Malawi'},
@@ -37,7 +44,35 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void initState() {
     super.initState();
+    _originLocation = widget.initialLocation;
+    if (_originLocation == null) _loadCurrentLocation();
     _loadRecentSearches();
+  }
+
+  Future<void> _loadCurrentLocation() async {
+    setState(() {
+      _isLoadingLocation = true;
+      _locationError = null;
+    });
+    try {
+      final location = await _locationService.getCurrentLocationDetails();
+      if (!mounted) return;
+      setState(() {
+        _originLocation = location;
+        _locationError = location == null
+            ? 'Enable device location to search from your current location.'
+            : null;
+        _isLoadingLocation = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _locationError =
+            'Could not get your current location: '
+            '${error.toString().replaceFirst('Exception: ', '')}';
+        _isLoadingLocation = false;
+      });
+    }
   }
 
   Future<void> _loadRecentSearches() async {
@@ -153,6 +188,33 @@ class _SearchScreenState extends State<SearchScreen> {
   }) async {
     final destination = name.trim();
     if (destination.isEmpty) return;
+    var originLocation = _originLocation;
+    if (originLocation == null) {
+      try {
+        originLocation = await _locationService.getCurrentLocationDetails();
+      } catch (error) {
+        if (mounted) {
+          setState(() {
+            _locationError =
+                'Could not get your current location: '
+                '${error.toString().replaceFirst('Exception: ', '')}';
+          });
+        }
+        return;
+      }
+      if (!mounted) return;
+      if (originLocation == null) {
+        setState(() {
+          _locationError =
+              'Enable device location to search from your current location.';
+        });
+        return;
+      }
+      setState(() {
+        _originLocation = originLocation;
+        _locationError = null;
+      });
+    }
     _debounceTimer?.cancel();
     _searchRequestId++;
     final destinationAddress = address?.trim().isNotEmpty == true
@@ -191,15 +253,17 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   void _continueToResults() {
-    if (_selectedDestination == null) return;
+    final originLocation = _originLocation;
+    if (_selectedDestination == null || originLocation == null) return;
     Navigator.pushNamed(
       context,
       '/results',
       arguments: {
         'name': _selectedDestination!,
         'address': _selectedAddress ?? _selectedDestination!,
-        if (widget.initialOrigin?.trim().isNotEmpty == true)
-          'origin': widget.initialOrigin!.trim(),
+        'origin': originLocation.name,
+        'originLatitude': originLocation.latitude,
+        'originLongitude': originLocation.longitude,
         if (_selectedLatitude != null && _selectedLongitude != null) ...{
           'latitude': _selectedLatitude!,
           'longitude': _selectedLongitude!,
@@ -258,6 +322,39 @@ class _SearchScreenState extends State<SearchScreen> {
               ],
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(28, 0, 28, 12),
+            child: Row(
+              children: [
+                const Icon(Icons.my_location, color: Colors.deepPurple),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _isLoadingLocation
+                        ? 'Getting your current location...'
+                        : _originLocation?.name ??
+                              'Current location unavailable',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Refresh current location',
+                  onPressed: _isLoadingLocation ? null : _loadCurrentLocation,
+                  icon: const Icon(Icons.refresh),
+                ),
+              ],
+            ),
+          ),
+          if (_locationError != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(28, 0, 28, 12),
+              child: Text(
+                _locationError!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
           // Search panel
           Expanded(
             child: Container(

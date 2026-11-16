@@ -65,6 +65,7 @@ class FakeMovaApi {
         email: email,
         password: body['password']?.toString() ?? '',
         name: body['name']?.toString() ?? '',
+        phone: body['phone']?.toString() ?? '',
       );
       return _json({'message': 'Account created.'}, 201);
     }

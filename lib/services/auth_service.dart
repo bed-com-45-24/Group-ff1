@@ -154,6 +154,7 @@ class AuthService {
     String email,
     String password,
     String name, {
+    required String phoneNumber,
     required String role,
   }) async {
     if (role != 'passenger') {
@@ -180,6 +181,7 @@ class AuthService {
         email: normalizedEmail,
         password: password,
         name: name.trim(),
+        phoneNumber: phoneNumber.trim(),
         role: 'passenger',
       );
       return true;
@@ -187,7 +189,12 @@ class AuthService {
     await _apiClient.post(
       'auth/register',
       authenticated: false,
-      body: {'name': name.trim(), 'email': email.trim(), 'password': password},
+      body: {
+        'name': name.trim(),
+        'email': email.trim(),
+        'phone': phoneNumber.trim(),
+        'password': password,
+      },
     );
     return true;
   }
@@ -263,12 +270,13 @@ class _DemoUser {
     required this.password,
     required this.name,
     required this.role,
+    this.phoneNumber = '',
   });
 
   String email;
   final String password;
   String name;
   final String role;
-  String phoneNumber = '';
+  String phoneNumber;
   String identificationNumber = '';
 }
