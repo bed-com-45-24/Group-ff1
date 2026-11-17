@@ -141,8 +141,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       Text(
                         AppConfig.backendEnabled
                             ? 'Sign in with your account. Your access is determined by MOVA.'
-                            : 'Frontend-only demo. Admin: admin@mova.test / password123. '
-                                  'You can also create a passenger account.',
+                            : 'You can sign in with your account or create a passenger account.',
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           color: Colors.deepPurple,

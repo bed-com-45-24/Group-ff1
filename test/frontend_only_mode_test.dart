@@ -7,14 +7,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('frontend-only app signs in the demo admin without a backend', (
+  testWidgets('frontend-only app signs in with the local admin account without a backend', (
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
     await tester.pumpWidget(const MovaApp());
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Frontend-only demo'), findsOneWidget);
+    expect(find.textContaining('You can sign in with your account'), findsOneWidget);
     await tester.enterText(find.byType(TextFormField).at(0), 'admin@mova.test');
     await tester.enterText(find.byType(TextFormField).at(1), 'password123');
     await tester.ensureVisible(find.text('Sign In'));

@@ -10,7 +10,7 @@ class AuthService {
     'admin@mova.test': _DemoUser(
       email: 'admin@mova.test',
       password: 'password123',
-      name: 'MOVA Demo Admin',
+      name: 'MOVA Admin',
       role: 'admin',
     ),
   };
