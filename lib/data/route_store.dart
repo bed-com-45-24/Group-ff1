@@ -6,22 +6,30 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/route_model.dart';
 import '../services/backend_service.dart';
 import '../services/auth_service.dart';
+import '../services/openstreetmap_service.dart';
 import 'sample_data.dart';
 
 class RouteStore {
-  RouteStore._({BackendService? backendService})
-    : _api = backendService ?? BackendService.instance;
+  RouteStore._({
+    BackendService? backendService,
+    OpenStreetMapService? openStreetMapService,
+  }) : _api = backendService ?? BackendService.instance,
+       _openStreetMap = openStreetMapService ?? OpenStreetMapService();
 
   static final RouteStore instance = RouteStore._();
-  RouteStore.forApi({required BackendService backendService})
-    : _api = backendService,
-      _backendEnabled = true {
+  RouteStore.forApi({
+    required BackendService backendService,
+    OpenStreetMapService? openStreetMapService,
+  }) : _api = backendService,
+       _openStreetMap = openStreetMapService ?? OpenStreetMapService(),
+       _backendEnabled = true {
     _routes = [];
   }
 
   static const _storageKey = 'admin_routes_v1';
 
   final BackendService _api;
+  final OpenStreetMapService _openStreetMap;
   final ValueNotifier<int> changes = ValueNotifier(0);
   List<RouteModel> _routes = List.of(sampleRoutes);
   bool _backendEnabled = false;
@@ -218,11 +226,34 @@ class RouteStore {
         }
       }
       if (match == null) {
-        throw StateError('The backend could not resolve the stop "$name".');
+        final partialMatches = stops.where((stop) {
+          if (stop is! Map) return false;
+          final candidate = _normalize(stop['name']?.toString() ?? '');
+          return candidate.startsWith(normalizedName) ||
+              normalizedName.startsWith(candidate);
+        }).toList();
+        if (partialMatches.length == 1) {
+          match = Map.from(partialMatches.single as Map);
+        }
+      }
+      if (match == null) {
+        final location = await _openStreetMap.findPlace(name.trim());
+        final response = await _api.post(
+          'stops',
+          body: {
+            'name': name.trim(),
+            'latitude': location.latitude,
+            'longitude': location.longitude,
+            'isActive': true,
+          },
+        );
+        match = _mapResponse(response, 'created stop');
       }
       final id = int.tryParse(match['id']?.toString() ?? '');
       if (id == null) {
-        throw StateError('The backend could not resolve the stop "$name".');
+        throw FormatException(
+          'The API did not return an ID for the stop "$name".',
+        );
       }
       stopIds.add(id);
     }

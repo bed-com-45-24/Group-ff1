@@ -78,24 +78,29 @@ class _HomeTab extends StatefulWidget {
   State<_HomeTab> createState() => _HomeTabState();
 }
 
-class _HomeTabState extends State<_HomeTab> with WidgetsBindingObserver {
+class _HomeTabState extends State<_HomeTab> {
+  static const _demoLocation = CurrentLocation(
+    name: 'Zomba',
+    latitude: -15.39,
+    longitude: 35.32,
+  );
+  static const _locationDetectionDelay = Duration(milliseconds: 650);
+
   final _searchController = TextEditingController();
   final _authService = AuthService();
   final _routeStore = RouteStore.instance;
-  final _locationService = LocationService();
   String _userInitial = 'U';
   String _currentLocation = 'Detecting location...';
-  CurrentLocation? _location;
-  bool _isLoadingLocation = false;
+  CurrentLocation? _location = _demoLocation;
+  bool _isLoadingLocation = true;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _routeStore.changes.addListener(_refreshRoutes);
     _loadRoutes();
     _loadUserInfo();
-    _loadCurrentLocation();
+    _simulateLocationDetection();
   }
 
   Future<void> _loadRoutes() async {
@@ -111,13 +116,6 @@ class _HomeTabState extends State<_HomeTab> with WidgetsBindingObserver {
 
   void _refreshRoutes() {
     if (mounted) setState(() {});
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && !_isLoadingLocation) {
-      _loadCurrentLocation();
-    }
   }
 
   Future<void> _loadUserInfo() async {
@@ -138,30 +136,14 @@ class _HomeTabState extends State<_HomeTab> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _loadCurrentLocation() async {
-    if (_isLoadingLocation) return;
-    setState(() => _isLoadingLocation = true);
-    try {
-      final location = await _locationService.getCurrentLocationDetails();
-      if (!mounted) return;
-      setState(() {
-        _location = location;
-        _currentLocation = location?.name ?? 'Location unavailable';
-        _isLoadingLocation = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _location = null;
-        _currentLocation = 'Location unavailable';
-        _isLoadingLocation = false;
-      });
-    }
-  }
-
-  Future<void> _refreshLocation() async {
-    if (_isLoadingLocation) return;
-    await _loadCurrentLocation();
+  Future<void> _simulateLocationDetection() async {
+    await Future<void>.delayed(_locationDetectionDelay);
+    if (!mounted) return;
+    setState(() {
+      _location = _demoLocation;
+      _currentLocation = _demoLocation.name;
+      _isLoadingLocation = false;
+    });
   }
 
   void _openProfile() {
@@ -203,7 +185,6 @@ class _HomeTabState extends State<_HomeTab> with WidgetsBindingObserver {
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     _routeStore.changes.removeListener(_refreshRoutes);
     _searchController.dispose();
     super.dispose();
@@ -285,17 +266,11 @@ class _HomeTabState extends State<_HomeTab> with WidgetsBindingObserver {
                     const SizedBox(height: 16),
                     Row(
                       children: [
-                        IconButton(
-                          tooltip: 'Refresh detected location',
-                          visualDensity: VisualDensity.compact,
-                          onPressed: _isLoadingLocation
-                              ? null
-                              : _refreshLocation,
-                          icon: const Icon(
-                            Icons.my_location,
-                            color: Colors.deepPurple,
-                          ),
+                        const Icon(
+                          Icons.location_on_outlined,
+                          color: Colors.deepPurple,
                         ),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             _isLoadingLocation
@@ -303,7 +278,6 @@ class _HomeTabState extends State<_HomeTab> with WidgetsBindingObserver {
                                 : _currentLocation,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.start,
                             style: const TextStyle(color: Colors.black54),
                           ),
                         ),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../data/booking_service.dart';
 import '../../../data/booking_store.dart';
 import '../../../models/trip_model.dart';
+import 'booking_cancel_action.dart';
 import 'passenger_details_screen.dart';
 
 class SeatSelectionScreen extends StatefulWidget {
@@ -87,7 +88,10 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
     final bookingStore = BookingStore.instance;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Select Seats')),
+      appBar: AppBar(
+        title: const Text('Select Seats'),
+        actions: const [BookingCancelAction()],
+      ),
       body: Column(
         children: [
           Expanded(

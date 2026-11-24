@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../models/booking_model.dart';
+import '../booking/booking_cancel_action.dart';
 import 'payment_processing_screen.dart';
 
 class MobileMoneyScreen extends StatefulWidget {
@@ -29,7 +30,10 @@ class _MobileMoneyScreenState extends State<MobileMoneyScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Mobile Money')),
+      appBar: AppBar(
+        title: const Text('Mobile Money'),
+        actions: [BookingCancelAction(booking: widget.booking)],
+      ),
       body: Form(
         key: formKey,
         child: ListView(

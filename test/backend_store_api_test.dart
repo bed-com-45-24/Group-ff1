@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:mova/data/booking_store.dart';
 import 'package:mova/data/route_store.dart';
 import 'package:mova/data/trip_store.dart';
@@ -10,7 +11,19 @@ import 'package:mova/models/booking_model.dart';
 import 'package:mova/models/route_model.dart';
 import 'package:mova/models/trip_model.dart';
 import 'package:mova/services/backend_service.dart';
+import 'package:mova/services/openstreetmap_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+class _FakeOpenStreetMapService extends OpenStreetMapService {
+  @override
+  Future<LatLng> findPlace(String query) async {
+    return switch (query.toLowerCase()) {
+      'zomba' => const LatLng(-15.385, 35.318),
+      'mzuzu' => const LatLng(-11.465, 34.020),
+      _ => throw StateError('Unexpected place: $query'),
+    };
+  }
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -154,6 +167,105 @@ void main() {
       'featured': false,
     });
   });
+
+  test(
+    'creates missing stops with geocoded coordinates before saving a route',
+    () async {
+      SharedPreferences.setMockInitialValues({
+        'mova_access_token': 'access-token',
+        'mova_refresh_token': 'refresh-token',
+      });
+      final requests = <http.Request>[];
+      final store = RouteStore.forApi(
+        backendService: BackendService(
+          baseUrl: 'https://mova.test/api/v1',
+          client: MockClient((request) async {
+            requests.add(request);
+            if (request.url.path.endsWith('/me')) {
+              return http.Response(jsonEncode({'id': 8, 'role': 'admin'}), 200);
+            }
+            if (request.method == 'GET' &&
+                request.url.path.endsWith('/routes/admin/list')) {
+              return http.Response(jsonEncode({'data': []}), 200);
+            }
+            if (request.method == 'GET' &&
+                request.url.path.endsWith('/stops/places/search')) {
+              return http.Response(jsonEncode({'data': []}), 200);
+            }
+            if (request.method == 'POST' &&
+                request.url.path.endsWith('/stops')) {
+              final body = jsonDecode(request.body) as Map<String, dynamic>;
+              return http.Response(
+                jsonEncode({'id': body['name'] == 'Zomba' ? 21 : 22, ...body}),
+                201,
+              );
+            }
+            if (request.method == 'POST' &&
+                request.url.path.endsWith('/routes')) {
+              return http.Response(
+                jsonEncode({
+                  'data': {
+                    'id': 42,
+                    'name': 'Zomba - Mzuzu',
+                    'originStop': {'name': 'Zomba'},
+                    'destinationStop': {'name': 'Mzuzu'},
+                    'routeStops': [
+                      {'name': 'Zomba'},
+                      {'name': 'Mzuzu'},
+                    ],
+                    'companyName': 'MOVA',
+                    'fareEstimate': 26000,
+                  },
+                }),
+                201,
+              );
+            }
+            if (request.method == 'POST' &&
+                request.url.path.endsWith('/routes/42/fares')) {
+              return http.Response('', 201);
+            }
+            return http.Response('Unexpected request', 500);
+          }),
+        ),
+        openStreetMapService: _FakeOpenStreetMapService(),
+      );
+
+      await store.saveRoute(
+        const RouteModel(
+          id: 'temporary-route-id',
+          companyName: 'MOVA',
+          name: 'Zomba - Mzuzu',
+          origin: 'Zomba',
+          destination: 'Mzuzu',
+          roadName: 'M1',
+          stops: ['Zomba', 'Mzuzu'],
+          fare: 26000,
+        ),
+      );
+
+      final stopRequests = requests.where(
+        (request) =>
+            request.method == 'POST' && request.url.path.endsWith('/stops'),
+      );
+      expect(stopRequests, hasLength(2));
+      final zomba = jsonDecode(stopRequests.first.body) as Map<String, dynamic>;
+      expect(zomba, {
+        'name': 'Zomba',
+        'latitude': -15.385,
+        'longitude': 35.318,
+        'isActive': true,
+      });
+      final routeRequest = requests.singleWhere(
+        (request) =>
+            request.method == 'POST' && request.url.path.endsWith('/routes'),
+      );
+      expect(jsonDecode(routeRequest.body), containsPair('originStopId', 21));
+      expect(
+        jsonDecode(routeRequest.body),
+        containsPair('destinationStopId', 22),
+      );
+    },
+  );
 
   test('creates administrator schedules through the API', () async {
     SharedPreferences.setMockInitialValues({

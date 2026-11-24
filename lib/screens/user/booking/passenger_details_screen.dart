@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../data/booking_service.dart';
 import '../../../models/booking_model.dart';
 import '../../../services/auth_service.dart';
+import 'booking_cancel_action.dart';
 import 'booking_summary_screen.dart';
 
 class PassengerDetailsScreen extends StatefulWidget {
@@ -111,7 +112,10 @@ class _PassengerDetailsScreenState extends State<PassengerDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Passenger Details')),
+      appBar: AppBar(
+        title: const Text('Passenger Details'),
+        actions: [BookingCancelAction(booking: widget.booking)],
+      ),
       body: Form(
         key: formKey,
         child: ListView(

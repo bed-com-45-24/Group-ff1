@@ -334,6 +334,7 @@ void main() {
 
     await tester.pump(const Duration(seconds: 2));
     await tester.pumpAndSettle();
+    expect(find.text('Zomba'), findsOneWidget);
     await tester.tap(find.byType(TextField).first);
     await tester.pumpAndSettle();
     expect(find.text('Where are you heading?'), findsOneWidget);
@@ -587,11 +588,14 @@ void main() {
 
       await tester.pumpWidget(const MovaApp());
       await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 700));
+      await tester.pumpAndSettle();
 
       expect(find.text('Plan your journey'), findsOneWidget);
       expect(find.text('Search destination'), findsOneWidget);
       expect(find.text('Current location'), findsNothing);
-      expect(find.byIcon(Icons.my_location), findsOneWidget);
+      expect(find.text('Zomba'), findsOneWidget);
+      expect(find.byIcon(Icons.my_location), findsNothing);
       expect(find.text('From'), findsNothing);
       expect(find.text('To'), findsNothing);
       expect(find.text('Search routes'), findsNothing);

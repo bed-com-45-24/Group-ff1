@@ -38,6 +38,9 @@ class BookingService {
     identificationNumber: identificationNumber,
   );
 
+  Future<BookingDraft> cancelBooking({required String reference}) =>
+      _store.cancelBooking(reference);
+
   Future<BookingDraft> completePayment({
     required String reference,
     required String paymentMethod,
