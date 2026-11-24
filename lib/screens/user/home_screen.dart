@@ -1,9 +1,9 @@
-
 import 'package:flutter/material.dart';
 
 import '../../data/route_store.dart';
 import '../../models/route_model.dart';
 import '../../services/auth_service.dart';
+import '../../services/location_service.dart';
 import '../../widgets/route_card.dart';
 import 'booking/select_trip_screen.dart';
 import 'map_screen.dart';
@@ -78,60 +78,72 @@ class _HomeTab extends StatefulWidget {
   State<_HomeTab> createState() => _HomeTabState();
 }
 
-class _HomeTabState extends State<_HomeTab> with WidgetsBindingObserver {
+class _HomeTabState extends State<_HomeTab> {
+  static const _demoLocation = CurrentLocation(
+    name: 'Zomba',
+    latitude: -15.39,
+    longitude: 35.32,
+  );
+  static const _locationDetectionDelay = Duration(milliseconds: 650);
+
   final _searchController = TextEditingController();
   final _authService = AuthService();
   final _routeStore = RouteStore.instance;
   String _userInitial = 'U';
   String _currentLocation = 'Detecting location...';
-  bool _isLoadingLocation = false;
+  CurrentLocation? _location = _demoLocation;
+  bool _isLoadingLocation = true;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _routeStore.changes.addListener(_refreshRoutes);
-    _routeStore.load();
+    _loadRoutes();
     _loadUserInfo();
-    _loadCurrentLocation();
+    _simulateLocationDetection();
+  }
+
+  Future<void> _loadRoutes() async {
+    try {
+      await _routeStore.load(refresh: true);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not load routes: $error')));
+    }
   }
 
   void _refreshRoutes() {
     if (mounted) setState(() {});
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && !_isLoadingLocation) {
-      _loadCurrentLocation();
+  Future<void> _loadUserInfo() async {
+    try {
+      final userName = await _authService.getUserName();
+      final userEmail = await _authService.getUserEmail();
+      if (!mounted) return;
+
+      final name = (userName ?? userEmail ?? '').trim();
+      setState(() {
+        _userInitial = name.isEmpty ? 'U' : name[0].toUpperCase();
+      });
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not load your account details: $error')),
+      );
     }
   }
 
-  Future<void> _loadUserInfo() async {
-    final userName = await _authService.getUserName();
-    final userEmail = await _authService.getUserEmail();
-    if (!mounted) return;
-
-    final name = (userName ?? userEmail ?? '').trim();
-    setState(() {
-      _userInitial = name.isEmpty ? 'U' : name[0].toUpperCase();
-    });
-  }
-
-  Future<void> _loadCurrentLocation() async {
-    if (_isLoadingLocation) return;
-    setState(() => _isLoadingLocation = true);
-    await Future<void>.delayed(const Duration(seconds: 1));
+  Future<void> _simulateLocationDetection() async {
+    await Future<void>.delayed(_locationDetectionDelay);
     if (!mounted) return;
     setState(() {
-      _currentLocation = 'Zomba';
+      _location = _demoLocation;
+      _currentLocation = _demoLocation.name;
       _isLoadingLocation = false;
     });
-  }
-
-  Future<void> _refreshLocation() async {
-    if (_isLoadingLocation) return;
-    await _loadCurrentLocation();
   }
 
   void _openProfile() {
@@ -159,11 +171,7 @@ class _HomeTabState extends State<_HomeTab> with WidgetsBindingObserver {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => SearchScreen(
-          initialOrigin: _currentLocation == 'Detecting location...'
-              ? null
-              : _currentLocation,
-        ),
+        builder: (_) => SearchScreen(initialLocation: _location),
       ),
     );
   }
@@ -177,7 +185,6 @@ class _HomeTabState extends State<_HomeTab> with WidgetsBindingObserver {
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     _routeStore.changes.removeListener(_refreshRoutes);
     _searchController.dispose();
     super.dispose();
@@ -259,17 +266,11 @@ class _HomeTabState extends State<_HomeTab> with WidgetsBindingObserver {
                     const SizedBox(height: 16),
                     Row(
                       children: [
-                        IconButton(
-                          tooltip: 'Refresh detected location',
-                          visualDensity: VisualDensity.compact,
-                          onPressed: _isLoadingLocation
-                              ? null
-                              : _refreshLocation,
-                          icon: const Icon(
-                            Icons.my_location,
-                            color: Colors.deepPurple,
-                          ),
+                        const Icon(
+                          Icons.location_on_outlined,
+                          color: Colors.deepPurple,
                         ),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             _isLoadingLocation
@@ -277,7 +278,6 @@ class _HomeTabState extends State<_HomeTab> with WidgetsBindingObserver {
                                 : _currentLocation,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.start,
                             style: const TextStyle(color: Colors.black54),
                           ),
                         ),
@@ -368,7 +368,11 @@ class _AllPopularRoutesScreenState extends State<AllPopularRoutesScreen> {
   @override
   void initState() {
     super.initState();
-    _store.load();
+    _store.load(refresh: true).catchError((Object error) {
+      if (mounted) {
+        setState(() => _routeSearchError = 'Could not load routes: $error');
+      }
+    });
   }
 
   @override

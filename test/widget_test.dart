@@ -8,6 +8,7 @@ import 'package:mova/models/osm_route_model.dart';
 import 'package:mova/models/booking_model.dart';
 import 'package:mova/models/route_model.dart';
 import 'package:mova/models/trip_model.dart';
+import 'package:mova/data/sample_data.dart';
 import 'package:mova/data/route_store.dart';
 import 'package:mova/data/trip_store.dart';
 import 'package:mova/screens/user/booking/passenger_details_screen.dart';
@@ -18,9 +19,12 @@ import 'package:mova/screens/user/home_screen.dart';
 import 'package:mova/screens/user/route_details_screen.dart';
 import 'package:mova/screens/user/route_directions_details_screen.dart';
 import 'package:mova/screens/user/results_screen.dart';
+import 'package:mova/services/backend_service.dart';
 import 'package:mova/services/auth_service.dart';
 import 'package:mova/services/openstreetmap_service.dart';
 import 'package:mova/widgets/route_card.dart';
+
+import 'support/fake_mova_api.dart';
 
 class _FakeOpenStreetMapService extends OpenStreetMapService {
   static const _point = LatLng(-13.96, 33.78);
@@ -53,39 +57,59 @@ class _FakeOpenStreetMapService extends OpenStreetMapService {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  late FakeMovaApi fakeApi;
 
-  testWidgets('MOVA asks the user to choose a role before login', (
+  setUp(() {
+    fakeApi = FakeMovaApi();
+    fakeApi.install();
+  });
+
+  testWidgets('MOVA opens one shared sign-in screen', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+
+    await tester.pumpWidget(const MovaApp());
+    await tester.pumpAndSettle();
+
+    expect(find.text('Welcome to MOVA'), findsOneWidget);
+    expect(find.text('Sign in to continue'), findsOneWidget);
+    expect(find.text('Create passenger account'), findsOneWidget);
+    expect(find.text('Signing in as Company admin'), findsNothing);
+  });
+
+  testWidgets('Passenger registration requires a Gmail address', (
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
 
     await tester.pumpWidget(const MovaApp());
     await tester.pumpAndSettle();
-
-    expect(find.text('Company admin'), findsOneWidget);
-    expect(find.text('Normal user'), findsOneWidget);
-
-    await tester.tap(find.text('Normal user'));
+    await tester.ensureVisible(find.text('Create passenger account'));
+    await tester.tap(find.text('Create passenger account'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Welcome to MOVA'), findsOneWidget);
-    expect(find.text('Sign in to continue'), findsOneWidget);
-    expect(find.text('Signing in as Normal user'), findsOneWidget);
+    expect(find.text('Create Account'), findsOneWidget);
+    await tester.enterText(find.byType(TextFormField).at(0), 'Test Passenger');
+    await tester.enterText(
+      find.byType(TextFormField).at(1),
+      'person@example.com',
+    );
+    await tester.enterText(find.byType(TextFormField).at(2), '0991234567');
+    await tester.enterText(find.byType(TextFormField).at(3), 'password123');
+    await tester.enterText(find.byType(TextFormField).at(4), 'password123');
+    await tester.ensureVisible(find.text('Sign Up'));
+    await tester.tap(find.text('Sign Up'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Please enter a valid @gmail.com address'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('Admin role signs in to the admin dashboard', (tester) async {
     SharedPreferences.setMockInitialValues({});
-    final authService = AuthService();
-    await authService.signup(
-      'admin@mova.test',
-      'password123',
-      'MOVA Admin',
-      role: 'admin',
-    );
 
     await tester.pumpWidget(const MovaApp());
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Company admin'));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextFormField).at(0), 'admin@mova.test');
@@ -112,25 +136,22 @@ void main() {
 
     expect(
       await authService.signup(
-        'passenger@mova.test',
+        'passenger@gmail.com',
         'password123',
         'Test Passenger',
+        phoneNumber: '0991234567',
         role: 'passenger',
       ),
       isTrue,
     );
     expect(
-      await authService.login(
-        'passenger@mova.test',
-        'password123',
-        role: 'passenger',
-      ),
+      await authService.login('passenger@gmail.com', 'password123'),
       isTrue,
     );
 
     var details = await authService.getPassengerDetails();
     expect(details['name'], 'Test Passenger');
-    expect(details['email'], 'passenger@mova.test');
+    expect(details['email'], 'passenger@gmail.com');
 
     await authService.savePassengerDetails(
       name: details['name']!,
@@ -147,24 +168,16 @@ void main() {
   test('Unregistered credentials cannot sign in as company admin', () async {
     SharedPreferences.setMockInitialValues({});
     expect(
-      await AuthService().login(
-        'unknown@mova.test',
-        'password123',
-        role: 'admin',
-      ),
-      isFalse,
+      AuthService().login('unknown@mova.test', 'password123'),
+      throwsA(isA<ApiException>()),
     );
   });
 
   test('Unregistered credentials cannot sign in as passenger', () async {
     SharedPreferences.setMockInitialValues({});
     expect(
-      await AuthService().login(
-        'unknown@mova.test',
-        'password123',
-        role: 'passenger',
-      ),
-      isFalse,
+      AuthService().login('unknown@mova.test', 'password123'),
+      throwsA(isA<ApiException>()),
     );
   });
 
@@ -321,6 +334,7 @@ void main() {
 
     await tester.pump(const Duration(seconds: 2));
     await tester.pumpAndSettle();
+    expect(find.text('Zomba'), findsOneWidget);
     await tester.tap(find.byType(TextField).first);
     await tester.pumpAndSettle();
     expect(find.text('Where are you heading?'), findsOneWidget);
@@ -463,7 +477,7 @@ void main() {
         stops: ['Blantyre', 'Lilongwe'],
         fare: 75000,
       );
-      expect(legacyRoute.pickupPoint, 'Blantyre Depot');
+      expect(legacyRoute.pickupPoint, 'Wenela Bus Depot');
 
       final savedRoute = RouteModel.fromJson({
         ...legacyRoute.toJson(),
@@ -472,7 +486,7 @@ void main() {
       expect(savedRoute.pickupPoint, 'Limbe Depot');
       expect(
         RouteModel.fromJson(legacyRoute.toJson()).pickupPoint,
-        'Blantyre Depot',
+        'Wenela Bus Depot',
       );
     },
   );
@@ -505,64 +519,83 @@ void main() {
     },
   );
 
-  testWidgets(
-    'Passenger details form is prefilled from local account storage',
-    (tester) async {
-      SharedPreferences.setMockInitialValues({
-        'is_logged_in': true,
-        'user_email': 'passenger@mova.test',
-        'user_name': 'Test Passenger',
-        'passenger_profile_passenger@mova.test':
-            '{"name":"Test Passenger","email":"passenger@mova.test",'
-            '"phoneNumber":"0991234567","identificationNumber":"ID12345"}',
-      });
-      final booking = BookingDraft(
-        trip: Trip(
-          id: 'trip-1',
-          origin: 'Lilongwe',
-          destination: 'Blantyre',
-          departureTime: DateTime(2026, 10, 20, 8),
-          arrivalTime: DateTime(2026, 10, 20, 14),
-          fare: 25000,
-          totalSeats: 40,
-        ),
-        reference: 'MOVA-TEST',
-        selectedSeats: [1],
-      );
+  testWidgets('Passenger details form is prefilled from the backend profile', (
+    tester,
+  ) async {
+    final accessToken = fakeApi.addUser(
+      email: 'passenger@mova.test',
+      password: 'password123',
+      name: 'Test Passenger',
+      phone: '0991234567',
+      identificationNumber: 'ID12345',
+    );
+    SharedPreferences.setMockInitialValues({
+      'mova_access_token': accessToken,
+      'mova_refresh_token': 'test-refresh-passenger@mova.test',
+    });
+    final booking = BookingDraft(
+      trip: Trip(
+        id: 'trip-1',
+        origin: 'Lilongwe',
+        destination: 'Blantyre',
+        departureTime: DateTime(2026, 10, 20, 8),
+        arrivalTime: DateTime(2026, 10, 20, 14),
+        fare: 25000,
+        totalSeats: 40,
+      ),
+      reference: 'MOVA-TEST',
+      selectedSeats: [1],
+    );
 
-      await tester.pumpWidget(
-        MaterialApp(home: PassengerDetailsScreen(booking: booking)),
-      );
-      await tester.pumpAndSettle();
+    await tester.pumpWidget(
+      MaterialApp(home: PassengerDetailsScreen(booking: booking)),
+    );
+    await tester.pumpAndSettle();
 
-      final fields = tester.widgetList<TextFormField>(
-        find.byType(TextFormField),
-      );
-      expect(fields.elementAt(0).controller!.text, 'Test Passenger');
-      expect(fields.elementAt(1).controller!.text, 'passenger@mova.test');
-      expect(fields.elementAt(2).controller!.text, '0991234567');
-      expect(fields.elementAt(3).controller!.text, 'ID12345');
-    },
-  );
+    final fields = tester.widgetList<TextFormField>(find.byType(TextFormField));
+    expect(fields.elementAt(0).controller!.text, 'Test Passenger');
+    expect(fields.elementAt(1).controller!.text, 'passenger@mova.test');
+    expect(fields.elementAt(2).controller!.text, '0991234567');
+    expect(fields.elementAt(3).controller!.text, 'ID12345');
+  });
 
   testWidgets(
     'Passenger home has a single destination search and popular routes',
     (tester) async {
       await tester.binding.setSurfaceSize(const Size(1000, 800));
       addTearDown(() => tester.binding.setSurfaceSize(null));
+      SharedPreferences.setMockInitialValues({});
+      final accessToken = fakeApi.addUser(
+        email: 'home-passenger@mova.test',
+        password: 'password123',
+        name: 'Home Passenger',
+      );
+      const popularRoute = RouteModel(
+        id: 'R001',
+        companyName: 'Test Transit',
+        name: 'Home Popular Origin - Home Popular Destination',
+        origin: 'Home Popular Origin',
+        destination: 'Home Popular Destination',
+        stops: ['Home Popular Origin', 'Home Popular Destination'],
+        fare: 19000,
+      );
+      await RouteStore.instance.saveRoute(popularRoute);
+      addTearDown(() => RouteStore.instance.saveRoute(sampleRoutes.first));
       SharedPreferences.setMockInitialValues({
-        'is_logged_in': true,
-        'user_role': 'passenger',
-        'user_name': 'Test Passenger',
+        'mova_access_token': accessToken,
+        'mova_refresh_token': 'test-refresh-home-passenger@mova.test',
       });
 
       await tester.pumpWidget(const MovaApp());
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 700));
       await tester.pumpAndSettle();
 
       expect(find.text('Plan your journey'), findsOneWidget);
       expect(find.text('Search destination'), findsOneWidget);
       expect(find.text('Current location'), findsNothing);
-      expect(find.byIcon(Icons.my_location), findsOneWidget);
+      expect(find.text('Zomba'), findsOneWidget);
+      expect(find.byIcon(Icons.my_location), findsNothing);
       expect(find.text('From'), findsNothing);
       expect(find.text('To'), findsNothing);
       expect(find.text('Search routes'), findsNothing);
@@ -583,9 +616,9 @@ void main() {
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       expect(find.text('Popular routes'), findsWidgets);
-      expect(find.text('Blantyre - Lilongwe'), findsWidgets);
+      expect(find.text(popularRoute.name), findsWidgets);
 
-      await tester.tap(find.text('Routes'));
+      await tester.tap(find.text('Routes and Booking'));
       await tester.pumpAndSettle();
       expect(find.text('All routes'), findsOneWidget);
       expect(find.text('Find a route'), findsOneWidget);

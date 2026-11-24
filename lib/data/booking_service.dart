@@ -21,8 +21,7 @@ class BookingService {
       reference: reference,
       selectedSeats: selectedSeats,
     );
-    await _store.createDraft(booking);
-    return booking;
+    return _store.createDraft(booking);
   }
 
   Future<BookingDraft> review({
@@ -38,6 +37,9 @@ class BookingService {
     phoneNumber: phoneNumber,
     identificationNumber: identificationNumber,
   );
+
+  Future<BookingDraft> cancelBooking({required String reference}) =>
+      _store.cancelBooking(reference);
 
   Future<BookingDraft> completePayment({
     required String reference,

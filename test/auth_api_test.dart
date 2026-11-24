@@ -1,0 +1,173 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:mova/services/backend_service.dart';
+import 'package:mova/services/auth_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  test('API requests fail clearly when no server URL is configured', () async {
+    final client = BackendService(
+      baseUrl: '',
+      client: MockClient((_) async {
+        fail('An API request must not be sent without a configured URL.');
+      }),
+    );
+
+    await expectLater(
+      client.get('routes', authenticated: false),
+      throwsA(
+        isA<ApiException>().having(
+          (error) => error.message,
+          'message',
+          contains('Backend URL is not configured'),
+        ),
+      ),
+    );
+  });
+
+  test('Android emulator defaults to the local Docker API', () async {
+    final previousPlatform = debugDefaultTargetPlatformOverride;
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    addTearDown(() {
+      debugDefaultTargetPlatformOverride = previousPlatform;
+    });
+
+    final service = BackendService(
+      client: MockClient((request) async {
+        expect(request.url, Uri.parse('http://10.0.2.2:3000/api/v1/routes'));
+        return http.Response('[]', 200);
+      }),
+    );
+
+    await service.get('routes', authenticated: false);
+  });
+
+  test('login uses API tokens and the server-assigned account role', () async {
+    SharedPreferences.setMockInitialValues({});
+    final requests = <http.Request>[];
+    final client = BackendService(
+      baseUrl: 'https://mova.test/api/v1',
+      client: MockClient((request) async {
+        requests.add(request);
+        if (request.url.path.endsWith('/auth/login')) {
+          return http.Response(
+            jsonEncode({
+              'accessToken': 'access-token',
+              'refreshToken': 'refresh-token',
+            }),
+            201,
+          );
+        }
+        if (request.url.path.endsWith('/me')) {
+          return http.Response(
+            jsonEncode({
+              'id': 42,
+              'email': 'admin@example.test',
+              'name': 'Approved Admin',
+              'role': 'admin',
+            }),
+            200,
+          );
+        }
+        if (request.url.path.endsWith('/auth/logout')) {
+          return http.Response('', 201);
+        }
+        return http.Response('Not found', 404);
+      }),
+    );
+    final auth = AuthService(backendService: client);
+
+    expect(await auth.login('admin@example.test', 'secret-password'), isTrue);
+    expect(await auth.getUserRole(), 'admin');
+    expect(requests.first.url.path, '/api/v1/auth/login');
+    expect(jsonDecode(requests.first.body), {
+      'email': 'admin@example.test',
+      'password': 'secret-password',
+    });
+    expect(requests.last.headers['authorization'], 'Bearer access-token');
+
+    await auth.logout();
+    expect(await client.accessToken, isNull);
+    expect(requests.last.url.path, '/api/v1/auth/logout');
+  });
+
+  test('registration does not allow assigning an admin role locally', () async {
+    SharedPreferences.setMockInitialValues({});
+    final auth = AuthService(
+      backendService: BackendService(
+        baseUrl: 'https://mova.test/api/v1',
+        client: MockClient((_) async {
+          fail('Admin registration must not reach the API.');
+        }),
+      ),
+    );
+
+    await expectLater(
+      auth.signup(
+        'admin@example.test',
+        'secret-password',
+        'Unapproved Admin',
+        phoneNumber: '0991234567',
+        role: 'admin',
+      ),
+      throwsA(isA<ApiException>()),
+    );
+  });
+
+  test('passenger registration sends phone number as a string', () async {
+    SharedPreferences.setMockInitialValues({});
+    http.Request? registrationRequest;
+    final auth = AuthService(
+      backendService: BackendService(
+        baseUrl: 'https://mova.test/api/v1',
+        client: MockClient((request) async {
+          registrationRequest = request;
+          return http.Response('', 201);
+        }),
+      ),
+    );
+
+    await auth.signup(
+      'passenger@gmail.com',
+      'secret-password',
+      'Test Passenger',
+      phoneNumber: '0991234567',
+      role: 'passenger',
+    );
+
+    expect(registrationRequest, isNotNull);
+    final body = jsonDecode(registrationRequest!.body) as Map<String, dynamic>;
+    expect(body['phone'], '0991234567');
+    expect(body['phone'], isA<String>());
+  });
+
+  test('frontend-only auth supports demo admin and Gmail passengers', () async {
+    final auth = AuthService(backendEnabled: false);
+
+    expect(await auth.login('admin@mova.test', 'password123'), isTrue);
+    expect(await auth.getUserRole(), 'admin');
+    await auth.logout();
+
+    expect(
+      await auth.signup(
+        'passenger@gmail.com',
+        'password123',
+        'Demo Passenger',
+        phoneNumber: '0991234567',
+        role: 'passenger',
+      ),
+      isTrue,
+    );
+    expect(await auth.login('passenger@gmail.com', 'password123'), isTrue);
+    expect(await auth.getUserRole(), 'passenger');
+    expect(await auth.getUserName(), 'Demo Passenger');
+    expect((await auth.getPassengerDetails())['phoneNumber'], '0991234567');
+    await auth.logout();
+  });
+}

@@ -14,11 +14,21 @@ class _StopsScreenState extends State<StopsScreen> {
   final _store = RouteStore.instance;
   final _stopController = TextEditingController();
   String? _selectedRouteId;
+  String? _loadError;
 
   @override
   void initState() {
     super.initState();
-    _store.load();
+    _loadRoutes();
+  }
+
+  Future<void> _loadRoutes() async {
+    try {
+      await _store.load(refresh: true);
+      if (mounted) setState(() => _loadError = null);
+    } catch (error) {
+      if (mounted) setState(() => _loadError = error.toString());
+    }
   }
 
   @override
@@ -37,7 +47,12 @@ class _StopsScreenState extends State<StopsScreen> {
       _message('That stop is already on this route.');
       return;
     }
-    await _store.saveRoute(route.copyWith(stops: [...route.stops, stop]));
+    try {
+      await _store.saveRoute(route.copyWith(stops: [...route.stops, stop]));
+    } catch (error) {
+      if (mounted) _message('Stop could not be saved: $error');
+      return;
+    }
     _stopController.clear();
     if (mounted) {
       FocusScope.of(context).unfocus();
@@ -50,15 +65,20 @@ class _StopsScreenState extends State<StopsScreen> {
       _message('A route must keep its origin and destination stops.');
       return;
     }
-    await _store.saveRoute(
-      route.copyWith(stops: route.stops.where((item) => item != stop).toList()),
-    );
+    try {
+      await _store.saveRoute(
+        route.copyWith(
+          stops: route.stops.where((item) => item != stop).toList(),
+        ),
+      );
+    } catch (error) {
+      if (mounted) _message('Stop could not be removed: $error');
+    }
   }
 
   void _message(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -118,7 +138,21 @@ class _StopsScreenState extends State<StopsScreen> {
                     ),
                   const SizedBox(height: 16),
                   Expanded(
-                    child: !_store.isLoaded
+                    child: _loadError != null
+                        ? Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'Could not load routes: $_loadError',
+                                textAlign: TextAlign.center,
+                              ),
+                              TextButton(
+                                onPressed: _loadRoutes,
+                                child: const Text('Retry'),
+                              ),
+                            ],
+                          )
+                        : !_store.isLoaded
                         ? const Center(child: CircularProgressIndicator())
                         : selectedRoute == null
                         ? const Center(
@@ -138,12 +172,11 @@ class _StopsScreenState extends State<StopsScreen> {
                                     child: Text('${index + 1}'),
                                   ),
                                   title: Text(stop),
-                                  trailing: index == 0 ||
-                                          index == selectedRoute.stops.length - 1
-                                      ? const Icon(
-                                          Icons.lock_outline,
-                                          size: 18,
-                                        )
+                                  trailing:
+                                      index == 0 ||
+                                          index ==
+                                              selectedRoute.stops.length - 1
+                                      ? const Icon(Icons.lock_outline, size: 18)
                                       : IconButton(
                                           tooltip: 'Remove stop',
                                           onPressed: () =>

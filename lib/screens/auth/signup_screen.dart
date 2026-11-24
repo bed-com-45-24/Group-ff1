@@ -15,6 +15,7 @@ class _SignupScreenState extends State<SignupScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _authService = AuthService();
@@ -37,12 +38,14 @@ class _SignupScreenState extends State<SignupScreen> {
     try {
       final name = _nameController.text.trim();
       final email = _emailController.text.trim();
+      final phone = _phoneController.text.trim();
       final password = _passwordController.text;
 
       final success = await _authService.signup(
         email,
         password,
         name,
+        phoneNumber: phone,
         role: widget.role,
       );
 
@@ -67,11 +70,11 @@ class _SignupScreenState extends State<SignupScreen> {
           _isLoading = false;
         });
       }
-    } catch (e) {
+    } catch (error) {
       if (!mounted) return;
 
       setState(() {
-        _errorMessage = 'An error occurred. Please try again.';
+        _errorMessage = error.toString();
         _isLoading = false;
       });
     }
@@ -81,6 +84,7 @@ class _SignupScreenState extends State<SignupScreen> {
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -148,7 +152,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       const SizedBox(height: 8),
 
                       const Text(
-                        'Sign up to get started with MOVA',
+                        'Create a passenger account with your Gmail address.',
                         textAlign: TextAlign.center,
                         style: TextStyle(fontSize: 16, color: Colors.black54),
                       ),
@@ -188,7 +192,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         keyboardType: TextInputType.emailAddress,
                         decoration: InputDecoration(
                           labelText: 'Email',
-                          hintText: 'Enter your email',
+                          hintText: 'name@gmail.com',
                           prefixIcon: const Icon(Icons.email_outlined),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -200,11 +204,37 @@ class _SignupScreenState extends State<SignupScreen> {
                           if (value == null || value.trim().isEmpty) {
                             return 'Please enter your email';
                           }
-                          if (!value.contains('@')) {
-                            return 'Please enter a valid email';
+                          final email = value.trim();
+                          if (!RegExp(
+                            r'^[^@\s]+@gmail\.com$',
+                            caseSensitive: false,
+                          ).hasMatch(email)) {
+                            return 'Please enter a valid @gmail.com address';
                           }
                           return null;
                         },
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Phone field stays text to preserve leading zeroes.
+                      TextFormField(
+                        controller: _phoneController,
+                        keyboardType: TextInputType.phone,
+                        decoration: InputDecoration(
+                          labelText: 'Phone Number',
+                          hintText: 'Enter your phone number',
+                          prefixIcon: const Icon(Icons.phone_outlined),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          filled: true,
+                          fillColor: const Color(0xFFF0F0F0),
+                        ),
+                        validator: (value) =>
+                            value == null || value.trim().isEmpty
+                            ? 'Please enter your phone number'
+                            : null,
                       ),
 
                       const SizedBox(height: 20),
@@ -356,8 +386,9 @@ class _SignupScreenState extends State<SignupScreen> {
                       const SizedBox(height: 24),
 
                       // Login link
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           const Text(
                             'Already have an account? ',

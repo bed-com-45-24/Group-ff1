@@ -66,7 +66,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
-                  const Text('Your demonstration e-ticket'),
+                  const Text('Your e-ticket'),
                   const Divider(height: 32),
                   _ticketRow('Reference', booking.reference),
                   _ticketRow(

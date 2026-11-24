@@ -1,15 +1,23 @@
 import 'package:flutter/material.dart';
 
 import 'screens/admin/admin_dashboard_screen.dart';
-import 'screens/auth/role_selection_screen.dart';
 import 'screens/user/home_screen.dart';
 import 'screens/user/search_screen.dart';
 import 'screens/user/results_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/signup_screen.dart';
+import 'data/booking_store.dart';
+import 'data/route_store.dart';
+import 'data/trip_store.dart';
+import 'services/app_config.dart';
 import 'services/auth_service.dart';
 
 void main() {
+  if (AppConfig.backendEnabled) {
+    RouteStore.instance.enableBackend();
+    TripStore.instance.enableBackend();
+    BookingStore.instance.enableBackend();
+  }
   runApp(const MovaApp());
 }
 
@@ -28,18 +36,9 @@ class MovaApp extends StatelessWidget {
       initialRoute: '/',
       routes: {
         '/': (context) => const AuthWrapper(),
-        '/choose-role': (context) => const RoleSelectionScreen(),
         '/home': (context) => const HomeScreen(),
-        '/login': (context) => LoginScreen(
-          role:
-              ModalRoute.of(context)?.settings.arguments as String? ??
-              'passenger',
-        ),
-        '/signup': (context) => SignupScreen(
-          role:
-              ModalRoute.of(context)?.settings.arguments as String? ??
-              'passenger',
-        ),
+        '/login': (context) => const LoginScreen(),
+        '/signup': (context) => const SignupScreen(),
         '/admin': (context) => const AdminDashboardScreen(),
         '/search': (context) => const SearchScreen(),
         '/results': (context) => const ResultsScreen(),
@@ -60,6 +59,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
   bool _isLoading = true;
   bool _isLoggedIn = false;
   String _role = 'passenger';
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -68,15 +68,26 @@ class _AuthWrapperState extends State<AuthWrapper> {
   }
 
   Future<void> _checkAuthStatus() async {
-    final loggedIn = await _authService.isLoggedIn();
-    final role = loggedIn ? await _authService.getUserRole() : null;
-    if (!mounted) return;
-
     setState(() {
-      _isLoggedIn = loggedIn;
-      _role = role ?? 'passenger';
-      _isLoading = false;
+      _isLoading = true;
+      _errorMessage = null;
     });
+    try {
+      final loggedIn = await _authService.isLoggedIn();
+      final role = loggedIn ? await _authService.getUserRole() : null;
+      if (!mounted) return;
+      setState(() {
+        _isLoggedIn = loggedIn;
+        _role = role ?? 'passenger';
+        _isLoading = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = error.toString();
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -85,11 +96,32 @@ class _AuthWrapperState extends State<AuthWrapper> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
+    if (_errorMessage != null) {
+      return Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(_errorMessage!, textAlign: TextAlign.center),
+                const SizedBox(height: 12),
+                FilledButton(
+                  onPressed: _checkAuthStatus,
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     if (_isLoggedIn) {
       return _role == 'admin'
           ? const AdminDashboardScreen()
           : const HomeScreen();
     }
-    return const RoleSelectionScreen();
+    return const LoginScreen();
   }
 }

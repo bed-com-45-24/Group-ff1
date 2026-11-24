@@ -62,7 +62,8 @@ void main() {
     await tester.ensureVisible(secondBookButton);
     await tester.pumpAndSettle();
     await tester.tap(secondBookButton);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
 
     var tripSearch = tester.widget<SelectTripScreen>(
       find.byType(SelectTripScreen),
@@ -76,7 +77,8 @@ void main() {
     await tester.ensureVisible(firstBookButton);
     await tester.pumpAndSettle();
     await tester.tap(firstBookButton);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
 
     tripSearch = tester.widget<SelectTripScreen>(find.byType(SelectTripScreen));
     expect(tripSearch.initialRoute!.name, contains('Map option 1'));

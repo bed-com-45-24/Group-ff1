@@ -66,13 +66,24 @@ const List<String> sampleNotifications = [
       'before travelling.',
 ];
 
+DateTime _sampleTripTime(int hour, int minute) {
+  final travelDate = DateTime.now().add(const Duration(days: 1));
+  return DateTime(
+    travelDate.year,
+    travelDate.month,
+    travelDate.day,
+    hour,
+    minute,
+  );
+}
+
 final List<Trip> sampleTrips = [
   Trip(
     id: 'TRIP001',
     origin: 'Lilongwe',
     destination: 'Blantyre',
-    departureTime: DateTime(2026, 11, 1, 7, 0),
-    arrivalTime: DateTime(2026, 11, 1, 12, 0),
+    departureTime: _sampleTripTime(7, 0),
+    arrivalTime: _sampleTripTime(12, 0),
     fare: 25000,
     totalSeats: Trip.busSeatCapacity,
     bookedSeats: [3, 7, 12],
@@ -84,8 +95,8 @@ final List<Trip> sampleTrips = [
     id: 'TRIP002',
     origin: 'Lilongwe',
     destination: 'Mzuzu',
-    departureTime: DateTime(2026, 11, 1, 8, 30),
-    arrivalTime: DateTime(2026, 11, 1, 13, 0),
+    departureTime: _sampleTripTime(8, 30),
+    arrivalTime: _sampleTripTime(13, 0),
     fare: 18000,
     totalSeats: Trip.busSeatCapacity,
     bookedSeats: [5, 9],
@@ -97,8 +108,8 @@ final List<Trip> sampleTrips = [
     id: 'TRIP003',
     origin: 'Blantyre',
     destination: 'Lilongwe',
-    departureTime: DateTime(2026, 11, 1, 6, 0),
-    arrivalTime: DateTime(2026, 11, 1, 11, 0),
+    departureTime: _sampleTripTime(6, 0),
+    arrivalTime: _sampleTripTime(11, 0),
     fare: 25000,
     totalSeats: Trip.busSeatCapacity,
     bookedSeats: [],

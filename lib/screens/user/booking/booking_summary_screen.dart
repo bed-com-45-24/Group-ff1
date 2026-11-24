@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../models/booking_model.dart';
 import '../../../models/route_model.dart';
+import 'booking_cancel_action.dart';
 import '../payment/payment_method_screen.dart';
 
 class BookingSummaryScreen extends StatelessWidget {
@@ -142,7 +143,10 @@ class BookingSummaryScreen extends StatelessWidget {
         : '${duration.inHours}h ${duration.inMinutes.remainder(60)}m';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Booking Summary')),
+      appBar: AppBar(
+        title: const Text('Booking Summary'),
+        actions: [BookingCancelAction(booking: booking)],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [

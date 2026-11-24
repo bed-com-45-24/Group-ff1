@@ -1,0 +1,9 @@
+.git
+.dart_tool
+android
+.idea
+.vscode
+*.iml
+*.tar
+flutter_*.log
+Group-ff1

@@ -130,4 +130,96 @@ class BookingDraft {
       status: status ?? this.status,
     );
   }
+
+  factory BookingDraft.fromApiJson(Map<String, dynamic> json) {
+    final scheduleValue = json['schedule'] ?? json['trip'];
+    final schedule = scheduleValue is Map
+        ? Map<String, dynamic>.from(scheduleValue)
+        : json;
+    final selectedSeats = _apiSeats(
+      json['selectedSeats'] ?? json['seatNumbers'] ?? json['seats'],
+    );
+    final trip = Trip.fromApiJson(schedule);
+    final snapshot = trip.copyWith(
+      bookedSeats: trip.bookedSeats
+          .where((seat) => !selectedSeats.contains(seat))
+          .toList(),
+    );
+    final passenger = json['passenger'] is Map
+        ? Map<String, dynamic>.from(json['passenger'] as Map)
+        : const <String, dynamic>{};
+    final payment = json['payment'] is Map
+        ? Map<String, dynamic>.from(json['payment'] as Map)
+        : const <String, dynamic>{};
+    final reference =
+        (json['reference'] ?? json['bookingReference'] ?? json['id'])
+            ?.toString();
+    if (reference == null ||
+        reference.trim().isEmpty ||
+        selectedSeats.isEmpty) {
+      throw const FormatException('The API returned an invalid booking.');
+    }
+
+    return BookingDraft(
+      trip: snapshot,
+      reference: reference,
+      selectedSeats: selectedSeats,
+      passengerName: _apiString([json['passengerName'], passenger['name']]),
+      passengerEmail: _apiString([json['passengerEmail'], passenger['email']]),
+      phoneNumber: _apiString([
+        json['phoneNumber'],
+        passenger['phone'],
+        passenger['phoneNumber'],
+      ]),
+      identificationNumber: _apiString([
+        json['identificationNumber'],
+        passenger['identificationNumber'],
+      ]),
+      paymentMethod: _apiString([json['paymentMethod'], payment['method']]),
+      paymentReference: _apiString([
+        json['paymentReference'],
+        payment['reference'],
+      ]),
+      status: _apiStatus(json['status'] ?? json['bookingStatus']),
+    );
+  }
+
+  static List<int> _apiSeats(dynamic value) {
+    if (value is! List) return const [];
+    return value
+        .map((seat) {
+          if (seat is Map) {
+            seat = seat['seatNumber'] ?? seat['number'] ?? seat['seat'];
+          }
+          return seat is num
+              ? seat.toInt()
+              : int.tryParse(seat?.toString() ?? '');
+        })
+        .whereType<int>()
+        .toSet()
+        .toList();
+  }
+
+  static String _apiString(List<dynamic> values) {
+    for (final value in values) {
+      if (value is String && value.trim().isNotEmpty) return value.trim();
+    }
+    return '';
+  }
+
+  static BookingStatus _apiStatus(dynamic value) {
+    final status = value?.toString().trim().toLowerCase();
+    return switch (status) {
+      'draft' || 'pending' || 'created' => BookingStatus.draft,
+      'reviewed' ||
+      'awaiting_payment' ||
+      'awaiting payment' => BookingStatus.reviewed,
+      'paid' || 'payment_received' => BookingStatus.paid,
+      'confirmed' || 'complete' || 'completed' => BookingStatus.confirmed,
+      'cancelled' || 'canceled' => BookingStatus.cancelled,
+      _ => throw const FormatException(
+        'The API returned an invalid booking status.',
+      ),
+    };
+  }
 }

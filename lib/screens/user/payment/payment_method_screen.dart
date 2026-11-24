@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../models/booking_model.dart';
+import '../booking/booking_cancel_action.dart';
 import 'mobile_money_screen.dart';
 import 'card_payment_screen.dart';
 
@@ -12,7 +13,10 @@ class PaymentMethodScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Payment Method')),
+      appBar: AppBar(
+        title: const Text('Payment Method'),
+        actions: [BookingCancelAction(booking: booking)],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(

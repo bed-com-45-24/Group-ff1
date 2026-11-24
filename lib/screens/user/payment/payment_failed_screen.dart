@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../models/booking_model.dart';
+import '../booking/booking_cancel_action.dart';
 import 'payment_method_screen.dart';
 
 class PaymentFailedScreen extends StatelessWidget {
@@ -16,7 +17,10 @@ class PaymentFailedScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Payment Failed')),
+      appBar: AppBar(
+        title: const Text('Payment Failed'),
+        actions: [BookingCancelAction(booking: booking)],
+      ),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),

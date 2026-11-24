@@ -29,8 +29,9 @@ class RouteDirectionsDetailsScreen extends StatelessWidget {
     final routeForSummary = configuredRoute?.copyWith(
       duration: route.durationLabel,
       mapDistance: route.distanceLabel,
-      fareIsEstimate: false,
     );
+    final hasPublishedFare =
+        configuredRoute != null && !configuredRoute!.fareIsEstimate;
     return Scaffold(
       appBar: AppBar(title: const Text('Full route details')),
       body: ListView(
@@ -139,9 +140,9 @@ class RouteDirectionsDetailsScreen extends StatelessWidget {
                 const SizedBox(height: 12),
                 _RouteMetric(
                   icon: Icons.payments_outlined,
-                  label: configuredRoute == null
-                      ? 'Estimated fare (Malawi kwacha)'
-                      : 'Administrator-set fare',
+                  label: hasPublishedFare
+                      ? 'Administrator-set fare'
+                      : 'Estimated fare (Malawi kwacha)',
                   value: 'MWK ${estimatedFare.toStringAsFixed(0)}',
                 ),
                 const SizedBox(height: 20),

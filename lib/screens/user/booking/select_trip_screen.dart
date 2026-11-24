@@ -4,6 +4,7 @@ import '../../../data/booking_store.dart';
 import '../../../data/trip_store.dart';
 import '../../../models/route_model.dart';
 import '../../../models/trip_model.dart';
+import 'booking_cancel_action.dart';
 import 'seat_selection_screen.dart';
 
 class SelectTripScreen extends StatefulWidget {
@@ -87,7 +88,10 @@ class _SelectTripScreenState extends State<SelectTripScreen> {
       _scheduleLoadError = null;
     });
     try {
-      await Future.wait([_tripStore.load(), BookingStore.instance.load()]);
+      await Future.wait([
+        _tripStore.load(refresh: true),
+        BookingStore.instance.load(refresh: true),
+      ]);
       if (!mounted || requestId != _scheduleRequestId) return;
       setState(() {
         _routeTrips = _matchingTripsForRoute(
@@ -236,7 +240,10 @@ class _SelectTripScreenState extends State<SelectTripScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: widget.showAppBar
-          ? AppBar(title: const Text('Book a Trip'))
+          ? AppBar(
+              title: const Text('Book a Trip'),
+              actions: const [BookingCancelAction()],
+            )
           : null,
       body: Form(
         key: _formKey,
